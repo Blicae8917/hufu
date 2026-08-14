@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1",
+  "task_id": "example-001",
+  "project": {
+    "id": "example-project",
+    "repository": "https://example.com/example/project.git"
+  },
+  "source": "native",
+  "objective": "Validate the public task-envelope contract.",
+  "authorization_scope": [
+    "read this repository",
+    "run local tests"
+  ],
+  "terminal_conditions": [
+    "the contract is valid",
+    "the result remains available for human review"
+  ]
+}
