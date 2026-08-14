@@ -10,10 +10,10 @@
 
 ## Human decisions before the next slice
 
-- [ ] Confirm the public product and repository names.
-- [ ] Confirm Apache License 2.0 as the release license.
+- [x] Confirm the public product name `Hufu` and repository name `hufu`.
+- [x] Confirm Apache License 2.0 as the release license.
 - [ ] Decide whether Slice 1 should be tested on a real low-risk workflow.
-- [ ] Decide when to create a public remote and first commit.
+- [x] Create the public GitHub repository and publish the first commit (2026-08-14).
 
 ## Explicitly deferred
 
