@@ -1,5 +1,21 @@
 # 设计评审说明（0.1.0 候选设计正本 · 供对侧综合评估）
 
+> **裁决状态（2026-08-15 设计收口）**：本文件已完成逐条裁决，采纳结论已落入正本，
+> 本文件自此仅为历史记录，不得再被引用为依据。
+>
+> - Q1 → 已裁决：`0.1.0` 核心与 Standalone 零 Cordis；DeepSeek Profile 引入
+>   `@deepseek-ai/cordis`（ADR 0003「Cordis 实现身份」）。
+> - Q2 → 已裁决：单操作者/单安装边界，角色唯一性为回放检测（SPEC、ARCHITECTURE）。
+> - Q3 → 已裁决：读时 upcast + fail closed；`0.0.1` 迁移仅为信封 Schema 映射（SPEC）。
+> - Q4 → 已裁决：接受不对称；入站可观测性矩阵入 COMPATIBILITY。
+> - S1 → 采纳：版本化夹具 + 规范化结构相等（ADR 0003、ARCHITECTURE 原正本已含）。
+> - S2 → 采纳：外部文本为不可信引用数据（正本已含）；注入契约测试入后续 Module 验收。
+> - S3 → 采纳：Ledger 工程语义收口段（ARCHITECTURE）。
+> - S4 → 采纳：`external_ref` URI scheme（SPEC）。
+> - S5 → 采纳：Projection 刷新策略（SPEC）。
+> - S6 → 采纳：LoopX 机制目录定位与词汇映射（ADR 0003、ARCHITECTURE）。
+> - S7 → 采纳：迁移措辞修正（SPEC）与 Host 分级观察（COMPATIBILITY）。
+
 - 状态：设计评审沟通稿，非正式合同
 - 日期：2026-08-15
 - 用途：配合候选 ADR 0003 与 `0.1.0` 设计正本收敛，供对侧设计负责人综合评估。本文全部内容
