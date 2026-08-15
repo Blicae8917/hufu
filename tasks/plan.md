@@ -1,50 +1,22 @@
-# Incremental implementation plan
+# 历史计划指针
 
-## Slice 0 — Repository and task contract
+状态：自 2026-08-14 起不再作为活跃规划正本
 
-Status: implemented locally
+本文件保留 Hufu 在采用 Spec Kit 前的规划位置。它不是活跃计划、Backlog、授权来源或进度跟踪器。
 
-- Establish neutral public project identity and boundaries.
-- Validate native and external task envelopes.
-- Provide deterministic CLI output and failure exit codes.
-- Add dependency-free unit and command tests.
+## 当前正本
 
-Acceptance: all local tests, smoke check, version check, and content-safety scans pass.
+- GitHub Milestone 和 Module Issue 拥有交付进度及依赖状态。
+- 路线图或集合 Issue 只提供 Module Issue 索引和依赖图，不复制子 Issue 状态。
+- `specs/<feature>/spec.md` 拥有已接受的功能合同。
+- 同一功能目录中的 `plan.md` 和 `tasks.md` 拥有该功能的设计及可执行任务拆解。
+- `.specify/memory/constitution.md`、已接受 ADR、`docs/SPEC.md` 和
+  `docs/ARCHITECTURE.md` 管理项目级不变量和边界。
 
-## Slice 1 — Typed evidence receipt
+## 历史记录
 
-Status: proposed; not authorized for implementation
+最初的本地计划建立了公开 `0.0.1` 基线：供应商中立的 `TaskEnvelope`、确定性验证 CLI
+和无运行时依赖的测试。它还把类型化 Receipt、Provider Projection 和 Effect 恢复记录为未来候选切片。
 
-- Define a small receipt claim taxonomy.
-- Bind each receipt to task, run, target, input identity, and time.
-- Keep dirty or uncommitted code distinguishable from a clean committed snapshot.
-- Prove stale evidence is rejected when target identity changes.
-
-Stop and evaluate whether the receipt reduces reviewer effort before continuing.
-
-## Slice 2 — Read-only provider projection
-
-Status: deferred
-
-- Select one public provider interface.
-- Read task identity and state without write-back.
-- Map provider data into `TaskEnvelope` without duplicating provider status.
-- Add recorded-fixture contract tests and explicit freshness behavior.
-
-## Slice 3 — Effect journal and recovery
-
-Status: deferred until a real side-effecting use case exists
-
-- Define `effect_id`, causal ordering, and readback result.
-- Demonstrate recovery after interruption without repeating a confirmed effect.
-- State and test the limits: no exactly-once guarantee and no authorization from journal state.
-
-## Later candidates
-
-- Optional policy packs.
-- Durable-engine adapter.
-- Agent-runner adapters.
-- Event projection and web console.
-- Inter-agent protocol adapter.
-
-These are candidates, not commitments.
+这些候选切片只是规划输入。本文件不授权其中任何一项工作。
+后续实现必须从已接受的 GitHub Module Issue 和对应 Spec Kit 功能目录开始。

@@ -1,15 +1,20 @@
-# Changelog
+# 变更日志
 
-All notable changes will be documented in this file.
+本文件记录项目中所有值得关注的变更。
 
-## [Unreleased]
+## [0.1.0] - 未发布
 
-### Added
+### 新增
 
-- Provider-neutral product specification and architecture boundaries.
-- Minimal task-envelope contract and local validation CLI.
-- Unit and command-level tests with no runtime dependencies.
+- 中文产品规范、架构说明、Constitution、ADR 0001–0005 与上游兼容性基线的候选设计正本。
+- `0.1.0` 发布门收敛为只读影子纵切：四个有界命令、`local` 与本仓库 GitHub 只读投影、
+  三轴 CurrentView；其余能力转为发布门之后的独立 Module。
+
+### 变更
+
+- 发行包名由 `hufu-console` 改为 `hufu`。
 
 ## [0.0.1] - 2026-08-13
 
-- Initial local open-source project skeleton.
+- 建立最初的本地开源项目骨架：最小 `TaskEnvelope` 合同、本地验证 CLI
+  和无运行时依赖的测试。

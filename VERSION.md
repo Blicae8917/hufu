@@ -1,5 +1,16 @@
-# Version
+# 版本
 
-Current version: `0.0.1`
+当前开发版本：`0.1.0`（尚未发布）
+<!-- Current version: `0.1.0` -->
 
-The project follows Semantic Versioning. The contract may change before `1.0.0`.
+当前批准的版本系列：`0.1.x`。最近的历史发布基线为 `0.0.1`；`0.1.0` 必须完成对应验收后
+才能标记为正式发布。
+
+项目版本格式为 `MAJOR.MINOR.PATCH`：
+
+- `MAJOR`：正式版，只能由人类维护者明确决定和提升；
+- `MINOR`：中间修订版，只能由人类维护者明确决定和提升；
+- `PATCH`：小补丁，Agent 可以在已批准的 `MAJOR.MINOR` 系列内根据已接受变更依次提升。
+
+Agent 不得根据功能规模、兼容性变化或 Semantic Versioning 惯例自行进入新的 `MAJOR.MINOR` 系列。
+合同在 `1.0.0` 前可能发生变化，但该事实本身不授权提升版本前两位。
