@@ -114,7 +114,7 @@ describe("hufu connect", () => {
       const body = parseStdout(result.stdout);
       assert.equal(body["ok"], false);
       const error = body["error"] as Record<string, unknown>;
-      assert.equal(error["code"], "TASK_AUTHORITY_UNSUPPORTED");
+      assert.equal(error["code"], "REPOSITORY_NOT_ALLOWED");
       assert.equal(existsSync(join(dir, ".hufu")), false);
     });
   });

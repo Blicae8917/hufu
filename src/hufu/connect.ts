@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
+import { parseThisPublicGithubRepository } from "./github-ref.js";
 import { type EventDraft, mutateLedger } from "./storage.js";
 
 export interface ConnectInput {
@@ -16,17 +17,19 @@ export interface ConnectInput {
 
 export interface ConnectResult {
   readonly project_id: string;
-  readonly task_authority: "local";
+  readonly task_authority: "local" | "github";
   readonly commander_id: string;
   readonly grant_id: string;
   readonly grant_revision: number;
   readonly project_lead_binding_id: string;
   readonly ledger_seq_end: number;
+  readonly repository_canonical?: string;
 }
 
 interface NormalizedConnect {
   readonly projectId: string;
   readonly repository: string;
+  readonly taskAuthority: "local" | "github";
   readonly commander: string;
   readonly projectLead: string;
   readonly grantScope: string;
@@ -75,14 +78,20 @@ export function connectWorkspace(
 
 function normalizeConnectInput(input: ConnectInput): NormalizedConnect {
   const projectId = requiredName(input.projectId, "project-id");
-  const repository = requiredName(input.repository, "repository");
   const commander = requiredName(input.commander, "commander");
   const grantScope = requiredName(input.grantScope, "grant-scope");
-  const taskAuthority = requiredName(input.taskAuthority, "task-authority");
-  if (taskAuthority !== "local") {
+  const requestedAuthority = requiredName(input.taskAuthority, "task-authority");
+  let taskAuthority: "local" | "github";
+  let repository = requiredName(input.repository, "repository");
+  if (requestedAuthority === "local") {
+    taskAuthority = "local";
+  } else if (requestedAuthority === "github") {
+    taskAuthority = "github";
+    repository = parseThisPublicGithubRepository(repository);
+  } else {
     throw new CommandError(
       "TASK_AUTHORITY_UNSUPPORTED",
-      `task_authority ${taskAuthority} is not supported in this module`,
+      `task_authority ${requestedAuthority} is not supported in this module`,
     );
   }
   let grantExpires: string | undefined;
@@ -102,6 +111,7 @@ function normalizeConnectInput(input: ConnectInput): NormalizedConnect {
   return {
     projectId,
     repository,
+    taskAuthority,
     commander,
     projectLead,
     grantScope,
@@ -149,7 +159,7 @@ function buildBootstrapDrafts(input: NormalizedConnect): EventDraft[] {
         project_id: input.projectId,
         repository: input.repository,
         stale_after_hours: 24,
-        task_authority: "local",
+        task_authority: input.taskAuthority,
       },
     },
     {
@@ -221,7 +231,7 @@ function bootstrapMatches(
   return (
     existing.connected.payload["project_id"] === input.projectId &&
     existing.connected.payload["repository"] === input.repository &&
-    existing.connected.payload["task_authority"] === "local" &&
+    existing.connected.payload["task_authority"] === input.taskAuthority &&
     existing.commander.payload["commander_id"] === input.commander &&
     existing.grant.payload["scope_text"] === input.grantScope &&
     existing.grant.payload["expires_at"] === input.grantExpires &&
@@ -234,13 +244,19 @@ function toResult(
   bootstrap: BootstrapEvents,
 ): ConnectResult {
   const last = events[events.length - 1];
-  return {
+  const taskAuthority = bootstrap.connected.payload["task_authority"];
+  const repository = String(bootstrap.connected.payload["repository"]);
+  const result: ConnectResult = {
     project_id: String(bootstrap.connected.payload["project_id"]),
-    task_authority: "local",
+    task_authority: taskAuthority === "github" ? "github" : "local",
     commander_id: String(bootstrap.commander.payload["commander_id"]),
     grant_id: String(bootstrap.grant.payload["grant_id"]),
     grant_revision: Number(bootstrap.grant.payload["revision"]),
     project_lead_binding_id: String(bootstrap.lead.payload["binding_id"]),
     ledger_seq_end: last?.ledger_seq ?? 4,
   };
+  if (taskAuthority === "github") {
+    return { ...result, repository_canonical: repository };
+  }
+  return result;
 }

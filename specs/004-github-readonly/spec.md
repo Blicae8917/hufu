@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-15
 
-**Status**: Draft
+**Status**: Accepted
 
 **Input**: User description: "GitHub Module Issue #4（M3）：为本仓库增加 GitHub 只读投影，并用本项目自身验证与本机账本同一套 CurrentView。每个已连接项目恰好一个任务正本；外部工作项带来源链接、观测时间和时效；status 默认读本地缓存，只有显式刷新才访问网络；失败时保留旧观测，不伪造时效、不写回议题、不把议题正文写入指令或授权。"
 

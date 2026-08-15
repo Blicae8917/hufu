@@ -10,6 +10,8 @@ export const ERROR_CODES = [
   "OBSERVATION_UNAVAILABLE",
   "DATA_INSUFFICIENT",
   "GRANT_SCOPE_EXCEEDED",
+  "REPOSITORY_NOT_ALLOWED",
+  "EXTERNAL_REF_INVALID",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -30,6 +32,8 @@ const EXIT_CODE_2: ReadonlySet<ErrorCode> = new Set([
   "TASK_AUTHORITY_UNSUPPORTED",
   "SCHEMA_UNSUPPORTED",
   "GRANT_SCOPE_EXCEEDED",
+  "REPOSITORY_NOT_ALLOWED",
+  "EXTERNAL_REF_INVALID",
 ]);
 
 const EXIT_CODE_3: ReadonlySet<ErrorCode> = new Set([

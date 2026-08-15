@@ -1,0 +1,27 @@
+[
+  {
+    "number": 4,
+    "title": "M3：本仓 GitHub 只读投影",
+    "html_url": "https://github.com/Blicae8917/hufu/issues/4",
+    "state": "open",
+    "updated_at": "2026-08-15T22:00:00Z",
+    "body": "THIS BODY MUST NOT REACH CURRENT VIEW OR HANDOFF"
+  },
+  {
+    "number": 12,
+    "title": "A pull request disguised as an issue",
+    "html_url": "https://github.com/Blicae8917/hufu/pull/12",
+    "state": "open",
+    "pull_request": {
+      "url": "https://api.github.com/repos/Blicae8917/hufu/pulls/12"
+    },
+    "body": "pr body"
+  },
+  {
+    "number": 3,
+    "title": "M2：本机账本与四个有界命令",
+    "html_url": "https://github.com/Blicae8917/hufu/issues/3",
+    "state": "closed",
+    "updated_at": "2026-08-15T21:00:00Z"
+  }
+]

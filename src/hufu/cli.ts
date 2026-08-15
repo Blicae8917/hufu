@@ -29,7 +29,7 @@ interface ParsedArgs {
   readonly switches: Set<string>;
 }
 
-export function main(argv: string[]): number {
+export async function main(argv: string[]): Promise<number> {
   const command = argv[0];
   if (command === "validate") {
     return runValidate(argv.slice(1));
@@ -76,9 +76,9 @@ function runValidate(argv: string[]): number {
   }
 }
 
-function runJsonCommand(fn: () => unknown): number {
+async function runJsonCommand(fn: () => unknown | Promise<unknown>): Promise<number> {
   try {
-    const result = fn();
+    const result = await fn();
     process.stdout.write(`${stableStringify({ ok: true, result })}\n`);
     return 0;
   } catch (error) {
@@ -128,19 +128,12 @@ function runDoctor(args: ParsedArgs): unknown {
   });
 }
 
-function runStatus(args: ParsedArgs): unknown {
+async function runStatus(args: ParsedArgs): Promise<unknown> {
   assertNoPositionals(args);
-  for (const flag of [...Object.keys(args.options), ...args.switches]) {
-    if (REFRESH_FLAGS.has(flag)) {
-      throw new CommandError(
-        "CONTRACT_INVALID",
-        "explicit refresh is not available in this module",
-      );
-    }
-  }
-  rejectUnknownOptions(args.options, []);
-  rejectUnknownSwitches(args.switches);
-  return statusWorkspace(process.cwd());
+  const refresh = hasRefreshFlag(args);
+  rejectUnknownOptions(args.options, refresh ? [...REFRESH_FLAGS] : []);
+  rejectUnknownSwitches(args.switches, refresh ? [...REFRESH_FLAGS] : []);
+  return statusWorkspace(process.cwd(), { refresh });
 }
 
 function runHandoff(args: ParsedArgs): unknown {
@@ -214,18 +207,18 @@ function assertNoPositionals(args: ParsedArgs): void {
   }
 }
 
+function hasRefreshFlag(args: ParsedArgs): boolean {
+  return [...Object.keys(args.options), ...args.switches].some((flag) =>
+    REFRESH_FLAGS.has(flag),
+  );
+}
+
 function rejectUnknownOptions(
   options: Record<string, string>,
   allowed: readonly string[],
 ): void {
   const allowedSet = new Set(allowed);
   for (const name of Object.keys(options)) {
-    if (REFRESH_FLAGS.has(name)) {
-      throw new CommandError(
-        "CONTRACT_INVALID",
-        "explicit refresh is not available in this module",
-      );
-    }
     if (!allowedSet.has(name)) {
       throw new CommandError("CONTRACT_INVALID", `unknown option --${name}`);
     }
@@ -238,10 +231,10 @@ function rejectUnknownSwitches(
 ): void {
   const allowedSet = new Set(allowed);
   for (const name of switches) {
-    if (REFRESH_FLAGS.has(name)) {
+    if (REFRESH_FLAGS.has(name) && !allowedSet.has(name)) {
       throw new CommandError(
         "CONTRACT_INVALID",
-        "explicit refresh is not available in this module",
+        "explicit refresh is not available for this command",
       );
     }
     if (!allowedSet.has(name)) {

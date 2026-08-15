@@ -26,6 +26,22 @@ interface ImportMeta {
   readonly url: string;
 }
 
+interface Headers {
+  get(name: string): string | null;
+}
+
+interface Response {
+  readonly ok: boolean;
+  readonly status: number;
+  readonly headers: Headers;
+  json(): Promise<unknown>;
+}
+
+declare function fetch(
+  input: string,
+  init?: { method?: string; headers?: Record<string, string> },
+): Promise<Response>;
+
 declare module "node:assert/strict" {
   function equal(actual: unknown, expected: unknown, message?: string): void;
   function notEqual(actual: unknown, expected: unknown, message?: string): void;
@@ -40,6 +56,14 @@ declare module "node:assert/strict" {
       | ((error: unknown) => boolean),
     message?: string,
   ): void;
+  function rejects(
+    block: Promise<unknown> | (() => Promise<unknown>),
+    error?:
+      | RegExp
+      | Function
+      | ((error: unknown) => boolean),
+    message?: string,
+  ): Promise<void>;
   function doesNotMatch(value: string, regexp: RegExp, message?: string): void;
   export {
     deepEqual,
@@ -48,6 +72,7 @@ declare module "node:assert/strict" {
     match,
     notEqual,
     ok,
+    rejects,
     throws,
   };
 }

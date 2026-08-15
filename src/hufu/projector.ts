@@ -1,5 +1,6 @@
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
+import { type ProjectionCache } from "./projection-cache.js";
 
 export type FactClass = "authoritative" | "observed" | "derived";
 export type Availability =
@@ -8,6 +9,7 @@ export type Availability =
   | "data_insufficient"
   | "conflict";
 export type Freshness = "fresh" | "stale" | "unknown" | "not_applicable";
+export type TaskAuthority = "local" | "github";
 
 export interface FactSlot<T> {
   readonly availability: Availability;
@@ -22,8 +24,11 @@ export interface WorkItemView {
     handoff_id: string;
     remaining: string;
   }>;
+  readonly native_state?: FactSlot<string>;
   readonly objective: string;
+  readonly original_url?: string;
   readonly owner: FactSlot<{ binding_id: string; principal_id: string }>;
+  readonly observed_at?: FactSlot<string>;
   readonly work_item_id: string;
 }
 
@@ -46,13 +51,20 @@ export interface CurrentView {
   readonly project_lead: FactSlot<{ binding_id: string; principal_id: string }>;
   readonly run: FactSlot<null>;
   readonly session: FactSlot<null>;
-  readonly task_authority: FactSlot<"local">;
+  readonly task_authority: FactSlot<TaskAuthority>;
   readonly view_schema_version: 1;
+  readonly work_item_set: FactSlot<{ count: number; incomplete: boolean }>;
   readonly work_items: readonly WorkItemView[];
+}
+
+export interface ProjectViewOptions {
+  readonly cache?: ProjectionCache;
+  readonly now?: Date;
 }
 
 export function projectCurrentView(
   events: readonly EventEnvelope[],
+  options: ProjectViewOptions = {},
 ): CurrentView {
   const connected = lastOfType(events, "hufu/project.connected");
   if (connected === undefined) {
@@ -62,10 +74,10 @@ export function projectCurrentView(
     );
   }
   const taskAuthority = connected.payload["task_authority"];
-  if (taskAuthority !== "local") {
+  if (taskAuthority !== "local" && taskAuthority !== "github") {
     throw new CommandError(
       "TASK_AUTHORITY_UNSUPPORTED",
-      "only local task_authority can be projected in this module",
+      "only local and github task_authority can be projected in this module",
     );
   }
 
@@ -80,14 +92,26 @@ export function projectCurrentView(
       event.payload["role"] === "project_lead",
   );
   const currentLeads = currentProjectLeads(leadBindings);
-  const opened = events.filter(
-    (event) => event.event_type === "hufu/work_item.opened",
-  );
   const handoffs = events.filter(
     (event) => event.event_type === "hufu/handoff.recorded",
   );
   const latestHandoff = handoffs[handoffs.length - 1];
   const last = events[events.length - 1];
+  const staleAfterHours = Number(connected.payload["stale_after_hours"] ?? 24);
+  const now = options.now ?? new Date();
+  const workItems =
+    taskAuthority === "github"
+      ? githubWorkItems(options.cache, handoffs, now, staleAfterHours)
+      : events
+          .filter((event) => event.event_type === "hufu/work_item.opened")
+          .map((item) => workItemView(item, events, handoffs));
+  const workItemSet = githubWorkItemSet(
+    taskAuthority,
+    options.cache,
+    workItems.length,
+    now,
+    staleAfterHours,
+  );
 
   return {
     authorization_grant: grantSlot(currentGrant),
@@ -115,16 +139,98 @@ export function projectCurrentView(
     run: missingNull("observed", "unavailable"),
     session: missingNull("observed", "unavailable"),
     task_authority: slot(
-      "local",
+      taskAuthority,
       "authoritative",
       "available",
       "not_applicable",
     ),
     view_schema_version: 1,
-    work_items: opened.map((item) =>
-      workItemView(item, events, handoffs),
-    ),
+    work_item_set: workItemSet,
+    work_items: workItems,
   };
+}
+
+function githubWorkItemSet(
+  taskAuthority: TaskAuthority,
+  cache: ProjectionCache | undefined,
+  count: number,
+  now: Date,
+  staleAfterHours: number,
+): FactSlot<{ count: number; incomplete: boolean }> {
+  if (taskAuthority !== "github") {
+    return slot(
+      { count, incomplete: false },
+      "authoritative",
+      "available",
+      "not_applicable",
+    );
+  }
+  if (cache === undefined) {
+    return missing("observed", "data_insufficient");
+  }
+  const freshness = freshnessFor(cache.observed_at, now, staleAfterHours);
+  const availability = cache.incomplete ? "data_insufficient" : "available";
+  return slot(
+    { count, incomplete: cache.incomplete },
+    "observed",
+    availability,
+    freshness,
+  );
+}
+
+function githubWorkItems(
+  cache: ProjectionCache | undefined,
+  handoffs: readonly EventEnvelope[],
+  now: Date,
+  staleAfterHours: number,
+): WorkItemView[] {
+  if (cache === undefined) {
+    return [];
+  }
+  const freshness = freshnessFor(cache.observed_at, now, staleAfterHours);
+  return cache.items.map((item) => {
+    const itemHandoff = lastMatching(
+      handoffs,
+      (event) => event.payload["work_item_id"] === item.external_ref,
+    );
+    return {
+      latest_handoff:
+        itemHandoff === undefined
+          ? missing("observed", "data_insufficient")
+          : slot(
+              {
+                completed: String(itemHandoff.payload["completed"]),
+                handoff_id: String(itemHandoff.payload["handoff_id"]),
+                remaining: String(itemHandoff.payload["remaining"]),
+              },
+              "observed",
+              "available",
+              "fresh",
+            ),
+      native_state: slot(item.native_state, "observed", "available", freshness),
+      objective: item.title,
+      original_url: item.original_url,
+      owner: missing("authoritative", "data_insufficient"),
+      observed_at: slot(cache.observed_at, "observed", "available", freshness),
+      work_item_id: item.external_ref,
+    };
+  });
+}
+
+function freshnessFor(
+  observedAt: string,
+  now: Date,
+  staleAfterHours: number,
+): Freshness {
+  const observedMs = Date.parse(observedAt);
+  if (Number.isNaN(observedMs)) {
+    return "unknown";
+  }
+  const ageMs = now.getTime() - observedMs;
+  if (ageMs > staleAfterHours * 60 * 60 * 1000) {
+    return "stale";
+  }
+  return "fresh";
 }
 
 function workItemView(
