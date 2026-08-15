@@ -1,24 +1,9 @@
-# Task list
+# 历史任务快照
 
-## Completed locally
+状态：自 2026-08-14 起关闭为活跃任务清单
 
-- [x] Public product boundary and non-goals.
-- [x] Minimal `TaskEnvelope` contract.
-- [x] Native and external source validation.
-- [x] Validation CLI and seven automated tests.
-- [x] Public contribution, security, version, and license files.
+本快照记录了 Hufu 在采用 Spec Kit 功能流程前已经完成的事项：公开名称、Apache-2.0 License、
+仓库基线、最小 `TaskEnvelope`、验证 CLI、7 项测试、贡献策略、安全策略和首次公开 GitHub 发布。
 
-## Human decisions before the next slice
-
-- [x] Confirm the public product name `Hufu` and repository name `hufu`.
-- [x] Confirm Apache License 2.0 as the release license.
-- [ ] Decide whether Slice 1 should be tested on a real low-risk workflow.
-- [x] Create the public GitHub repository and publish the first commit (2026-08-14).
-
-## Explicitly deferred
-
-- [ ] Provider integration.
-- [ ] Durable engine, scheduler, quota, or heartbeat.
-- [ ] Agent runner integration.
-- [ ] Web console.
-- [ ] Production deployment.
+本文件没有活跃任务。GitHub Issue 是进度正本；每项已接受 Module 的合同和依赖有序工作都位于
+`specs/`。路线图或集合 Issue 只提供索引，不拥有第二份任务状态。最初快照中的推迟事项不授予实现权限。

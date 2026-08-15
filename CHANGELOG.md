@@ -1,15 +1,15 @@
-# Changelog
+# 变更日志
 
-All notable changes will be documented in this file.
+本文件记录项目中所有值得关注的变更。
 
-## [Unreleased]
+## [0.1.0] - 未发布
 
-### Added
+### 新增
 
-- Provider-neutral product specification and architecture boundaries.
-- Minimal task-envelope contract and local validation CLI.
-- Unit and command-level tests with no runtime dependencies.
+- 供应商中立的产品规范和架构边界。
+- 最小任务信封合同和本地验证 CLI。
+- 无运行时依赖的单元测试与命令级测试。
 
 ## [0.0.1] - 2026-08-13
 
-- Initial local open-source project skeleton.
+- 建立最初的本地开源项目骨架。

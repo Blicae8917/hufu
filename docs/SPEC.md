@@ -1,107 +1,394 @@
-# Product Specification
+# 产品规范
 
-Status: accepted for the `0.0.x` contract phase
-Last updated: 2026-08-13
+状态：候选，待 `0.1.0` 设计 Pull Request 接受
+最后更新：2026-08-15
 
-## Objective
+## 产品目标
 
-Build a provider-neutral task coordination core that lets AI agents resume work, produce reviewable evidence, and hand off safely without forcing users to maintain the same task state in two systems.
+Hufu 是一个 Cordis-first、供应商中立的 AI Agent 交付协调插件系统。它为操作者提供目标、授权、
+任务正本、责任角色、当前执行事实、证据、阻塞和交接的一体化可追溯视图，同时避免创建第二套事实正本。
 
-## Users and primary jobs
+Hufu 可以随已接受的 Engine 和 Runtime 能力逐步提高自治程度，但 `0.1.0` 不是无人值守控制平面；
+它不会推导授权、静默复制 Provider 状态、后台调度或自动启动 Agent。
 
-- A project maintainer wants one view of objective, authorization, current run, evidence, and handoff.
-- An agent runner needs an explicit input contract and stop conditions.
-- An adapter author needs to map an external tracker without stealing ownership of its state.
-- A reviewer needs to know what was verified, against which target, and in what causal order.
+Hufu 还要让同一项裁决跨 PM、执行 Leader、Session 换届和不同 Renderer 传递时不再反复改写。
+它把人类已作出的可执行裁决保存为一份 canonical `DECISION_PACKET`，下游只附加执行引用、路线确认
+和事实、决策、效果增量；这里的“零拷贝”指决策语义只有一份正本，不承诺操作系统或缓存层的字节零复制。
 
-## Technology choices
+`0.1.0` 的迁移目标是兼容“外部 Issue 正本 + 人工 PM 协调”的现有项目。Hufu 先以只读影子模式
+生成统一当前视图和交接事实，经过代表性试点证明净收益后，才逐步替代人工状态汇总、催办和交接整理；
+它不替代外部 Issue 生命周期、人类授权、代码审查或发布门禁。
 
-- Python 3.11 or newer.
-- Standard library only for the initial runtime.
-- JSON as the first interchange format.
-- Immutable dataclasses at validated contract boundaries.
-- `unittest` for initial automated checks.
+## 用户与核心工作
 
-These choices minimize installation cost while the core contracts are still changing.
+| 用户 | 核心工作 |
+| --- | --- |
+| `commander` | 确定最终目标和授权边界，并审阅重大变更。 |
+| `advisor` | 作为一个 Project 的唯一人类交互参谋，澄清目标、提出路线和换届建议，但不拥有交付。 |
+| `project_lead` | 维护项目的唯一当前视图、暴露风险并协调下一步。 |
+| `mission_lead` | 集成横跨多个 WorkItem 的临时 Mission。 |
+| `owner` | 在已接受范围内执行一个 WorkItem，并产出 Evidence 或 Handoff。 |
+| `auditor` | 在风险需要职责分离时独立验证敏感结论。 |
 
-## Core objects
+操作者的主要工作是：
 
-| Object | Owns | Does not own |
+1. 连接仓库并声明唯一任务正本。
+2. 判断任务事实是权威值、派生值、新鲜值、过期值还是不可用值。
+3. 查看唯一当值 Project Lead 以及每个可执行 WorkItem 的唯一 Owner。
+4. 理解依赖、阻塞、Evidence、ETA 和下一项已授权动作。
+5. 生成一段可以粘贴到目标 Agent Workspace 的有界指令。
+6. 在 Session 或 Owner 换届后继续工作，而不重建任务或授权。
+7. 对高影响、高不确定性或证据冲突的决策提出有界会商，但仍由 `commander` 裁决。
+8. 把已经裁决的目标、目标态和验收按引用交给执行者，并在开工前发现真实范围缺口。
+9. 在实现活动持续增长却没有可确认 durable Effect 时停止沉没实现，回到最短安全路线。
+
+## 使用模式与 Host 边界
+
+Hufu 的目标使用模式是 Cordis 插件组合，而不是让每个 Host 分别实现一套 Hufu 逻辑：
+
+- 在 DeepSeek Harness 中，Hufu 作为原生 `dsh-plugin` 加载，通过公开的 Service、Event、Session、
+  Storage 和 Tool 边界工作；
+- 在 Codex、Claude、Kimi、Grok Build 等 Host 中，Standalone Profile 先组装同一组 Hufu Service，
+  让 Host 通过 Skill、Command 或 CLI 调用；创建、继续和投递 Host Session 的出站 RuntimeProvider
+  属于后续独立能力；
+- Host Skill、模型 Tool、CLI、MCP 和 Web 是不同 Consumer，共享同一 CurrentView 和有界 Command，
+  不得互相解析展示文本或复制业务状态。
+
+每次接入必须区分 AgentIdentity、RoleBinding 和 SessionBinding。用户在提示词中声明“担任参谋”
+只是角色申请；只有现有授权范围内的当值绑定才能让该 Session 以 `advisor`、`project_lead` 或其他角色工作。
+DeepSeek Harness 或其他 Host 都不是任务正本，Hufu 也不修改其 Agent Loop。
+
+一次动作的有效权限是 `commander` 明示授权、Hufu 结构化 `authorization_scope`、RoleBinding 资源范围、
+Host 实际能力以及操作系统、沙箱和审批策略的交集。任何 Adapter 都不能扩大其中任一边界。
+
+## 任务正本模型
+
+每个已连接 Project 恰有一个 `task_authority`：
+
+| 正本 | 生命周期所有者 | Hufu 行为 |
 | --- | --- | --- |
-| `ProjectRef` | Stable project identity and repository reference | Repository configuration or credentials |
-| `TaskEnvelope` | Objective, source, authorization scope, terminal conditions | External tracker status |
-| `Run` (planned) | One execution attempt and its input identity | Long-lived task authority |
-| `Effect` (planned) | A stable identity for an external side effect | A claim that the effect occurred exactly once |
-| `Receipt` (planned) | A typed validation claim tied to a target | Business completion by implication |
-| `JournalEntry` (planned) | Causal record of attempted phases | Authorization or proof that an unrecorded effect did not occur |
-| `Handoff` (planned) | Completed work, remaining work, risk, next review point | New execution authority |
+| `github` | GitHub Issue | 提供带原始链接和 freshness 的只读 Projection。 |
+| `gitlab` | GitLab Issue | 提供带原始链接和 freshness 的只读 Projection。 |
+| `local` | Hufu append-only Ledger | 拥有并回放本地 WorkItem 生命周期。 |
 
-## Entry paths
+LoopX 不是任务正本。它作为可选 `engine-loopx` Provider 和机制来源，可以分阶段提供 Goal 推进、
+typed result、Receipt、Effect readback、恢复和未来调度能力。每批采用都必须通过 Hufu Engine Service、
+独立 Module Issue、许可证归属和效能验收，不能让 LoopX Registry、Goal/Todo 或 Scheduler 自动取得
+外部 Issue 生命周期及人类授权的所有权。
 
-1. `native`: the console owns the durable task identity.
-2. `external`: another system owns task state; the console stores a stable reference and derived projection.
-3. Ephemeral runs are a later concern and must not require durable task creation when a current-session authorization is sufficient.
+UI 同样不是任务正本。它只是权威事实、观测事实和派生事实的 Renderer。
 
-## Required commands
+## V1 范围
+
+### Project 连接与健康检查
+
+- `hufu connect` 记录本地 Project 连接、仓库身份和一个 `task_authority`，但不存储 Provider 凭据。
+- `hufu doctor` 报告配置缺失、不支持的正本、本地状态不可访问、观测过期或不安全的监听配置，
+  且不修改外部系统。
+- Standalone Profile 的本地运行态位于 `.hufu/`，并排除在版本控制之外；DeepSeek Profile 的项目事实
+  位于 Hufu StorageDomain 后的已验证 Host 存储，两者都不进入公开仓库正本。
+- `local` 正本在 `0.1.0` 只承诺单安装、单写者使用，不承诺跨机器同步；写入前必须排除并发写者，
+  冲突或无法确认唯一写者时 fail closed。
+- 从 `0.0.1` 合同迁移时，`native` 可以确定性迁移为 `local`；`external` 无法判断是 GitHub
+  还是 GitLab，必须由用户显式选择，否则 fail closed。迁移必须提升 Schema Version，不能静默改义。
+
+### WorkItem 与生命周期
+
+- GitHub 和 GitLab WorkItem 是原生 Issue 的只读 Projection，保留原始链接、来源身份、观测时间和 freshness。
+- Local WorkItem 使用由 Hufu 拥有的逻辑 append-only Event Ledger；Standalone Profile 的物理格式为
+  JSONL，DeepSeek Profile 可以在 Hufu StorageDomain 后使用已验证的 Host Storage Provider。
+- Hufu 不把原生 Issue 状态转换复制为第二套权威生命周期。
+- 外部 Issue 的文本和附件是带来源的不可信数据，只能作为引用事实进入最小上下文，不能成为指令或授权。
+- Hufu 可以计算 `blocked_by`、`unblocks`、`next_action` 和面向用户的 `fact_status`，但输入与推导过程
+  必须可追溯。
+- 只有当一条依赖能够说明“缺少哪个前置条件会使哪个具体动作不安全或不可执行”时，
+  `DependencyEdge` 才能标记为 `blocks`；否则它只是非阻塞关系。可执行前沿由有效依赖图派生，
+  不复制成新的任务状态。
+
+### 零拷贝决策传递
+
+每个需要执行的裁决使用一个稳定 `decision_id`。Ledger 只完整保存一次初始 `DECISION_PACKET`；
+同一裁决的后续语义版本由连续的 `DECISION_DELTA` 确定性折叠生成。CurrentView 可以物化最新完整版本，
+但该物化结果和跨 Host 临时缓存都可重建、可校验且不是第二份正本。
+
+`DECISION_PACKET` 必须包含：
+
+- `decision_id`、业务 `version` 和独立的 Schema Version；
+- `business_outcome`、`authoritative_state`、`acceptance_metric` 和 `simplest_safe_route`；
+- `verified_facts`、`unknowns`、`non_goals` 与 `true_stoplines`；
+- `authority_scope_ref`、`evidence_as_of` 和 `recheck_when`。
+
+`authoritative_state` 只能是指向既有 `task_authority` Projection 的最小引用，包含来源身份、来源 revision
+或 digest、`observed_at` 和 freshness；它不复制 Issue 正文或 Provider 生命周期。`verified_facts` 保存命题
+和 Fact/Evidence 引用，不复制原始证据。`authority_scope_ref` 指向已经独立成立的授权，Packet 本身不授予权限。
+
+当值 `project_lead`，或负责 Mission 集成的 `mission_lead`，可以附加 `EXECUTION_ENVELOPE`，其中只保存
+决策引用及 digest、相关 WorkItem、RoleBinding、SessionBinding、Workspace、路线步骤、输入、Handoff
+和有界预算或期限引用。它不得重复保存或覆盖目标、权威状态、验收、最短路线、非目标、停止线或授权正文。
+产品界面中的“PM”或“将军”只是上述既有角色的显示称谓，不新增核心角色。
+
+实际执行的 `owner`，或承担多 WorkItem 集成的 `mission_lead`，必须在每个 Envelope 开工前提交一次
+非审批性的 `ROUTE_ACK`。ACK 通过 `decision_id/version/content_digest` 确认 `business_outcome`、
+`authoritative_state` 和 `acceptance_metric` 未改变，并默认返回 `added_scope=[]`。同一 Envelope 的重复提交
+必须幂等；决策版本、Envelope、执行 RoleBinding 或关键授权 revision 变化后，需要新的 ACK，旧记录保留但失效。
+
+`added_scope` 非空时，每项都必须包含 `required_because`、Evidence 引用及所请求范围，并且原因只能是：
+
+- `data_safety`：为防止数据泄漏、损坏或不可恢复污染所必需；
+- `actual_permission_gap`：实际有效权限不足以执行已裁决路线；
+- `irreversible_action`：路线包含尚未被明确覆盖的不可逆动作；
+- `effect_readback_unavailable`：无法安全读取动作的真实效果。
+
+原因合法只表示范围缺口表达有效，不表示批准。只要 `added_scope` 非空，Hufu 就必须返回
+`scope_change_required` 并停止沿该 Envelope 开工；只有外部既有授权被更新并重新附加 Envelope 后才可继续。
+不在白名单中的原因、摘要不匹配或超出 `authority_scope_ref` 的范围必须 fail closed，且不得修改任务状态。
+
+初始 Packet 与 Envelope/ACK 之后只追加三类语义增量：
+
+- `FACT_DELTA`：增加、取代或撤回 live Fact/unknown 引用，更新 Evidence cursor 和 freshness；
+- `DECISION_DELTA`：生成 `version + 1`，带 `supersedes`、实际改变的字段、`preserve_effects`、
+  `discarded_assumptions` 和新的 content digest；
+- `EFFECT_DELTA`：按稳定 `effect_id` 记录执行引用、readback、观测结果、durability 和 Evidence。
+
+同一版本只能有一个合法后继；版本跳跃、双后继、digest 冲突或因果缺失必须 fail closed。
+`FACT_DELTA` 不改写当前版本已经钉住的 `verified_facts` 或 `unknowns`，`EFFECT_DELTA` 也不会静默改变
+决策语义；这些字段或路线、结果、验收、非目标、停止线、授权引用需要变化时，必须由
+`DECISION_DELTA` 形成新版本。`preserve_effects` 只保存 Effect/readback 引用，不复制效果正文；
+未知或未完成 readback 的 Effect 继续保持 `unknown`，不得冒充已发生、未发生或数值零。
+
+`recheck_when` 必须使用可确定求值的墙钟、实现活动增长、Evidence frontier 或 Provider revision 条件。
+Hufu 只在追加相关事实、`status`、`handoff`、Effect readback 或生成下一步指令等既有交互边界检查漂移，
+不使用后台轮询。若 readback 覆盖充分且持续确认尚无首个 durable Effect，同时代码、提交、迁移或证书/验证产物
+跨检查点继续增长；或者确定性 Evidence 命中 `non_goals`，CurrentView 必须产生一次幂等的
+`semantic_rebase_required` 执行护栏。模型判断只能产生 `suspected_drift`，不能独自硬触发。
+
+semantic rebase 保留已经发生的 Effect 和全部 Evidence，停止旧 Envelope 生成新的前向动作，允许 readback、
+遏制与安全恢复，并把下一步指向当前版本的 `simplest_safe_route`。若路线语义必须改变，先追加
+`DECISION_DELTA`，再附加新的 Envelope 与 ACK。它不关闭 Issue、不删除代码或提交、不回滚迁移或不可逆效果，
+也不建立新的审批状态。
+
+### 角色、Session 与 Workspace
+
+- 启用参谋协作且活跃的 Project 恰有一个当值 `advisor`；同一 AgentIdentity 可以服务多个 Project。
+- 已连接且活跃的 Project 恰有一个当值 `project_lead`；非活跃 Project 可以没有。
+- 可执行 WorkItem 恰有一个当值 `owner`。
+- `mission_lead` 是横跨多个 WorkItem 的临时集成出口。
+- 只有当结论风险要求职责分离时，`auditor` 才必须独立。
+- 换届建立新的 SessionBinding 并使用 `supersedes`；不得克隆 Issue、目标、授权或 Evidence 历史。
+
+### 执行事实与证据
+
+- Hufu 拥有自己直接观测到的 Run、Session、Workspace 绑定、Evidence、Receipt、Handoff、
+  角色绑定、决策传递记录和真实墙钟事件记录。这些属于执行协调事实，不拥有 WorkItem 生命周期。
+- 每类 Domain Event 具有独立 Schema Version 和权威追加顺序；旧版本只在读取时通过纯函数 upcast，
+  原始记录不得重写。遇到未知的必需未来版本、顺序冲突或无法解释的因果关系时 fail closed。
+- Evidence 标识其命题、目标、输入或代码身份、观测时间，以及适用时的生产者或验证者。
+- Receipt 是类型化验证声明，不是授权，也不隐含业务完成。
+- `0.1.0` 没有外部写回，因此不实现 Effect 执行或重试；它可以记录由 Host 或 Provider 返回的
+  `EFFECT_DELTA`。未来若引入外部 Effect，恢复流程必须先执行 readback，且不得声称 exactly-once。
+- UsageObservation 区分 `measured`、`estimated` 和 `unavailable`。只有 Host 或 Provider 原生返回的
+  Token 用量可以标记为 `measured`；Hufu 不得把字符估算或缺失值冒充真实 Token。
+
+### Tool、命令与工作台
+
+Hufu 对不同 Consumer 暴露同一组有界操作语义：`connect`、`doctor`、`status`、`handoff`，
+以及通过效能门禁后才进入实现的 `serve`。DeepSeek Profile 把它们贡献为模型 Tool 或 Host Command；
+Standalone Profile 可以提供等价 CLI。具体包名和安装命令由第一张实现 Module 的 Plan 在验证
+DeepSeek Harness 插件发布方式后确定，本产品规范不提前承诺尚未验证的安装命令。
+
+CLI 纵切和代表性试点通过效能门禁后，第一版工作台才进入实现。工作台仅监听 loopback，首屏显示：
+
+- Project、任务正本和 freshness；
+- Milestone 和 WorkItem；
+- Owner、Project Lead、Session 和 Workspace；
+- `fact_status`、下一步、阻塞和 ETA；
+- Evidence 与 Handoff 摘要；
+- 原始 Issue 链接和“生成下一步指令”操作。
+
+生成的指令是可供用户复制的文本，绑定到所选 Project、WorkItem、已知事实和授权边界。
+V1 不会自动启动 Agent。
+
+### 技术约束
+
+- 目标实现使用 Node.js、严格 TypeScript、ESM、pnpm 和 Cordis-first 插件合同；`0.1.0` 当前核对的
+  具体 Cordis 实现及精确版本由
+  功能 Plan 和兼容性记录管理。
+- DeepSeek Harness 作为原生 Profile；Standalone Profile 必须复用相同领域合同并支持 Windows 与 POSIX。
+- Cordis 插件使用 Service Definition、Provider、Consumer、类型化 Event 和可撤销 Effect；
+  不修改 Host Agent Loop。
+- Standalone Profile 的本地正本使用 append-only JSONL；DeepSeek Profile 可以在 Hufu StorageDomain
+  后使用其 JSON Storage Provider。两者必须对同一版本化夹具生成规范化结构相等的 CurrentView；
+  Host 无法观测的字段保持 `unavailable`，不以序列化字节相同冒充语义相同。
+- Project 级跨 Session 状态不能只存在 Host Session Log；Session Log 只保存可重建的执行事实和投影。
+- 工作台使用服务端渲染 HTML，最多辅以少量 Vanilla JavaScript；Listener 默认绑定 `127.0.0.1`。
+- `0.1.0` 不引入数据库、Message Queue、Daemon、Scheduler、Heartbeat、Quota Service、
+  多主机 Coordinator 或自动后台运行。
+
+## 核心产品实体
+
+| 实体 | 用途 | 正本边界 |
+| --- | --- | --- |
+| Project | 仓库连接和声明的 `task_authority`。 | 不存储 Provider 凭据。 |
+| Milestone | 从任务正本投影或在本地表达的交付分组。 | 外部生命周期仍归外部系统。 |
+| WorkItem | 一项目标、范围、依赖和终止条件的工作单元。 | 生命周期归声明的任务正本。 |
+| AgentIdentity | Host 报告的 Agent 或执行节点身份。 | 不等同于角色或授权。 |
+| RoleBinding | 角色与 Project 或 WorkItem 的当值关系。 | 不授予目标或授权。 |
+| SessionBinding | Session 与 Workspace 分配，包含 `supersedes`。 | 不复制 WorkItem。 |
+| Run | 一次有界执行尝试。 | 不拥有长期任务正本。 |
+| Evidence | 绑定命题、目标和输入身份的观测。 | 不隐含验收。 |
+| Receipt | 类型化验证声明。 | 不产生授权。 |
+| Handoff | 已完成工作、剩余工作、风险和下一审阅点。 | 不扩张范围。 |
+| UsageObservation | 墙钟、调用和 Host/Provider 报告的 Token 用量。 | 缺失数据不得记为 `0`。 |
+| CurrentView | 从权威事实、自有观测和派生事实构造的确定性视图。 | 不存储独立生命周期。 |
+| DependencyEdge | 带理由的工作依赖，说明缺失前置如何阻断具体动作。 | 是派生合同，不复制 WorkItem 状态。 |
+| RouteRecommendation | Advisor 或会商根据事实形成的候选路线。 | 是派生建议，不产生授权。 |
+| DECISION_PACKET | 人类已裁决内容的单一 canonical 基线及其物化版本。 | 引用任务正本和既有授权，不拥有两者。 |
+| EXECUTION_ENVELOPE | PM/集成负责人附加的决策执行路由。 | 只引用 Packet，不得重写正文或扩权。 |
+| ROUTE_ACK | 执行 Leader 对目标、状态、验收和范围差异的一次确认。 | 是 readiness observation，不是审批。 |
+| FACT/DECISION/EFFECT_DELTA | 事实、决策换版和效果 readback 的 append-only 增量。 | 不复制任务正文或另建生命周期。 |
+
+## 用户可见的事实状态
+
+每项重要展示事实使用三条独立字段表达，不再把来源、可用性和时效压进一个枚举：
+
+- `fact_class=authoritative|observed|derived`：事实所有权或计算类别；
+- `availability=available|unavailable|data_insufficient|conflict`：当前能否安全使用；
+- `freshness=fresh|stale|unknown|not_applicable`：观测时效。
+
+Renderer 可以从三条轴生成面向用户的 `fact_status`，但该标签不是新的正本。UsageObservation 另用
+`measurement_status=measured|estimated|unavailable`；缺失事实不得用 `0`、猜测的完成状态或代理计数替代。
+
+`RouteRecommendation` 至少引用 business outcome、权威状态和验收指标，说明建议路线、
+`simplest_safe_route`、拒绝更简单路线的具体理由及是否需要历史上下文。它不得复制来源正文，
+也不得把尚未解释的 `critical_path` 作为阻塞结论。只有 `commander` 或既有授权明确指定的决策发布者
+作出裁决后，内容才进入 `DECISION_PACKET`；推荐、Packet 与授权必须保持可区分。
+
+未来的纠偏学习由 Advisor 插件拥有 `CorrectionObservation`，记录纠偏前路线、人类纠偏、适用范围、
+反例和预期效果。纠偏后的路线、实际效果和规则提升必须作为后续独立事件记录；Observation 本身不得
+修改外部 Issue、产生授权或自动提升为核心规则。
+
+## Hufu 自身研发流程
+
+Hufu 自身的代码和进度唯一使用 GitHub 管理，并使用 GitHub 官方 Spec Kit，公开仓库遵循：
 
 ```text
-python -m hufu validate <task.json>
-python -m unittest discover -s tests -v
-python scripts/check_version.py
-python tests/smoke.py
+Milestone -> 路线图 Issue（仅索引） -> Module Issue
+          -> Spec Kit spec/plan/tasks -> branch -> PR -> merge -> Issue 自动关闭
 ```
 
-## Project structure
+GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库级 `tasks/` 文件只是历史指针，
+不能授权工作。完整 Spec Kit 流程适用于具有独立用户价值、跨模块合同或架构影响的 Module Issue；
+父 Module 已覆盖的小型子任务、Bug 和文档修正可以引用父合同并采用与风险相称的简化验收。
 
-```text
-src/hufu/                core contracts and CLI
-tests/                   small unit and command tests
-examples/                non-sensitive example inputs
-docs/                    product and architecture contracts
-tasks/                   incremental implementation plan
-scripts/                 repository consistency checks
-```
+## 0.1.0 交付顺序
 
-## Code style
+`0.1.0` 按可独立验证的纵切推进，而不是把全部组件塞进第一张实现 Issue：
 
-- Type annotations for public functions and contract fields.
-- Pure validation functions before stateful services.
-- Small modules with explicit ownership.
-- Descriptive tests that assert outcomes, not implementation call order.
-- No speculative abstraction for a single provider or runner.
+1. 接受中文产品、架构、Constitution 和 ADR 正本。
+2. 建立 Node/TypeScript/Cordis 基线、共享核心合同、零拷贝决策 Schema、DeepSeek Profile 和
+   Standalone Profile 的最小骨架。
+3. 迁移 Project authority 合同，完成 Local Ledger、Session/Run/Handoff、决策增量回放、
+   事件驱动 semantic rebase、StorageDomain、CurrentView 和有界 Commands。
+4. 在 DeepSeek Harness 原生插件和 Standalone Profile 中用版本化夹具验证规范化 CurrentView
+   结构相等及卸载清理。
+5. 分别增加 GitLab、GitHub 只读 Projection，并在各自代表性项目中验证同一 CurrentView。
+6. 通过 `engine-loopx` 接入第一批 typed result、Receipt/readback 和有界恢复机制。
+7. 汇总三轮代表性试点；只有通过效能门禁才扩大 LoopX 能力、提高自治或实现 loopback Web Console。
 
-## Testing strategy
+除设计正本收敛外，每一实现阶段必须有独立 Module Issue 和 Spec Kit 功能合同。外部试点的内部项目名、
+路径、Issue 内容和用量明细不得进入公开仓；公开材料只能保留脱敏方法和聚合结果。
 
-- Small tests cover validation rules and immutable outputs.
-- Command tests cover exit codes, stdout, and stderr.
-- Adapter contract tests will use recorded, sanitized fixtures before live integration tests.
-- Side-effecting engines will require readback and recovery tests before they can be enabled.
+## V1 成功标准
 
-The initial suite is dependency-free. Coverage tooling may be added when it can be introduced without becoming a runtime requirement.
+- 每个已连接 Project 恰好报告一个任务正本，否则 fail closed。
+- 每个外部 WorkItem 视图暴露原始链接、来源、观测时间和 freshness。
+- 对未改变的本地 Ledger 进行回放，得到相同的 WorkItem 和绑定视图。
+- 操作者可以从一个 Status 视图识别 Owner、Project Lead、阻塞、Evidence 摘要和下一步，
+  不需要查阅第二份 Hufu 任务清单。
+- 生成的下一步文本标识所选 WorkItem，且不超出已记录范围。
+- 同一裁决只有一份初始 Packet 正文；Envelope、ACK、Handoff、Session 换届和 Renderer 只保存引用、
+  digest 或增量，不能形成第二份可编辑决策正文。
+- 相同合法 Ledger 必须物化出相同 `decision_id/version/content_digest`、ACK 有效性、Effect cursor
+  和执行护栏；换版必须保留所声明的 readback Effect 引用及全部历史 Evidence。
+- `ROUTE_ACK.added_scope=[]` 才能沿原 Envelope 开工；四类合法范围缺口也只能得到
+  `scope_change_required`，不能获得新权限或任务状态。
+- 只有完整 readback 证明 durable Effect 尚不存在时，漂移检测才能据此硬触发；缺失观测必须显示
+  `unavailable` 或 `data_insufficient`。相同 drift fingerprint 只产生一次 semantic rebase 要求。
+- Provider Adapter 测试证明没有发生 Issue 写回操作。
+- 除非未来已接受的功能修改边界，否则 Dashboard 拒绝非 loopback 绑定。
+- DeepSeek Profile 与 Standalone Profile 对同一版本化事件夹具生成规范化结构相等的 CurrentView；
+  Host 特有的不可观测字段明确为 `unavailable`。
+- DeepSeek 插件卸载后，其注册的 Tool、Event Listener 和其他运行时 Effect 被可靠清理；
+  已持久化事实不被删除，只能通过新的 append-only 事件取消、撤回或取代。
+- 支持的 Windows 和 POSIX 环境可以完成 connect、doctor、status 和 handoff 验证，无需后台服务。
+- 若 Web Console 通过效能门禁进入 `0.1.0`，则两类环境都能以前台方式完成 loopback serve 验证。
+- 每次试点能够区分任务总墙钟、Hufu 编排耗时、零效果尝试、协调唤醒、返工和可取得的
+  Provider 原生 Token；无法取得的用量明确显示 `unavailable`。
+- 授权、安全、结果质量和 Evidence 完整性不得因降低时间或 Token 而退化。
+- 连续三轮代表性试点没有可解释的净收益时，停止增加 MCP、Web、Runner 或其他控制面并复盘。
 
-## Boundaries and non-goals
+### 效能试点协议
 
-- No second authoritative task state for external providers.
-- No automatic approval, merge, deployment, or production access.
-- No background scheduler, heartbeat, quota service, or lease in the core.
-- No exactly-once claim for external effects.
-- No mandatory independent validator for ordinary tasks.
-- No UI protocol or durable database in the first slice.
-- No hard dependency on one issue tracker, agent runtime, or workflow engine.
+一个试点从 `commander` 接受 WorkItem 或 Mission 目标开始，到对应 Handoff 和验收结论被接受为止。
+它必须与同类任务的人工 PM 或单 Agent 基线比较，并分别记录规划墙钟、执行墙钟、总墙钟、人工协调时间、
+零效果尝试、协调唤醒、返工、设置成本和可取得的 Provider 原生 Token。结论只能是
+`NET_BENEFIT`、`NO_NET_BENEFIT`、`TRADEOFF`、`DATA_INSUFFICIENT` 或 `FAIL`，不得用单一 Token 数或
+自动化步骤数量宣称成功。某项新增能力连续三轮为无净收益时暂停该能力，不连带否定已经证明有效的核心合同。
 
-## Success criteria for the contract phase
+## 未来方向
 
-- A minimal native task validates into an immutable object.
-- An external task keeps only a reference; no external status is duplicated.
-- Missing objectives, authorization, terminal conditions, or supported source values fail closed.
-- The CLI returns deterministic machine-readable output and a non-zero invalid-input status.
-- The test suite and version check run locally without network access.
-- The repository contains no credentials, private endpoints, or machine-specific paths.
+未来版本可以评估 MCP Consumer、更丰富的 Provider Projection、更多 RuntimeProvider、
+更完整的 LoopX Engine、EffectReadback、可选 Policy Pack、更强的 Receipt 类型、后台自治和替代 Renderer。
+游戏化界面只能作为 Renderer 研究，不得改变核心合同或状态所有权。
 
-## Open questions
+### 关键决策会商
 
-- Which receipt claim types provide the highest value with the least ceremony?
-- What minimum event identity is sufficient for safe readback and recovery?
-- Should the durable engine be an adapter to an existing workflow runtime or a small built-in store?
-- Which provider should be the first adapter after contract review?
-- What evidence demonstrates that a web console reduces operator time enough to justify it?
+当一个已授权动作被高影响、高不确定性、证据冲突、不可逆风险或重复失败阻塞时，项目 `advisor`
+可以提出“关键决策会商”，由 `commander` 决定是否召开：
+
+- **参谋会**：从当前 Host 可用的角色目录中选择少量互补视角，进行彼此隔离的独立研究；
+- **专家研讨会**：在参谋会基础上增加至少两个可区分 Runtime 的复核；模型身份无法确认时，
+  必须标记 `unknown`，不得宣称独立多模型验证。
+
+结果名称必须反映实际覆盖：多个角色但没有已验证模型差异时是“多视角会商”；多个 Runtime 但模型
+独立性未知时是“多 Runtime 复核”；只有至少两个模型身份和独立性均满足合同才是“已验证多模型复核”；
+多角色与已验证多模型同时满足时才是“双轴会商”。
+
+角色视角与模型运行器是两条正交轴。临时 `CouncilSeat` 不是 Hufu 角色，也不会成为 `advisor`、
+`project_lead`、`mission_lead`、`owner` 或 `auditor`。原始角色卡是不可信数据，只有经过字段白名单、
+摘要与 digest 固定并由用户随计划确认的 `ResearchLens` 才能进入会商模板；工具、网络、写入、角色绑定
+和权限文字一律丢弃。默认采用 3–5 个稀疏席位，不运行完整“角色数 × 模型数”组合；
+第一轮互不可见，必要时最多进行一轮只围绕争议主张的质询。最终报告必须列出共识、实质分歧、
+最强反对意见、反例、未知项、失败或超时分支和建议路线，不通过多数票决定事实。
+
+每场会商只能在绑定计划摘要的一次性授权内运行，授权明确 Runtime、模型或身份、数据分类与引用范围、
+工具和网络策略、只读或副作用范围、调用次数、墙钟、Token 或费用上限、有效期及输出保留策略。
+有效权限仍是该授权与 Host、账号、操作系统、沙箱和审批边界的交集。会商结果分类为派生建议，
+不修改 GitHub/GitLab Issue，不产生执行授权，不自动启动业务执行 Session，也不构成正式验收。
+
+该能力先以“生成有界问题包、由用户手工启动参与 Session、导入结构化意见”的影子模式试点；
+只有相对单参谋基线改善决策墙钟、有效独立发现、后续返工或关键缺陷，才按 Host 分别实现自动调用。
+其跨领域决策见[ADR 0004](adr/0004-bounded-decision-council.md)，具体合同和阈值必须进入未来独立
+Module Issue 与 Spec Kit 功能合同，不属于 `0.1.0`。
+
+每个方向都需要独立的已接受 Module Issue、Spec Kit 合同、架构检查，以及能够减少操作者工作量
+或执行风险的证据。
+
+## V1 明确不做
+
+- 外部 Issue 写回、自动批准、Merge、部署或生产访问。
+- 自动启动 Agent 或无人值守后台运行。
+- 自动调用多个外部 CLI、跨 Provider 扇出或关键决策会商 Runtime。
+- 数据库、Message Queue、Daemon、Scheduler、Heartbeat、Quota、Lease 或多主机协调。
+- 第二份 GitHub 或 GitLab Issue 生命周期副本。
+- 在 Envelope、ACK、Handoff 或换届包中复制 Issue 正文或重写 `DECISION_PACKET`。
+- 让 `ROUTE_ACK` 成为审批流，或用范围缺口理由自动产生授权。
+- 用后台 Heartbeat、Scheduler 或周期唤醒检测 semantic drift，或由重基自动删除、回滚既有产物与 Effect。
+- 把 LoopX、Agent Runtime 或 UI 视为 `task_authority`。
+- 把 MCP 作为必需运行路径，或为每个 Host 复制一套业务逻辑。
+- Fork 或修改 DeepSeek Harness Agent Loop 来实现 Hufu 产品行为。
+- 分布式 exactly-once 保证。
+- 为普通低风险工作强制设置独立 Auditor。
+- 为普通工作强制召开参谋会或专家研讨会，或以 Agent 数量、多数票代替证据。
+- 游戏化 UI、3D 可视化或以动画驱动的产品机制。
+- 在本公开仓库中保存外部源码镜像、私有研究、内部项目材料或凭据。
