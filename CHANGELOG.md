@@ -8,6 +8,8 @@
 
 - 中文产品规范、架构说明、Constitution、ADR 0001–0005 与上游兼容性基线的候选设计正本。
 - 零 Cordis 依赖的严格 TypeScript ESM 领域核心骨架，以及与 `0.0.1` 对齐的 `hufu validate`。
+- GitHub Actions 在 `main` 推送和 Pull Request 上运行 `pnpm test`、
+  `node scripts/check-version.mjs` 与 `git diff --check`。
 
 ### 变更
 

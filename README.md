@@ -52,6 +52,8 @@ git diff --check
 pnpm hufu validate examples/task.json
 ```
 
+同一套门禁由 GitHub Actions 在 `main` 推送和 Pull Request 上自动运行。
+
 验证成功时会输出紧凑的 JSON 摘要。输入无效时退出码为 `2`，合同错误写入 stderr。
 
 ## 历史 0.0.1

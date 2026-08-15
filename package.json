@@ -13,7 +13,7 @@
   "scripts": {
     "build": "tsc",
     "hufu": "node dist/src/hufu/main.js",
-    "test": "tsc && node --test dist/tests/cli.test.js dist/tests/contracts.test.js"
+    "test": "tsc && node --test dist/tests/cli.test.js dist/tests/contracts.test.js dist/tests/ci-workflow.test.js"
   },
   "license": "Apache-2.0",
   "devDependencies": {
