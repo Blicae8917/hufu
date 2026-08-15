@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-15
 
-**Status**: Draft
+**Status**: Accepted
 
 **Input**: User description: "GitHub Module Issue #3（M2）：实现本机 `local` 只追加账本，以及四个有界命令 connect / doctor / status / handoff。CurrentView 必须能区分事实来源、可用性和时效。不实现完整决策状态机，不接入 GitHub / GitLab，不引入插件运行时、网页或出站运行时。"
 
