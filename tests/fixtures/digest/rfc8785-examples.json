@@ -1,0 +1,76 @@
+{
+  "examples": [
+    {
+      "name": "object-key-order",
+      "input": { "b": 1, "a": 2, "aa": 3 },
+      "canonical": "{\"a\":2,\"aa\":3,\"b\":1}"
+    },
+    {
+      "name": "nested-object-keys",
+      "input": { "z": { "b": 1, "a": 2 }, "a": [] },
+      "canonical": "{\"a\":[],\"z\":{\"a\":2,\"b\":1}}"
+    },
+    {
+      "name": "array-order-preserved",
+      "input": [2, 1, 0],
+      "canonical": "[2,1,0]"
+    },
+    {
+      "name": "array-of-objects",
+      "input": [{ "b": 1, "a": 0 }],
+      "canonical": "[{\"a\":0,\"b\":1}]"
+    },
+    {
+      "name": "literals",
+      "input": [null, true, false],
+      "canonical": "[null,true,false]"
+    },
+    {
+      "name": "integer-zero",
+      "input": 0,
+      "canonical": "0"
+    },
+    {
+      "name": "negative-integer",
+      "input": -17,
+      "canonical": "-17"
+    },
+    {
+      "name": "empty-object",
+      "input": {},
+      "canonical": "{}"
+    },
+    {
+      "name": "empty-array",
+      "input": [],
+      "canonical": "[]"
+    },
+    {
+      "name": "rfc8785-3.2.2-string",
+      "comment": "RFC 8785 section 3.2.2 string sample reconstructed from code points to avoid JSON escape drift",
+      "code_points": [8364, 36, 15, 10, 65, 39, 66, 34, 92, 92, 34, 47],
+      "canonical": "\"€$\\u000f\\nA'B\\\"\\\\\\\"/\""
+    }
+  ],
+  "rfc8785_3_2_3_key_order": {
+    "comment": "RFC 8785 section 3.2.3 UTF-16 code unit property sort",
+    "input": {
+      "€": "Euro Sign",
+      "\r": "Carriage Return",
+      "\ufb33": "Hebrew Letter Dalet With Dagesh",
+      "1": "One",
+      "😀": "Emoji: Grinning Face",
+      "\u0080": "Control",
+      "ö": "Latin Small Letter O With Diaeresis"
+    },
+    "expected_key_order": [
+      "\r",
+      "1",
+      "\u0080",
+      "ö",
+      "€",
+      "😀",
+      "\ufb33"
+    ]
+  }
+}

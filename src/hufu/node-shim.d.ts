@@ -2,6 +2,7 @@ declare var process: {
   argv: string[];
   execPath: string;
   env: Record<string, string | undefined>;
+  pid: number;
   stdout: { write(chunk: string): boolean };
   stderr: { write(chunk: string): boolean };
   cwd(): string;
@@ -69,19 +70,48 @@ declare module "node:child_process" {
   ): SpawnSyncResult;
 }
 
+declare module "node:crypto" {
+  interface Hash {
+    update(data: string, encoding: "utf8"): Hash;
+    digest(encoding: "hex"): string;
+  }
+  export function createHash(algorithm: string): Hash;
+  export function randomUUID(): string;
+}
+
 declare module "node:fs" {
+  export function appendFileSync(
+    path: string,
+    data: string,
+    encoding: "utf8",
+  ): void;
+  export function closeSync(fd: number): void;
   export function existsSync(path: string): boolean;
+  export function mkdirSync(
+    path: string,
+    options?: { recursive?: boolean },
+  ): string | undefined;
   export function mkdtempSync(prefix: string): string;
+  export function openSync(path: string, flags: string): number;
   export function readFileSync(path: string, encoding: "utf8"): string;
+  export function renameSync(oldPath: string, newPath: string): void;
   export function rmSync(
     path: string,
     options?: { recursive?: boolean; force?: boolean },
   ): void;
+  export function statSync(path: string): { size: number };
+  export function truncateSync(path: string, len: number): void;
+  export function unlinkSync(path: string): void;
   export function writeFileSync(
     path: string,
     data: string,
     encoding: "utf8",
   ): void;
+  export function writeSync(
+    fd: number,
+    data: string,
+    encoding?: "utf8",
+  ): number;
 }
 
 declare module "node:os" {

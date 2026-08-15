@@ -2,8 +2,8 @@
 
 状态：候选，待 `0.1.0` 设计 Pull Request 接受
 最后更新：2026-08-15
-当前实现：仅 TypeScript 领域核心骨架与 `hufu validate`。`connect` / `doctor` / `status` /
-`handoff`、本机账本、GitHub 投影、Cordis 插件、会商与网页尚未实现。
+当前实现：TypeScript 领域核心、`hufu validate`，以及本机 `local` 账本与四个有界命令
+`connect` / `doctor` / `status` / `handoff`。GitHub 投影、Cordis 插件、会商与网页尚未实现。
 
 ## 产品目标
 

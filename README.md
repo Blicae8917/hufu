@@ -27,15 +27,15 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - 零 Cordis 依赖的严格 TypeScript ESM 领域核心骨架；
 - 与 `0.0.1` 对齐的最小 `TaskEnvelope` 合同（`native` / `external`）；
 - `hufu validate`：合法信封输出键排序 JSON 摘要，非法输入退出码 `2`；
+- 本机 `local` JSONL 账本，以及有界命令 `connect` / `doctor` / `status` / `handoff`；
+- 由账本回放得到的三轴 CurrentView（来源类别、可用性、时效）；
 - 一套当前有效的 pnpm / Node 门禁。
 
-当前版本**尚未**提供 `connect`、`doctor`、`status`、`handoff`、本机账本、CurrentView、
-GitHub / GitLab 投影、Cordis 插件运行时、关键决策会商、网页界面或出站 Runtime。
-对这些产品命令的调用会明确失败，并且不会创建 `.hufu/`。
+当前版本**尚未**提供 GitHub / GitLab 投影、Cordis 插件运行时、关键决策会商、网页界面或出站 Runtime。
+请求 GitHub / GitLab 正本会明确失败，并且不会创建那些能力的运行态。
 
-`0.1.0` 的发布门仍是一个本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库
-GitHub 只读投影，以及能区分事实来源、可用性和时效的 CurrentView。该发布门由后续 Module 交付，
-不表示本仓库已经实现。零拷贝决策传递、DeepSeek Harness 原生 Profile、GitLab 只读投影、
+`0.1.0` 的发布门仍是一个本机可用的只读影子纵切：四个有界命令与 `local` JSONL 正本已由本模块交付；
+本仓库 GitHub 只读投影仍由后续 Module 交付。零拷贝决策传递、DeepSeek Harness 原生 Profile、GitLab 只读投影、
 LoopX Engine、关键决策会商、loopback Web Console 和出站 Runtime 同样是已接受方向，
 由发布门之后的独立 Module 分别交付。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
@@ -55,6 +55,17 @@ pnpm hufu validate examples/task.json
 同一套门禁由 GitHub Actions 在 `main` 推送和 Pull Request 上自动运行。
 
 验证成功时会输出紧凑的 JSON 摘要。输入无效时退出码为 `2`，合同错误写入 stderr。
+
+在空的临时工作目录中试用本机账本（把 `<repo>` 换成 Hufu 仓库路径，不要把本机绝对路径写进仓库文档）：
+
+```bash
+pnpm --dir <repo> hufu connect --project-id demo --repository https://example.com/demo.git --task-authority local --commander human:alice --grant-scope "local ledger and handoff"
+pnpm --dir <repo> hufu doctor
+pnpm --dir <repo> hufu status
+```
+
+成功时标准输出是一个 JSON 对象。`connect` 会在该工作目录写下 `.hufu/ledger/events.jsonl`（已 gitignore）。
+`validate` 仍可按上面的例子使用。
 
 ## 历史 0.0.1
 
@@ -85,8 +96,8 @@ git checkout v0.0.1
 
 当前开发版本是尚未发布的 `0.1.0`；最近的历史发布基线是 `0.0.1`（标签 `v0.0.1`）。
 这是一个早期、合同优先的构建。公共 API 在 `1.0.0` 前可能发生变化。
-当前仓库尚未实现 Cordis、DeepSeek Harness Plugin、四个产品协调命令、本机账本、
-LoopX Engine、关键决策会商、零拷贝决策传递或远端 Provider，默认不启用任何远端集成。
+当前仓库已提供四个有界命令与本机账本；尚未实现 Cordis、DeepSeek Harness Plugin、
+GitHub / GitLab 投影、LoopX Engine、关键决策会商、零拷贝决策传递或远端 Provider，默认不启用任何远端集成。
 
 ## 参与贡献与安全
 

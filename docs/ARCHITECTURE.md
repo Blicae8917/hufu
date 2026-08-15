@@ -2,8 +2,8 @@
 
 状态：候选，待 `0.1.0` 设计 Pull Request 接受
 最后更新：2026-08-15
-当前实现：仅零 Cordis 依赖的 TypeScript 领域核心与 `hufu validate`。下表「V1 实现」描述目标
-架构，不表示四命令、账本、插件、会商或网页已经交付。
+当前实现：零 Cordis 依赖的 TypeScript 领域核心、`hufu validate`，以及本机 `local` JSONL
+账本与四个有界命令。下表「V1 实现」描述目标架构；GitHub 投影、插件、会商或网页尚未交付。
 
 ## 架构目标
 

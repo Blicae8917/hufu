@@ -99,4 +99,18 @@ describe("unsupported product commands", () => {
       });
     });
   }
+
+  it("rejects connect without flags as a contract error and does not create .hufu/", () => {
+    withTempDir((dir) => {
+      const result = runHufu(["connect"], dir);
+      assert.equal(result.status, 2);
+      assert.equal(existsSync(join(dir, ".hufu")), false);
+      const body = JSON.parse(result.stdout) as {
+        ok: boolean;
+        error: { code: string };
+      };
+      assert.equal(body.ok, false);
+      assert.equal(body.error.code, "CONTRACT_INVALID");
+    });
+  });
 });

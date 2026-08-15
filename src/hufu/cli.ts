@@ -1,6 +1,16 @@
 import { readFileSync } from "node:fs";
 
+import { connectWorkspace } from "./connect.js";
 import { validateTask } from "./contracts.js";
+import { doctorWorkspace } from "./doctor.js";
+import {
+  CommandError,
+  commandErrorBody,
+  exitCodeFor,
+  stableStringify,
+} from "./errors.js";
+import { recordHandoff } from "./handoff.js";
+import { statusWorkspace } from "./status.js";
 
 const SUMMARY_KEYS = [
   "project_id",
@@ -10,14 +20,38 @@ const SUMMARY_KEYS = [
   "valid",
 ] as const;
 
+const REFRESH_FLAGS = new Set(["online", "pull", "refresh"]);
+
+interface ParsedArgs {
+  readonly command: string | undefined;
+  readonly options: Record<string, string>;
+  readonly positionals: string[];
+  readonly switches: Set<string>;
+}
+
 export function main(argv: string[]): number {
   const command = argv[0];
-  if (command !== "validate") {
-    process.stderr.write(`unknown command: ${command ?? "(none)"}\n`);
-    return 1;
+  if (command === "validate") {
+    return runValidate(argv.slice(1));
   }
+  if (command === "connect") {
+    return runJsonCommand(() => runConnect(parseArgs(argv)));
+  }
+  if (command === "doctor") {
+    return runJsonCommand(() => runDoctor(parseArgs(argv)));
+  }
+  if (command === "status") {
+    return runJsonCommand(() => runStatus(parseArgs(argv)));
+  }
+  if (command === "handoff") {
+    return runJsonCommand(() => runHandoff(parseArgs(argv)));
+  }
+  process.stderr.write(`unknown command: ${command ?? "(none)"}\n`);
+  return 1;
+}
 
-  const taskFile = argv[1];
+function runValidate(argv: string[]): number {
+  const taskFile = argv[0];
   if (taskFile === undefined || taskFile.trim() === "") {
     process.stderr.write("invalid task contract: task file is required\n");
     return 2;
@@ -39,5 +73,179 @@ export function main(argv: string[]): number {
     const reason = error instanceof Error ? error.message : String(error);
     process.stderr.write(`invalid task contract: ${reason}\n`);
     return 2;
+  }
+}
+
+function runJsonCommand(fn: () => unknown): number {
+  try {
+    const result = fn();
+    process.stdout.write(`${stableStringify({ ok: true, result })}\n`);
+    return 0;
+  } catch (error) {
+    if (error instanceof CommandError) {
+      process.stdout.write(`${stableStringify(commandErrorBody(error))}\n`);
+      return exitCodeFor(error.code);
+    }
+    throw error;
+  }
+}
+
+function runConnect(args: ParsedArgs): unknown {
+  assertNoPositionals(args);
+  const options = args.options;
+  const projectId = requireOption(options, "project-id");
+  const repository = requireOption(options, "repository");
+  const taskAuthority = requireOption(options, "task-authority");
+  const commander = requireOption(options, "commander");
+  const grantScope = requireOption(options, "grant-scope");
+  rejectUnknownSwitches(args.switches);
+  rejectUnknownOptions(options, [
+    "project-id",
+    "repository",
+    "task-authority",
+    "commander",
+    "grant-scope",
+    "project-lead",
+    "grant-expires",
+  ]);
+  return connectWorkspace(process.cwd(), {
+    commander,
+    grantExpires: options["grant-expires"],
+    grantScope,
+    projectId,
+    projectLead: options["project-lead"],
+    repository,
+    taskAuthority,
+  });
+}
+
+function runDoctor(args: ParsedArgs): unknown {
+  assertNoPositionals(args);
+  rejectUnknownOptions(args.options, []);
+  rejectUnknownSwitches(args.switches, ["repair-truncated-tail"]);
+  return doctorWorkspace(process.cwd(), {
+    repairTruncatedTail: args.switches.has("repair-truncated-tail"),
+  });
+}
+
+function runStatus(args: ParsedArgs): unknown {
+  assertNoPositionals(args);
+  for (const flag of [...Object.keys(args.options), ...args.switches]) {
+    if (REFRESH_FLAGS.has(flag)) {
+      throw new CommandError(
+        "CONTRACT_INVALID",
+        "explicit refresh is not available in this module",
+      );
+    }
+  }
+  rejectUnknownOptions(args.options, []);
+  rejectUnknownSwitches(args.switches);
+  return statusWorkspace(process.cwd());
+}
+
+function runHandoff(args: ParsedArgs): unknown {
+  assertNoPositionals(args);
+  rejectUnknownSwitches(args.switches);
+  rejectUnknownOptions(args.options, [
+    "work-item",
+    "completed",
+    "remaining",
+    "risks",
+    "next-review",
+  ]);
+  return recordHandoff(process.cwd(), {
+    completed: requireOption(args.options, "completed"),
+    nextReview: args.options["next-review"],
+    remaining: requireOption(args.options, "remaining"),
+    risks: args.options["risks"],
+    workItemId: requireOption(args.options, "work-item"),
+  });
+}
+
+function parseArgs(argv: readonly string[]): ParsedArgs {
+  const command = argv[0];
+  const options: Record<string, string> = {};
+  const switches = new Set<string>();
+  const positionals: string[] = [];
+  const rest = argv.slice(1);
+  for (let index = 0; index < rest.length; index += 1) {
+    const arg = rest[index];
+    if (arg === undefined) {
+      continue;
+    }
+    if (!arg.startsWith("--")) {
+      positionals.push(arg);
+      continue;
+    }
+    const body = arg.slice(2);
+    const eq = body.indexOf("=");
+    if (eq !== -1) {
+      options[body.slice(0, eq)] = body.slice(eq + 1);
+      continue;
+    }
+    const next = rest[index + 1];
+    if (next === undefined || next.startsWith("--")) {
+      switches.add(body);
+      continue;
+    }
+    options[body] = next;
+    index += 1;
+  }
+  return { command, options, positionals, switches };
+}
+
+function requireOption(
+  options: Record<string, string>,
+  name: string,
+): string {
+  const value = options[name];
+  if (value === undefined || value.trim() === "") {
+    throw new CommandError("CONTRACT_INVALID", `--${name} is required`);
+  }
+  return value;
+}
+
+function assertNoPositionals(args: ParsedArgs): void {
+  if (args.positionals.length > 0) {
+    throw new CommandError(
+      "CONTRACT_INVALID",
+      "unexpected positional arguments",
+    );
+  }
+}
+
+function rejectUnknownOptions(
+  options: Record<string, string>,
+  allowed: readonly string[],
+): void {
+  const allowedSet = new Set(allowed);
+  for (const name of Object.keys(options)) {
+    if (REFRESH_FLAGS.has(name)) {
+      throw new CommandError(
+        "CONTRACT_INVALID",
+        "explicit refresh is not available in this module",
+      );
+    }
+    if (!allowedSet.has(name)) {
+      throw new CommandError("CONTRACT_INVALID", `unknown option --${name}`);
+    }
+  }
+}
+
+function rejectUnknownSwitches(
+  switches: Set<string>,
+  allowed: readonly string[] = [],
+): void {
+  const allowedSet = new Set(allowed);
+  for (const name of switches) {
+    if (REFRESH_FLAGS.has(name)) {
+      throw new CommandError(
+        "CONTRACT_INVALID",
+        "explicit refresh is not available in this module",
+      );
+    }
+    if (!allowedSet.has(name)) {
+      throw new CommandError("CONTRACT_INVALID", `unknown option --${name}`);
+    }
   }
 }
