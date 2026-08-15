@@ -15,17 +15,14 @@ Hufu 刻意采用合同优先、插件优先和增量交付的方式。相比一
 
 ## 当前基线的本地检查
 
-以下命令对应当前 Python 实现。在 Cordis 技术基线 Module 合并前仍然有效：
-
 ```bash
-python3 -m unittest discover -s tests -v
-python3 scripts/check_version.py
-python3 tests/smoke.py
+pnpm test
+node scripts/check-version.mjs
+git diff --check
 ```
 
 测试套件必须能够在无网络访问、未安装运行时依赖的环境中运行。
-工具链迁移必须在同一 Pull Request 中提供等价的 typecheck、lint、unit test、coverage、build、
-版本一致性和 `git diff --check` 门禁，并同步更新本文件与 `AGENTS.md`。
+本地检查通过只证明所声明的本地证据，不证明已经发布或验收。
 
 ## Pull Request
 
