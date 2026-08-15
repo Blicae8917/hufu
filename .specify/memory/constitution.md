@@ -1,11 +1,10 @@
 <!--
 同步影响报告
-- 版本变化：保持 0.1.0（同一候选版本的设计收口，并遵守维护者的版本同步要求）
-- 修订原则：
-  - II. 正交分离与插件优先（澄清 Cordis-first 约束目标组合层；领域核心保持零框架依赖，
-    Cordis 运行时只随声明需要它的 Profile Module 引入）
-- 修订交付流程与质量门禁：写死 0.0.1 Python 基线的退役条件（首个 TypeScript 实现 Module
-  合并时同步替换实现、文档、自动化规则和等价门禁）
+- 版本变化：保持 0.1.0
+- 修订原则：无
+- 修订交付流程与质量门禁：首个 TypeScript 实现 Module 将当前门禁替换为 `pnpm test`、
+  `node scripts/check-version.mjs` 与 `git diff --check`；`0.0.1` Python 基线改为由标签
+  `v0.0.1` 保留，并从主线移除
 - 新增章节：无
 - 移除章节：无
 - 后续 TODO：无
@@ -165,16 +164,12 @@ durable Effect。当实现活动持续增长而首个 durable Effect 仍被可�
 
 每次修改仓库内容的交付都必须运行：
 
-- `python -m unittest discover -s tests -v`
-- `python scripts/check_version.py`
+- `pnpm test`
+- `node scripts/check-version.mjs`
 - `git diff --check`
 
-这些命令是当前 Python 基线的有效门禁。未来已接受的工具链迁移必须在同一变更中替换实现、文档、
-自动化规则和等价验证命令；在迁移完成前不得把目标技术栈描述成已经实现。
-
-`0.0.1` Python 基线的退役条件已经确定：首个 TypeScript 实现 Module 合并时，必须以 tag 保留
-`0.0.1` 历史，从主线删除 Python 实现，并在同一 Module 中把上述门禁替换为等价 TypeScript 门禁，
-同步更新 AGENTS 自动化规则与 README 快速开始。该 Module 合并前，Python 命令保持有效门禁地位。
+这些命令是当前 TypeScript 基线的有效门禁。`0.0.1` Python 基线已用标签 `v0.0.1` 冻结，
+并从主线移除；不要把该标签内的 Python 命令当作当前主线步骤。
 
 受影响功能需要时，还必须运行相应合同、Smoke、安全和平台检查。本地检查通过只证明所声明的本地 Evidence，
 不证明已经 commit、push、部署或验收。

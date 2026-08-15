@@ -49,8 +49,7 @@
 - 不得在本仓库中创建用于外部源码或内部研究的 gitignored 目录。
 - 保留无关和进入任务前已有的工作树修改；不得删除、覆盖或重新初始化 `.agents/`、`.specify/`
   等用户管理的工具资产。
-- 交付前必须运行 `python -m unittest discover -s tests -v` 和 `python scripts/check_version.py`。
+- 交付前必须运行 `pnpm test` 和 `node scripts/check-version.mjs`。
 - 交付前必须运行 `git diff --check`，并将本地验证与 commit、push、部署和验收状态分别报告。
-- 上述 Python 命令是当前实现基线。未来工具链迁移必须在同一已接受 Module 中同步更新实现、文档、
-  自动化规则和等价门禁；迁移完成前不得把目标技术栈描述成已实现。
+- 上述命令是当前 TypeScript 实现基线。不得把已退役的 Python 命令写成当前必须执行的门禁。
 - 严禁提交 Secret、私有 Endpoint、客户数据或本机特定路径。

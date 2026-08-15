@@ -7,3 +7,5 @@ build/
 dist/
 *.egg-info/
 .hufu/
+node_modules/
+.pnpm-store/
