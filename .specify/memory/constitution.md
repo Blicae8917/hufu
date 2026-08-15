@@ -1,12 +1,11 @@
 <!--
 同步影响报告
-- 版本变化：保持 0.1.0（当前仍是同一候选版本的正本收敛，并遵守维护者的版本同步要求）
+- 版本变化：保持 0.1.0（同一候选版本的设计收口，并遵守维护者的版本同步要求）
 - 修订原则：
-  - I. 单一任务正本与显式授权（补充单一 canonical 决策正文和引用传递边界）
-  - IV. 真实事件与证据（补充决策换版、事实与效果增量的 append-only 语义）
-  - V. 唯一责任角色与显式换届（补充执行信封和非审批性路线确认的职责边界）
-  - VIII. 有界且经济的编排（补充 durable effect 与事件驱动 semantic rebase 护栏）
-- 修订系统边界：明确决策传递属于执行协调事实，不拥有任务状态、审批或授权
+  - II. 正交分离与插件优先（澄清 Cordis-first 约束目标组合层；领域核心保持零框架依赖，
+    Cordis 运行时只随声明需要它的 Profile Module 引入）
+- 修订交付流程与质量门禁：写死 0.0.1 Python 基线的退役条件（首个 TypeScript 实现 Module
+  合并时同步替换实现、文档、自动化规则和等价门禁）
 - 新增章节：无
 - 移除章节：无
 - 后续 TODO：无
@@ -38,8 +37,10 @@ RuntimeProvider、EngineProvider 或兼容 Adapter 暴露运行能力及执行�
 CLI、MCP 和 UI 等 Consumer 或 Renderer 只调用共享服务并展示派生视图，不得拥有任务状态。
 
 Hufu 必须以 Cordis-first 的 Service Definition、Provider、Consumer、类型化 Event 和可撤销 Effect
-组织可替换能力，不得通过修改某个 Host 的 Agent Loop 建立特权核心。Provider 特定状态和 Policy
-必须位于相应插件边界之后。LoopX 可以作为 EngineProvider 或机制来源，但不是 `task_authority`；
+组织可替换能力，不得通过修改某个 Host 的 Agent Loop 建立特权核心。“Cordis-first”约束的是
+目标组合层与合同形状：供应商中立领域核心必须保持零框架依赖，Service Definition 可以先由
+纯语言接口表达；Cordis 运行时只随声明需要它的 Profile Module 引入，不作为领域核心的前置依赖。
+Provider 特定状态和 Policy 必须位于相应插件边界之后。LoopX 可以作为 EngineProvider 或机制来源，但不是 `task_authority`；
 它引入的能力不得绕过 Hufu 的任务正本、授权和 Evidence 合同。
 
 ### III. 公开核心，研究外置
@@ -170,6 +171,10 @@ durable Effect。当实现活动持续增长而首个 durable Effect 仍被可�
 
 这些命令是当前 Python 基线的有效门禁。未来已接受的工具链迁移必须在同一变更中替换实现、文档、
 自动化规则和等价验证命令；在迁移完成前不得把目标技术栈描述成已经实现。
+
+`0.0.1` Python 基线的退役条件已经确定：首个 TypeScript 实现 Module 合并时，必须以 tag 保留
+`0.0.1` 历史，从主线删除 Python 实现，并在同一 Module 中把上述门禁替换为等价 TypeScript 门禁，
+同步更新 AGENTS 自动化规则与 README 快速开始。该 Module 合并前，Python 命令保持有效门禁地位。
 
 受影响功能需要时，还必须运行相应合同、Smoke、安全和平台检查。本地检查通过只证明所声明的本地 Evidence，
 不证明已经 commit、push、部署或验收。

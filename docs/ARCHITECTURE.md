@@ -48,9 +48,13 @@ Hufu 在不夺取事实所有权的前提下，为操作者组合出可信视图
 
 ## Cordis 插件模型与 Host 边界
 
-Hufu 的目标实现使用 Cordis-first 插件树。每项可替换能力都分为 Service Definition、Provider
+Hufu 的目标架构使用 Cordis-first 插件树。每项可替换能力都分为 Service Definition、Provider
 和 Consumer：Service Definition 固定供应商中立合同，Provider 提供具体实现，Consumer 只通过 Context
 Injection 调用服务。类型化 Event 传递事实，可撤销 Effect 管理工具、监听器和资源注册。
+
+“Cordis-first”约束的是组合层，不是领域核心的依赖：供应商中立领域核心保持零框架依赖，
+Service Definition 先由纯 TypeScript 接口表达。`0.1.0` 的 Standalone Profile 不组装 Cordis；
+Cordis 运行时随 DeepSeek Profile Module 引入，届时同一组接口再包装为 Cordis Service。
 
 供应商中立的 `DecisionTransferService` 负责校验决策引用、追加执行协调记录并投影当前决策；
 Storage Provider 只保存其 append-only 事件，RuntimeProvider、EngineProvider、Tool、CLI、MCP 和 Web
@@ -79,12 +83,28 @@ Hufu 提供两种组合方式：
 
 - **DeepSeek Profile**：作为 DeepSeek Harness 原生插件树的一部分，直接消费公开的 Session、Storage、
   Tool 和 Event 能力；
-- **Standalone Profile**：由 Hufu 组装 Cordis Context；`0.1.0` 先通过 Skill、Command 或 CLI 接收
-  Codex、Claude、Kimi、Grok Build 等 Host 的入站调用，不创建或继续 Host Session。
+- **Standalone Profile**：`0.1.0` 以零 Cordis 依赖的纯 TypeScript 服务核心加 CLI 组装同一组合同，
+  通过 Skill、Command 或 CLI 接收 Codex、Claude、Kimi、Grok Build 等 Host 的入站调用；入站方向是
+  一等公民和长期形态，不创建或继续 Host Session。
 
 DeepSeek Harness、Codex 或其他 Host 都不拥有任务生命周期。模型 Tool、Host Skill、CLI、MCP 和 Web
 都是 Consumer；它们必须调用同一 Service 和 CurrentView，不得解析另一 Consumer 的展示文本或复制
 授权与 Provider 映射逻辑。Hufu 不修改 DeepSeek Harness 的 Agent Loop。
+
+Hufu 词汇与 DeepSeek Harness 既有服务的映射如下。同名不同义的条目必须使用 `ctx.hufu*` 前缀
+注册并保持语义隔离，禁止裸名注册：
+
+| 上游 seam | 上游语义 | Hufu 对应概念 | 处理 |
+| --- | --- | --- | --- |
+| `ctx.goals` | 同一 Session 内的事件溯源目标域 | 跨 Session、项目级 WorkItem/objective | 改名隔离，Runtime Module 需给出显式映射 |
+| `ctx.todo` | Session 内待办 | WorkItem（生命周期归任务正本） | 改名隔离 |
+| Workspace（`ctx.workspaceRegistry`） | 用户工作目录的持久记录（uuid + 路径） | 分配给 Owner 的工作场所绑定 | 改名隔离，二者不得在同一 Context 内混用 |
+| `ctx.storageDomain` | Host 持久化边界 | Hufu StorageDomain 的宿主 Provider | 复用（经 Hufu StorageDomain 合同包装） |
+| Session 服务 | Host Session 生命周期 | SessionBinding 的观测来源 | 引用（只读观测，不拥有） |
+| `ctx.commands` / `ctx.skills` | Host 命令与技能注册 | Hufu Consumer 的注册入口 | 复用（注册 `ctx.hufu*` 命名条目） |
+| `ctx.schedule` / `ctx.jobs` | Host 后台调度与工作 | 无对应（V1 无后台） | 无关，不得用于 Hufu 语义 |
+| `ctx.credentials` | Host 凭据管理 | Provider 凭据的常规机制 | 引用（Hufu 不存储凭据） |
+| `ctx.invariants` | 包级不变量注册 | Hufu 不变量的运行时表达 | 复用（DeepSeek Profile 下注册部分不变量） |
 
 事件分为三个层次，不能因为名称相似而混用：
 
@@ -168,6 +188,11 @@ Evidence 或 Provider 状态。
 AgentIdentity 只说明由哪个 Host 或执行节点报告了身份，不授予角色。提示词中的角色声明是绑定申请；
 Hufu Role Service 必须以现有目标、授权范围和当值 RoleBinding 校验该 Session 可以执行的动作。
 
+**冷启动序列**：`connect` 之后、任何 RoleBinding 存在之前，Ledger 按固定顺序追加：Project 连接
+记录、`commander` 身份声明与首个 `AuthorizationGrant`、首个 `project_lead` RoleBinding。引导事件的
+`actor_binding_ref` 允许指向同一引导事务内声明的 `commander` 身份记录；引导事务之外的事件必须
+引用既有绑定。`commander` 是人类身份记录，不要求 SessionBinding。
+
 有效权限按交集计算：
 
 ```text
@@ -240,6 +265,12 @@ task_authority WorkItem / Projection
 Ledger 范围的 `ledger_seq`、`occurred_at`、`actor_binding_ref`、`caused_by`、`idempotency_key`
 和 `payload_digest`。相同幂等 Key 与相同 digest 返回原结果；相同 Key 与不同 digest、顺序冲突或因果缺失
 必须 fail closed。
+
+全部 digest（`payload_digest`、`content_digest`、component digest 和 drift fingerprint）按同一
+带版本的规范计算：先以 RFC 8785（JSON Canonicalization Scheme）对 Schema 规定的语义字段规范化
+序列化，再取 SHA-256。`idempotency_key` 的构造规则由各事件 Schema 声明，且必须由提交内容
+确定性派生。两种 Profile 与全部运行环境必须对相同输入得到逐字节相同的 digest；更换算法必须
+提升该规范版本并保留旧版本校验路径。
 
 #### DECISION_PACKET
 
@@ -358,6 +389,21 @@ UsageObservation 是效能 Evidence，不是配额、计费或执行授权。V1 
 旧事件只在读取时通过无副作用的纯函数 upcast；原始行永不重写。读取器遇到未知的必需未来版本、
 无法建立全序或不支持的强制字段时 fail closed。`writer_id` 或每写者局部序号不能单独替代 Ledger 全序。
 
+以下工程语义是可验收合同，不是实现便利：
+
+- **事件身份与全序**：每条事件带稳定 `event_id`、每事件类型独立的 Schema Version 和 Ledger 范围的
+  `ledger_seq` 权威全序。同毫秒或时钟回拨时以 `ledger_seq` 为准；`occurred_at` 只是观测时间，
+  不参与排序。
+- **单写者排除**：追加前必须取得 Ledger 目录内的独占锁（以独占创建语义实现，Windows 与 POSIX
+  行为一致；具体参数由 Ledger Module 的 Plan 固定）。取锁失败即拒绝写入，不排队、不静默接管。
+- **撕裂写入策略**：文件中间出现畸形行时整个 Ledger 判定为损坏，读取与写入 fail closed；仅当
+  最后一行因崩溃截断时，读取器把它报告为未完成追加（`availability=conflict`），`doctor` 可以
+  提出显式截除建议，由操作者确认后执行并追加修复事件，不静默修复。
+- **`writer_id` 只用于检测**：它标识写者身份、辅助冲突诊断，不能代替 Ledger 全序，也不能使
+  并发写入合法化。
+- **角色唯一性是回放检测**：唯一当值 `project_lead`、`owner` 等不变量在回放时检测，冲突以
+  `availability=conflict` 暴露并 fail closed，不构成跨机器或分布式强制。
+
 Standalone Profile 的 `0.1.0` 本地正本使用上述 JSONL。DeepSeek Profile 的跨 Session 项目事实可以在
 Hufu StorageDomain 后使用 DeepSeek Harness JSON Storage Provider，但仍遵守相同 append-only 事件语义。
 DeepSeek Session Log 只保存当前 Session 可重建的执行事实和投影，不能单独拥有 Project Goal、
@@ -370,9 +416,11 @@ WorkItem 或 RoleBinding 生命周期。CurrentView 必须带 `view_schema_versi
 
 ## 技术基线与 V1 组件边界
 
-目标实现采用 Node.js、严格 TypeScript、ESM 和 pnpm。Cordis 是插件组合与生命周期基础；精确版本、
-Node 支持范围和验证过的 DeepSeek Harness 提交记录在首个功能 Plan 和兼容性记录中，不写死在 Constitution。
-当前 Python 3.11 CLI 仍是 `0.0.1` 已实现基线，在迁移 Module 合并前不得删除或描述为已迁移。
+目标实现采用 Node.js、严格 TypeScript、ESM 和 pnpm。领域核心与 `0.1.0` Standalone Profile
+零 Cordis 依赖；Cordis 是目标组合层的插件与生命周期基础，随 DeepSeek Profile Module 引入。
+精确版本、Node 支持范围和验证过的 DeepSeek Harness 提交记录在首个功能 Plan 和兼容性记录中，
+不写死在 Constitution。当前 Python 3.11 CLI 仍是 `0.0.1` 已实现基线，退役条件见 Constitution
+交付门禁：首个 TypeScript 实现 Module 合并时以 tag 保留历史并同步替换等价门禁。
 
 ```text
 Profiles: deepseek | standalone
@@ -506,17 +554,24 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 
 ## 0.1.0 分阶段集成
 
+发布门内的顺序：
+
 1. 设计正本先通过唯一设计 Pull Request 接受。
-2. 建立 Node/TypeScript/Cordis 基线、共享核心合同、零拷贝决策 Schema、DeepSeek Profile 和
-   Standalone Profile 的最小骨架。
-3. 完成 Local authority、Session/Run/Handoff、决策增量回放、事件驱动 semantic rebase、
-   StorageDomain/JSONL、确定性 CurrentView 和有界 Commands。
-4. 以 DeepSeek Harness 原生插件验证 Tool、受支持的 Session Event、Storage 和卸载清理；
+2. M1：建立零 Cordis 依赖的严格 TypeScript 核心骨架和共享核心合同，同一 Module 内完成
+   Python 基线退役与等价门禁迁移。
+3. M2：完成 Local authority、Session/Run/Handoff、StorageDomain/JSONL、确定性 CurrentView
+   和 `connect`、`doctor`、`status`、`handoff` 有界 Commands。
+4. M3：本仓库 GitHub Provider 以只读影子模式交付，并以本项目自身验证同一 CurrentView。
+
+发布门之后的已接受方向按独立 Module 依次评估：
+
+5. 零拷贝决策 Schema、决策增量回放和事件驱动 semantic rebase。
+6. 以 DeepSeek Harness 原生插件验证 Tool、受支持的 Session Event、Storage 和卸载清理；
    以 Standalone Profile 的入站 Consumer 验证同一合同不依赖单一 Host。
-5. GitLab 与 GitHub Provider 分别以只读影子模式交付并验证同一 CurrentView。
-6. `engine-loopx` 先接入 typed result、Receipt/readback 和有界恢复合同，再按试点收益决定扩大范围。
-7. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token。
-8. 只有出现可解释净收益，才实现 loopback Web Console 或更高自治能力；否则暂停扩充。
+7. GitLab Provider 以只读影子模式交付并验证同一 CurrentView。
+8. `engine-loopx` 先接入 typed result、Receipt/readback 和有界恢复合同，再按试点收益决定扩大范围。
+9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token；
+   只有出现可解释净收益，才实现 loopback Web Console 或更高自治能力，否则暂停扩充。
 
 关键决策会商、多 Host 出站 Runtime 和自动 CLI 扇出不在上述 `0.1.0` 顺序内；它们必须另立
 Module Issue 和 Spec Kit 合同。

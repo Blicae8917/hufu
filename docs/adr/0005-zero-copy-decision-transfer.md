@@ -3,7 +3,9 @@
 - 状态：候选，待 `0.1.0` 设计 Pull Request 接受
 - 日期：2026-08-15
 - 决策所有者：Hufu 维护者
-- 实现状态：尚未实现；必须由独立 Module Issue、Spec Kit 合同和失败测试交付
+- 实现状态：尚未实现；作为已接受方向由独立 Module Issue、Spec Kit 合同和失败测试交付，
+  **不阻塞 `0.1.0` 发布门**。`0.1.0` 若触碰决策记录，至多实现“一份裁决只完整保存一次，
+  `status` 与 `handoff` 只传引用”。
 
 ## 背景
 
@@ -194,6 +196,15 @@ GitHub、GitLab 或 Local authority 继续拥有任务状态。Hufu 只拥有决
 - 相同事件夹具在 DeepSeek 与 Standalone Profile 物化出不同 decision ref、digest 或护栏；
 - `status` 或漂移求值产生后台轮询、Issue 写回或重复 rebase fingerprint；
 - semantic rebase 删除 Evidence、回滚不可逆 Effect 或改变 WorkItem 生命周期。
+
+该 Module 的 Spec 在定义合同前必须先回答以下设计必答题，不得留给实现推导：
+
+- **Decision 与 WorkItem 的基数**：一个 `decision_id` 能否横跨多个 WorkItem（Mission 场景）；
+  一个 WorkItem 能否同时存在多条活跃 decision stream；
+- **`decision_id` 的分配**：由哪个角色、在哪类事件中分配，以及与幂等 Key 的关系；
+- **decision stream 的终结**：是否存在显式终态，还是仅由 `recheck_when` 与执行护栏约束；
+- **授权本体依赖**：`authority_scope_ref` 与“授权 revision 变化后旧 ACK 失效”如何绑定到
+  SPEC 定义的 `AuthorizationGrant` 身份与 revision。
 
 效能试点必须比较正文重复量、上下文或可取得的 Token、规划与执行墙钟、零效果尝试、协调唤醒和返工。
 连续三轮没有可解释净收益时暂停扩大该能力，不以更多控制面补偿失败。

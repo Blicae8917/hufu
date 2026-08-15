@@ -8,6 +8,9 @@
 Hufu 是一个 Cordis-first、供应商中立的 AI Agent 交付协调插件系统。它为操作者提供目标、授权、
 任务正本、责任角色、当前执行事实、证据、阻塞和交接的一体化可追溯视图，同时避免创建第二套事实正本。
 
+本公开仓库的第一读者是维护者自身的交付工作流：文档正本默认使用简体中文。只有当出现真实的
+外部可安装插件用户时，才补充英文入口。这是一项已裁决的产品定位，不是文档语言遗漏。
+
 Hufu 可以随已接受的 Engine 和 Runtime 能力逐步提高自治程度，但 `0.1.0` 不是无人值守控制平面；
 它不会推导授权、静默复制 Provider 状态、后台调度或自动启动 Agent。
 
@@ -48,9 +51,9 @@ Hufu 的目标使用模式是 Cordis 插件组合，而不是让每个 Host 分�
 
 - 在 DeepSeek Harness 中，Hufu 作为原生 `dsh-plugin` 加载，通过公开的 Service、Event、Session、
   Storage 和 Tool 边界工作；
-- 在 Codex、Claude、Kimi、Grok Build 等 Host 中，Standalone Profile 先组装同一组 Hufu Service，
-  让 Host 通过 Skill、Command 或 CLI 调用；创建、继续和投递 Host Session 的出站 RuntimeProvider
-  属于后续独立能力；
+- 在 Codex、Claude、Kimi、Grok Build 等 Host 中，入站方向（Host 通过 Skill、Command 或 CLI
+  调用 Hufu Service）是一等公民和长期形态，不是过渡设计；创建、继续和投递 Host Session 的
+  出站 RuntimeProvider 是可选的后续独立能力，按 Host 能力分别裁决；
 - Host Skill、模型 Tool、CLI、MCP 和 Web 是不同 Consumer，共享同一 CurrentView 和有界 Command，
   不得互相解析展示文本或复制业务状态。
 
@@ -80,6 +83,21 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
 
 ## V1 范围
 
+### 0.1.0 发布门与后续 Module 验收
+
+`0.1.0` 的范围分为两层，避免把一个完整产品写成一个版本：
+
+- **发布门（`0.1.0` 必须交付）**：本机可用的只读影子纵切——`connect`、`doctor`、`status`、
+  `handoff` 四个有界命令；`local` 与本仓库 GitHub 只读投影两种任务正本按交付顺序先后进入；
+  CurrentView 能区分 `fact_class`、`availability` 和 `freshness` 三轴。
+- **后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）**：完整零拷贝决策流（Envelope、ACK、
+  三类 Delta、semantic rebase）、DeepSeek 与 Standalone 双 Profile 夹具对等、DeepSeek 插件
+  真装真卸、GitLab 只读投影、`engine-loopx`、关键决策会商、loopback Web Console、出站 Runtime。
+  每项由独立 Module Issue 与 Spec Kit 合同交付并各自验收。
+
+`0.1.0` 若触碰决策记录，至多实现“一份裁决只完整保存一次，`status` 与 `handoff` 只传引用”，
+不实现完整决策状态机。
+
 ### Project 连接与健康检查
 
 - `hufu connect` 记录本地 Project 连接、仓库身份和一个 `task_authority`，但不存储 Provider 凭据。
@@ -87,10 +105,16 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
   且不修改外部系统。
 - Standalone Profile 的本地运行态位于 `.hufu/`，并排除在版本控制之外；DeepSeek Profile 的项目事实
   位于 Hufu StorageDomain 后的已验证 Host 存储，两者都不进入公开仓库正本。
-- `local` 正本在 `0.1.0` 只承诺单安装、单写者使用，不承诺跨机器同步；写入前必须排除并发写者，
-  冲突或无法确认唯一写者时 fail closed。
+- `local` 正本是单操作者、单安装边界：权威数据位于本机 `.hufu/`，不进入版本控制，也不跨机器
+  同步——换机即失是已声明行为，不是缺陷；需要跨机器共享任务状态的项目应选择 `github` 或
+  `gitlab` 正本。写入前必须排除并发写者，冲突或无法确认唯一写者时 fail closed。角色唯一性等
+  不变量在该边界内由回放检测并以冲突态暴露，不构成分布式保证。
 - 从 `0.0.1` 合同迁移时，`native` 可以确定性迁移为 `local`；`external` 无法判断是 GitHub
   还是 GitLab，必须由用户显式选择，否则 fail closed。迁移必须提升 Schema Version，不能静默改义。
+  该迁移只是信封文档的 Schema 映射；`0.0.1` 没有持久运行态，不存在存量数据迁移。
+- 外部引用使用版本化 URI scheme：`github:<owner>/<repo>#<issue>` 和
+  `gitlab:<group>/<project>#<issue>`。`0.0.1` 的自由文本 `external_ref` 不满足该 scheme 时
+  不得猜测映射，必须由用户显式补全，否则 fail closed。
 
 ### WorkItem 与生命周期
 
@@ -106,6 +130,9 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
   不复制成新的任务状态。
 
 ### 零拷贝决策传递
+
+本节合同属于已接受方向，由独立 Module 交付，不进入 `0.1.0` 发布门
+（见「0.1.0 发布门与后续 Module 验收」）。
 
 每个需要执行的裁决使用一个稳定 `decision_id`。Ledger 只完整保存一次初始 `DECISION_PACKET`；
 同一裁决的后续语义版本由连续的 `DECISION_DELTA` 确定性折叠生成。CurrentView 可以物化最新完整版本，
@@ -208,11 +235,24 @@ CLI 纵切和代表性试点通过效能门禁后，第一版工作台才进入�
 生成的指令是可供用户复制的文本，绑定到所选 Project、WorkItem、已知事实和授权边界。
 V1 不会自动启动 Agent。
 
+**类型化错误分类**：四个命令共享一套带独立 Schema Version 的错误合同。每种 fail closed 情形
+映射到稳定的机器可读错误码，至少区分：合同或输入校验失败、任务正本缺失或二义、并发写者冲突、
+Ledger 因果或 digest 冲突、不支持的 Schema 版本、观测不可用或数据不足。退出码族统一为：
+`0` 成功、`2` 合同或输入无效、`3` 状态冲突或并发拒绝、`4` 观测不可用或数据不足。
+错误载荷属于结构化输出；Consumer 不得解析人类可读文本判断失败类别。
+
+**Projection 刷新策略**：Hufu 没有后台刷新和心跳，外部 Projection 只在用户发起的命令边界刷新。
+`status` 默认读取本地缓存并展示 `observed_at` 与 freshness；只有显式刷新选项才产生网络读取。
+缓存位于 `.hufu/cache/`，属于可重建派生数据。`stale` 判定阈值是 Project 级配置并有默认值，
+具体数值由首个 Provider Module 的 Plan 固定；离线或拉取失败时保留旧观测并标记 `stale` 或
+`unavailable`，不得静默清空或伪造 freshness。
+
 ### 技术约束
 
-- 目标实现使用 Node.js、严格 TypeScript、ESM、pnpm 和 Cordis-first 插件合同；`0.1.0` 当前核对的
-  具体 Cordis 实现及精确版本由
-  功能 Plan 和兼容性记录管理。
+- 目标实现使用 Node.js、严格 TypeScript、ESM 和 pnpm。供应商中立领域核心保持零框架依赖；
+  `0.1.0` 的 Standalone Profile 是同一核心上的 CLI 组装，不引入 Cordis 运行时。Cordis
+  （当前唯一已验证实现为 `@deepseek-ai/cordis`）随 DeepSeek Profile Module 引入，
+  精确版本由功能 Plan 和兼容性记录管理。
 - DeepSeek Harness 作为原生 Profile；Standalone Profile 必须复用相同领域合同并支持 Windows 与 POSIX。
 - Cordis 插件使用 Service Definition、Provider、Consumer、类型化 Event 和可撤销 Effect；
   不修改 Host Agent Loop。
@@ -229,6 +269,7 @@ V1 不会自动启动 Agent。
 | 实体 | 用途 | 正本边界 |
 | --- | --- | --- |
 | Project | 仓库连接和声明的 `task_authority`。 | 不存储 Provider 凭据。 |
+| AuthorizationGrant | `commander` 签发的结构化授权记录：`grant_id`、`revision`、签发人、范围、有效期、`supersedes`。 | 唯一可被 `authority_scope_ref` 引用的授权本体；不由 Journal、Receipt 或角色推导。 |
 | Milestone | 从任务正本投影或在本地表达的交付分组。 | 外部生命周期仍归外部系统。 |
 | WorkItem | 一项目标、范围、依赖和终止条件的工作单元。 | 生命周期归声明的任务正本。 |
 | AgentIdentity | Host 报告的 Agent 或执行节点身份。 | 不等同于角色或授权。 |
@@ -246,6 +287,11 @@ V1 不会自动启动 Agent。
 | EXECUTION_ENVELOPE | PM/集成负责人附加的决策执行路由。 | 只引用 Packet，不得重写正文或扩权。 |
 | ROUTE_ACK | 执行 Leader 对目标、状态、验收和范围差异的一次确认。 | 是 readiness observation，不是审批。 |
 | FACT/DECISION/EFFECT_DELTA | 事实、决策换版和效果 readback 的 append-only 增量。 | 不复制任务正文或另建生命周期。 |
+
+`AuthorizationGrant` 是授权的唯一记录本体：签发人必须可归因到人类 `commander` 或其明确指定的
+发布者；范围预留结构化字段（仓库、路径 glob、命令类别），`0.1.0` 允许以自由文本填充但字段
+必须存在；修改或收回通过带 `supersedes` 的新 revision 追加表达，不重写历史。`authority_scope_ref`
+与“授权 revision 变化后旧 ACK 失效”等语义都以该实体的身份与 revision 为判定依据。
 
 ## 用户可见的事实状态
 
@@ -265,7 +311,8 @@ Renderer 可以从三条轴生成面向用户的 `fact_status`，但该标签不
 
 未来的纠偏学习由 Advisor 插件拥有 `CorrectionObservation`，记录纠偏前路线、人类纠偏、适用范围、
 反例和预期效果。纠偏后的路线、实际效果和规则提升必须作为后续独立事件记录；Observation 本身不得
-修改外部 Issue、产生授权或自动提升为核心规则。
+修改外部 Issue、产生授权或自动提升为核心规则。每条纠偏必须可归因到具体人类，Agent 不得自产
+自销后回喂；纠偏必须可撤销，撤销后 CurrentView 必须能确定性重建为不含该纠偏的状态。
 
 ## Hufu 自身研发流程
 
@@ -282,30 +329,40 @@ GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库�
 
 ## 0.1.0 交付顺序
 
-`0.1.0` 按可独立验证的纵切推进，而不是把全部组件塞进第一张实现 Issue：
+`0.1.0` 按可独立验证的纵切推进，而不是把全部组件塞进第一张实现 Issue。发布门内的顺序：
 
-1. 接受中文产品、架构、Constitution 和 ADR 正本。
-2. 建立 Node/TypeScript/Cordis 基线、共享核心合同、零拷贝决策 Schema、DeepSeek Profile 和
-   Standalone Profile 的最小骨架。
-3. 迁移 Project authority 合同，完成 Local Ledger、Session/Run/Handoff、决策增量回放、
-   事件驱动 semantic rebase、StorageDomain、CurrentView 和有界 Commands。
-4. 在 DeepSeek Harness 原生插件和 Standalone Profile 中用版本化夹具验证规范化 CurrentView
-   结构相等及卸载清理。
-5. 分别增加 GitLab、GitHub 只读 Projection，并在各自代表性项目中验证同一 CurrentView。
-6. 通过 `engine-loopx` 接入第一批 typed result、Receipt/readback 和有界恢复机制。
-7. 汇总三轮代表性试点；只有通过效能门禁才扩大 LoopX 能力、提高自治或实现 loopback Web Console。
+1. 接受中文产品、架构、Constitution 和 ADR 正本（唯一设计 Pull Request）。
+2. M1：建立零 Cordis 依赖的严格 TypeScript 核心骨架、共享核心合同，并在同一 Module 内完成
+   Python 基线退役与等价门禁迁移。
+3. M2：完成 `local` JSONL Ledger、Session/Run/Handoff、StorageDomain、确定性 CurrentView
+   和 `connect`、`doctor`、`status`、`handoff` 四个有界命令。
+4. M3：增加本仓库 GitHub 只读 Projection，并以本项目自身为代表性项目验证同一 CurrentView。
+
+发布门之后的已接受方向按独立 Module 依次评估：零拷贝决策流与事件驱动 semantic rebase、
+DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理、GitLab 只读 Projection、
+`engine-loopx` 第一批 typed result 与 Receipt/readback、代表性效能试点与 loopback Web Console。
 
 除设计正本收敛外，每一实现阶段必须有独立 Module Issue 和 Spec Kit 功能合同。外部试点的内部项目名、
 路径、Issue 内容和用量明细不得进入公开仓；公开材料只能保留脱敏方法和聚合结果。
 
 ## V1 成功标准
 
+### 发布门（`0.1.0` 必须同时满足）
+
 - 每个已连接 Project 恰好报告一个任务正本，否则 fail closed。
+- 支持的 Windows 和 POSIX 环境可以完成 connect、doctor、status 和 handoff 验证，无需后台服务。
 - 每个外部 WorkItem 视图暴露原始链接、来源、观测时间和 freshness。
 - 对未改变的本地 Ledger 进行回放，得到相同的 WorkItem 和绑定视图。
 - 操作者可以从一个 Status 视图识别 Owner、Project Lead、阻塞、Evidence 摘要和下一步，
   不需要查阅第二份 Hufu 任务清单。
-- 生成的下一步文本标识所选 WorkItem，且不超出已记录范围。
+- 生成的下一步文本标识所选 WorkItem，且不超出已记录的 `AuthorizationGrant` 范围。
+- CurrentView 的每项重要事实可区分 `fact_class`、`availability` 和 `freshness`；
+  缺失观测显示 `unavailable` 或 `data_insufficient`，不写成 `0`。
+- 每种 fail closed 情形返回稳定的机器可读错误码和约定退出码。
+- Provider Adapter 测试证明没有发生 Issue 写回操作。
+
+### 后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）
+
 - 同一裁决只有一份初始 Packet 正文；Envelope、ACK、Handoff、Session 换届和 Renderer 只保存引用、
   digest 或增量，不能形成第二份可编辑决策正文。
 - 相同合法 Ledger 必须物化出相同 `decision_id/version/content_digest`、ACK 有效性、Effect cursor
@@ -314,14 +371,12 @@ GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库�
   `scope_change_required`，不能获得新权限或任务状态。
 - 只有完整 readback 证明 durable Effect 尚不存在时，漂移检测才能据此硬触发；缺失观测必须显示
   `unavailable` 或 `data_insufficient`。相同 drift fingerprint 只产生一次 semantic rebase 要求。
-- Provider Adapter 测试证明没有发生 Issue 写回操作。
-- 除非未来已接受的功能修改边界，否则 Dashboard 拒绝非 loopback 绑定。
 - DeepSeek Profile 与 Standalone Profile 对同一版本化事件夹具生成规范化结构相等的 CurrentView；
   Host 特有的不可观测字段明确为 `unavailable`。
 - DeepSeek 插件卸载后，其注册的 Tool、Event Listener 和其他运行时 Effect 被可靠清理；
   已持久化事实不被删除，只能通过新的 append-only 事件取消、撤回或取代。
-- 支持的 Windows 和 POSIX 环境可以完成 connect、doctor、status 和 handoff 验证，无需后台服务。
-- 若 Web Console 通过效能门禁进入 `0.1.0`，则两类环境都能以前台方式完成 loopback serve 验证。
+- 若 Web Console 通过效能门禁进入实现，则两类环境都能以前台方式完成 loopback serve 验证，
+  且 Dashboard 拒绝非 loopback 绑定。
 - 每次试点能够区分任务总墙钟、Hufu 编排耗时、零效果尝试、协调唤醒、返工和可取得的
   Provider 原生 Token；无法取得的用量明确显示 `unavailable`。
 - 授权、安全、结果质量和 Evidence 完整性不得因降低时间或 Token 而退化。
@@ -334,6 +389,18 @@ GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库�
 零效果尝试、协调唤醒、返工、设置成本和可取得的 Provider 原生 Token。结论只能是
 `NET_BENEFIT`、`NO_NET_BENEFIT`、`TRADEOFF`、`DATA_INSUFFICIENT` 或 `FAIL`，不得用单一 Token 数或
 自动化步骤数量宣称成功。某项新增能力连续三轮为无净收益时暂停该能力，不连带否定已经证明有效的核心合同。
+
+各项度量的操作定义：
+
+- **协调唤醒**：为推进同一 WorkItem 而发生的一次人类或 Agent 显式介入（发起命令、发送消息、
+  切换 Session），以 Hufu 观测到的命令与 Handoff 事件计数；
+- **零效果尝试**：一次结束时没有产生新 durable Effect、新 Evidence 或新决策增量的执行尝试；
+- **返工**：针对同一验收目标推翻或重做既有产物的后续尝试，以引用同一 WorkItem 的取代或
+  重做事件计数；
+- **编排墙钟与执行墙钟**：编排墙钟只统计 Hufu 命令与协调事件之间由操作者驱动的部分；
+  模型推理时间归入执行墙钟，Hufu 无法观测时记 `unavailable`，不得摊派估算。
+
+人工基线在私有环境采集；公开仓库只保留上述口径和脱敏聚合结果。
 
 ## 未来方向
 

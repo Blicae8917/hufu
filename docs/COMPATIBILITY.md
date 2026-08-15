@@ -18,6 +18,12 @@ DeepSeek Harness 当前目标工具链基线为 Node.js `^22.19.0 || >=24.0.0`�
 严格 TypeScript、ESM、Vitest、Oxlint 和 tsdown。Hufu 第一张实现 Module 的 Plan 必须重新核对这些值，
 并只选择完成最小骨架所需的工具，不照搬上游 Monorepo 的全部基础设施。
 
+上表「已核对基线」是源码提交，「相关版本」是已发布 npm 产物版本。上游无 tag 或 release 时，
+二者之间没有可证明的绑定关系，不得互相推断身份，必须分别核对。`@deepseek-ai/cordis` 是
+Hufu 当前唯一已验证的 Cordis 实现（决策见 ADR 0003「Cordis 实现身份」节）：它是上游 `cordis`
+`4.0.0-rc.7` 的改名 vendored fork，Hufu 不声称兼容上游 `cordis`；`0.1.0` 的领域核心与
+Standalone Profile 不组装任何 Cordis 运行时。
+
 ## 漂移状态
 
 - 2026-08-15 的一次 DeepSeek Harness 观测对应上述提交；这是一条带日期的观测，不是“当前永远一致”的承诺。
@@ -41,6 +47,15 @@ DeepSeek Harness 当前目标工具链基线为 Node.js `^22.19.0 || >=24.0.0`�
 5. LoopX typed result、Receipt、Effect readback 和恢复合同没有取得任务正本或授权所有权。
 6. 第三方源码归属、许可证和 NOTICE 与实际采用内容一致。
 7. 外部 Issue、角色卡和模型响应保持为不可信引用数据，并通过 Prompt Injection 与越权失败测试。
+8. DeepSeek Harness out-of-tree 插件安装契约：安装命令为
+   `dsh plugin --profile <name> add <package>`；npm 包 manifest 必须声明
+   `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`，未声明该字段的包被显式列入 Profile
+   加载项时必须 fail loud；Profile 位于 `$DSH_HOME/profiles/<name>`（Harness home 解析顺序为
+   `$DSH_HOME`，否则 `~/.dsh`）；bare 包名解析依赖可选原生 peer `node-addon-require-builtin`，
+   否则调用方必须使用可解析的相对或 file 说明符；用户 patch 对匹配条目是整块替换 `config`、
+   不做深合并，任何覆盖都会丢弃未重述字段。DeepSeek Profile Module 必须包含一条真装真卸契约
+   测试：装入 Profile 后服务可用，卸载后 Tool、Event Listener 与其他运行时 Effect 全部撤销，
+   已持久化事实保留。
 
 DeepSeek Harness 的包安装、Profile Bundle 加载和 Cordis 运行时卸载是三种不同生命周期：安装一个
 没有 `dsh.bundle` 声明的普通包可能只产生警告并保留依赖；把没有有效 Bundle 的包显式列入
@@ -63,6 +78,24 @@ Usage、模型身份和授权读回；未验证字段必须报告 `UNKNOWN` 或 
 | Claude Code | 非交互与 resume/continue；stream-json、JSON Schema、工具 allow/deny 和 Usage | 非交互模式的工作区信任与权限策略必须显式收窄 | Adapter 未实现，`UNAVAILABLE` |
 | Kimi Code | ACP 的 new/load/resume/prompt/cancel；stream-json、MCP 和权限规则 | 稳定的 Schema 约束与机器可读 Token 字段尚未确认；裸 `-p` 不适合作为默认只读会商路径 | Adapter 未实现，`UNAVAILABLE` |
 | Grok Build | Headless、ACP、resume/continue、JSON Schema、sandbox 和权限规则 | 稳定的机器可读 Token 字段尚未确认；扩展面仍需固定版本 | Adapter 未实现，`UNAVAILABLE` |
+
+### 入站路径可观测性矩阵（`0.1.0` 设计基线）
+
+下表列出入站路径（Host 调用 Hufu；DeepSeek 列为原生插件路径）上 Hufu 预计可观测的执行事实。
+这是设计基线：未经版本化合同测试验证的项必须报告 `UNKNOWN`；标记 `unavailable` 的字段在
+CurrentView 中必须显式保持 `unavailable`，不得以 `0` 或推断值填充。
+
+| 观测项 | DeepSeek Harness（原生） | Codex | Claude Code | Kimi Code | Grok Build |
+| --- | --- | --- | --- | --- | --- |
+| Session 起止 | available（原生事件） | unknown | unknown | unknown | unknown |
+| 调用者身份（AgentIdentity） | available | declared（调用方自报） | declared | declared | declared |
+| Tool 调用明细 | available | unavailable | unavailable | unavailable | unavailable |
+| Token 用量 | available（原生报告） | unknown | unknown | unknown | unknown |
+| 取消或中断信号 | available | unavailable | unavailable | unavailable | unavailable |
+| 命令边界墙钟 | available | available | available | available | available |
+
+非 DeepSeek Host 的执行事实轴在入站路径上结构性偏瘦，这是已接受的不对称；“双 Profile 语义一致”
+只指同一事件输入折叠出相同 CurrentView，不表示各 Host 能力等价。
 
 角色目录同样按 Host 探测。角色卡存在于磁盘不等于能够在当前 Runtime 调度，Hufu 不承诺固定角色数量。
 至少两个 Runtime 通过探测但模型独立性未知时只能声明“多 Runtime 复核”；只有模型身份和独立性均通过
