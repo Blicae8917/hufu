@@ -1,0 +1,22 @@
+{
+  "name": "hufu",
+  "version": "0.1.0",
+  "description": "Provider-neutral contracts for durable AI-agent task coordination",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "packageManager": "pnpm@10.14.0",
+  "bin": {
+    "hufu": "dist/src/hufu/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "hufu": "node dist/src/hufu/main.js",
+    "test": "tsc && node --test dist/tests/cli.test.js dist/tests/contracts.test.js"
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  }
+}
