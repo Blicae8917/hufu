@@ -52,6 +52,8 @@ git diff --check
 pnpm hufu validate examples/task.json
 ```
 
+同一套门禁由 GitHub Actions 在 `main` 推送和 Pull Request 上自动运行。
+
 验证成功时会输出紧凑的 JSON 摘要。输入无效时退出码为 `2`，合同错误写入 stderr。
 
 在空的临时工作目录中试用本机账本（把 `<repo>` 换成 Hufu 仓库路径，不要把本机绝对路径写进仓库文档）：

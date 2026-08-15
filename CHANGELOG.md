@@ -11,6 +11,8 @@
 - 本机 `local` JSONL 账本与四个有界命令 `connect` / `doctor` / `status` / `handoff`，
   以及由回放得到的三轴 CurrentView。本模块不包含决策状态机
   （执行信封、路线确认、增量、语义重基）或 GitHub / GitLab 投影。
+- GitHub Actions 在 `main` 推送和 Pull Request 上运行 `pnpm test`、
+  `node scripts/check-version.mjs` 与 `git diff --check`。
 
 ### 变更
 
