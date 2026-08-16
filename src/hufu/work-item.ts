@@ -26,10 +26,19 @@ export function openWorkItem(
   requireReadyEvents(workspaceRoot);
 
   return mutateLedger(workspaceRoot, (events, append) => {
-    if (!events.some((event) => event.event_type === "hufu/project.connected")) {
+    const connected = events.find(
+      (event) => event.event_type === "hufu/project.connected",
+    );
+    if (connected === undefined) {
       throw new CommandError(
         "TASK_AUTHORITY_MISSING",
         "workspace is not connected as a local project",
+      );
+    }
+    if (connected.payload["task_authority"] === "github") {
+      throw new CommandError(
+        "TASK_AUTHORITY_UNSUPPORTED",
+        "local work items cannot be opened when task_authority is github",
       );
     }
     const last = events[events.length - 1];

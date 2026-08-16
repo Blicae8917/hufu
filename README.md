@@ -28,14 +28,15 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - 与 `0.0.1` 对齐的最小 `TaskEnvelope` 合同（`native` / `external`）；
 - `hufu validate`：合法信封输出键排序 JSON 摘要，非法输入退出码 `2`；
 - 本机 `local` JSONL 账本，以及有界命令 `connect` / `doctor` / `status` / `handoff`；
-- 由账本回放得到的三轴 CurrentView（来源类别、可用性、时效）；
+- 本公开仓 GitHub 只读投影（`status --refresh` 才联网，默认读缓存）；
+- 由账本与投影缓存回放得到的三轴 CurrentView（来源类别、可用性、时效）；
 - 一套当前有效的 pnpm / Node 门禁。
 
-当前版本**尚未**提供 GitHub / GitLab 投影、Cordis 插件运行时、关键决策会商、网页界面或出站 Runtime。
-请求 GitHub / GitLab 正本会明确失败，并且不会创建那些能力的运行态。
+当前版本**尚未**提供 GitLab 投影、Cordis 插件运行时、关键决策会商、网页界面或出站 Runtime。
+请求 GitLab 正本会明确失败。GitHub 正本仅接受本公开仓，且不写回议题。
 
-`0.1.0` 的发布门仍是一个本机可用的只读影子纵切：四个有界命令与 `local` JSONL 正本已由本模块交付；
-本仓库 GitHub 只读投影仍由后续 Module 交付。零拷贝决策传递、DeepSeek Harness 原生 Profile、GitLab 只读投影、
+`0.1.0` 的发布门是一个本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库
+GitHub 只读投影。零拷贝决策传递、DeepSeek Harness 原生 Profile、GitLab 只读投影、
 LoopX Engine、关键决策会商、loopback Web Console 和出站 Runtime 同样是已接受方向，
 由发布门之后的独立 Module 分别交付。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
@@ -67,6 +68,14 @@ pnpm --dir <repo> hufu status
 成功时标准输出是一个 JSON 对象。`connect` 会在该工作目录写下 `.hufu/ledger/events.jsonl`（已 gitignore）。
 `validate` 仍可按上面的例子使用。
 
+本公开仓 GitHub 正本（连接时不上网；查看默认读缓存）：
+
+```bash
+pnpm --dir <repo> hufu connect --project-id hufu --repository https://github.com/Blicae8917/hufu --task-authority github --commander human:alice --grant-scope "read-only projection and handoff"
+pnpm --dir <repo> hufu status
+pnpm --dir <repo> hufu status --refresh
+```
+
 ## 历史 0.0.1
 
 最初公开发布的 Python 基线已冻结为标签 `v0.0.1`。需要核对或复现当时验证时，检出该标签，
@@ -96,8 +105,8 @@ git checkout v0.0.1
 
 当前开发版本是尚未发布的 `0.1.0`；最近的历史发布基线是 `0.0.1`（标签 `v0.0.1`）。
 这是一个早期、合同优先的构建。公共 API 在 `1.0.0` 前可能发生变化。
-当前仓库已提供四个有界命令与本机账本；尚未实现 Cordis、DeepSeek Harness Plugin、
-GitHub / GitLab 投影、LoopX Engine、关键决策会商、零拷贝决策传递或远端 Provider，默认不启用任何远端集成。
+当前仓库已提供四个有界命令、本机账本与本公开仓 GitHub 只读投影；尚未实现 Cordis、DeepSeek Harness Plugin、
+GitLab 投影、LoopX Engine、关键决策会商、零拷贝决策传递或远端 Provider，默认不启用写回或出站集成。
 
 ## 参与贡献与安全
 

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { CommandError } from "./errors.js";
+import { parseExternalRef } from "./github-ref.js";
+import { readProjectionCache } from "./projection-cache.js";
 import { projectCurrentView } from "./projector.js";
 import { mutateLedger, readLedger } from "./storage.js";
 import { findWorkItem } from "./work-item.js";
@@ -39,7 +41,15 @@ export function recordHandoff(
   }
 
   return mutateLedger(workspaceRoot, (events, append) => {
-    const view = projectCurrentView(events);
+    const connected = events.find(
+      (event) => event.event_type === "hufu/project.connected",
+    );
+    const taskAuthority = connected?.payload["task_authority"];
+    const cache =
+      taskAuthority === "github"
+        ? readProjectionCache(workspaceRoot)
+        : undefined;
+    const view = projectCurrentView(events, { cache });
     if (view.authorization_grant.availability !== "available") {
       throw new CommandError(
         "DATA_INSUFFICIENT",
@@ -53,7 +63,18 @@ export function recordHandoff(
         "no current authorization grant is available",
       );
     }
-    if (findWorkItem(events, workItemId) === undefined) {
+    if (taskAuthority === "github") {
+      const parsed = parseExternalRef(workItemId);
+      const cached = cache?.items.find(
+        (item) => item.external_ref === parsed.external_ref,
+      );
+      if (cached === undefined) {
+        throw new CommandError(
+          "DATA_INSUFFICIENT",
+          `work item ${parsed.external_ref} is not in the projection cache`,
+        );
+      }
+    } else if (findWorkItem(events, workItemId) === undefined) {
       throw new CommandError(
         "DATA_INSUFFICIENT",
         `work item ${workItemId} does not exist`,
