@@ -21,8 +21,8 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 [P] 新增 `tests/fixtures/gitlab/list-issues.sample.json`：公开议题元数据夹具（示例身份 `example-group/example-project`，含一条 MR/非 Issue 项、一条带 `description` 的议题），不含凭据或客户项目名
-- [ ] T002 [P] 确认 `package.json` 的 version 保持 `0.1.0`，`test` 脚本仍为既有 `tsc` + `node --test` 门禁
+- [x] T001 [P] 新增 `tests/fixtures/gitlab/list-issues.sample.json`：公开议题元数据夹具（示例身份 `example-group/example-project`，含一条 MR/非 Issue 项、一条带 `description` 的议题），不含凭据或客户项目名
+- [x] T002 [P] 确认 `package.json` 的 version 保持 `0.1.0`，`test` 脚本仍为既有 `tsc` + `node --test` 门禁
 
 ---
 
@@ -30,14 +30,14 @@
 
 ### Tests for Foundation
 
-- [ ] T003 [P] 在 `tests/gitlab-ref.test.ts` 写失败测试：`example-group/example-project` 与 `gitlab.com` HTTPS/SSH 解析成功；嵌套组、GitHub 网址、`github:`、自建 Host 失败；`gitlab:example-group/example-project#456` 合法；`#012`、缺号、`github:Blicae8917/hufu#4` 失败
-- [ ] T004 [P] 在 `tests/gitlab-adapter.test.ts` 写失败测试：list 只用 GET 且无 Authorization；POST/PATCH 被记录则失败；`description` 不进入投影；MR/非 Issue 项丢弃；Port 类型不含写方法
+- [x] T003 [P] 在 `tests/gitlab-ref.test.ts` 写失败测试：`example-group/example-project` 与 `gitlab.com` HTTPS/SSH 解析成功；嵌套组、GitHub 网址、`github:`、自建 Host 失败；`gitlab:example-group/example-project#456` 合法；`#012`、缺号、`github:Blicae8917/hufu#4` 失败
+- [x] T004 [P] 在 `tests/gitlab-adapter.test.ts` 写失败测试：list 只用 GET 且无 Authorization；POST/PATCH 被记录则失败；`description` 不进入投影；MR/非 Issue 项丢弃；Port 类型不含写方法
 
 ### Implementation for Foundation
 
-- [ ] T005 实现 `src/hufu/gitlab-ref.ts`：项目身份与 `external_ref` 解析，使 T003 转绿；不得修改 `src/hufu/github-ref.ts` 去接受 `gitlab:`
-- [ ] T006 实现 `src/hufu/gitlab-port.ts` 与 `src/hufu/gitlab-http.ts`：只读 `listIssueProjections`，Host 仅 `gitlab.com`，使 T004 转绿
-- [ ] T007 实现 `src/hufu/gitlab-cache.ts`：读写 `.hufu/cache/gitlab-projection.json`；失败不删旧文件；未知 schema fail closed；不读取 GitHub 缓存文件
+- [x] T005 实现 `src/hufu/gitlab-ref.ts`：项目身份与 `external_ref` 解析，使 T003 转绿；不得修改 `src/hufu/github-ref.ts` 去接受 `gitlab:`
+- [x] T006 实现 `src/hufu/gitlab-port.ts` 与 `src/hufu/gitlab-http.ts`：只读 `listIssueProjections`，Host 仅 `gitlab.com`，使 T004 转绿
+- [x] T007 实现 `src/hufu/gitlab-cache.ts`：读写 `.hufu/cache/gitlab-projection.json`；失败不删旧文件；未知 schema fail closed；不读取 GitHub 缓存文件
 
 **Checkpoint**: 引用与只读端口单测绿；尚无 connect/status 成功联网路径
 
@@ -51,13 +51,13 @@
 
 ### Tests
 
-- [ ] T008 [P] [US1] 在 `tests/gitlab-connect.test.ts` 写失败测试：合法 gitlab 连接退出码 0 且 `task_authority=gitlab`；不发起 fetch；嵌套组/GitHub 网址退出码 2；已 local 或 github 再 gitlab 退出码 3；gitlab 正本下打开本机工作项被拒绝
-- [ ] T009 [P] [US1] 扩展 `tests/connect.test.ts` / `tests/github-connect.test.ts`：`local` 与本仓 `github` 合同保持；不再把合法 `gitlab` 当作永久 `TASK_AUTHORITY_UNSUPPORTED`
+- [x] T008 [P] [US1] 在 `tests/gitlab-connect.test.ts` 写失败测试：合法 gitlab 连接退出码 0 且 `task_authority=gitlab`；不发起 fetch；嵌套组/GitHub 网址退出码 2；已 local 或 github 再 gitlab 退出码 3；gitlab 正本下打开本机工作项被拒绝
+- [x] T009 [P] [US1] 扩展 `tests/connect.test.ts` / `tests/github-connect.test.ts`：`local` 与本仓 `github` 合同保持；不再把合法 `gitlab` 当作永久 `TASK_AUTHORITY_UNSUPPORTED`
 
 ### Implementation
 
-- [ ] T010 [US1] 更新 `src/hufu/connect.ts` 与 `src/hufu/cli.ts`：允许 gitlab 两段路径；拒绝非法身份；`repository_canonical` 为 `group/project`
-- [ ] T011 [US1] 更新 `src/hufu/work-item.ts` 与 `src/hufu/doctor.ts`：`task_authority=gitlab` 时拒绝打开本机工作项；doctor 接受 gitlab 且不联网
+- [x] T010 [US1] 更新 `src/hufu/connect.ts` 与 `src/hufu/cli.ts`：允许 gitlab 两段路径；拒绝非法身份；`repository_canonical` 为 `group/project`
+- [x] T011 [US1] 更新 `src/hufu/work-item.ts` 与 `src/hufu/doctor.ts`：`task_authority=gitlab` 时拒绝打开本机工作项；doctor 接受 gitlab 且不联网
 
 **Checkpoint**: T008 转绿；连接不联网
 
@@ -71,12 +71,12 @@
 
 ### Tests
 
-- [ ] T012 [P] [US2] 在 `tests/gitlab-status.test.ts` 写失败测试：无 `--refresh` 时 fetch 调用次数为 0；`--refresh` 调用 list 一次并写 GitLab 缓存；local 下 `--refresh` 退出码 2 且 fetch 为 0；github 正本刷新仍走 GitHubPort 而非 GitLabPort
+- [x] T012 [P] [US2] 在 `tests/gitlab-status.test.ts` 写失败测试：无 `--refresh` 时 fetch 调用次数为 0；`--refresh` 调用 list 一次并写 GitLab 缓存；local 下 `--refresh` 退出码 2 且 fetch 为 0；github 正本刷新仍走 GitHubPort 而非 GitLabPort
 
 ### Implementation
 
-- [ ] T013 [US2] 更新 `src/hufu/status.ts`：解析后仅 gitlab 正本使用 GitLabPort；github 路径保持 004
-- [ ] T014 [US2] 确认 `src/hufu/doctor.ts`、`src/hufu/handoff.ts`、`src/hufu/decide.ts` 不调用 GitLabPort
+- [x] T013 [US2] 更新 `src/hufu/status.ts`：解析后仅 gitlab 正本使用 GitLabPort；github 路径保持 004
+- [x] T014 [US2] 确认 `src/hufu/doctor.ts`、`src/hufu/handoff.ts`、`src/hufu/decide.ts` 不调用 GitLabPort
 
 **Checkpoint**: 网络边界由测试锁死
 
@@ -90,11 +90,11 @@
 
 ### Tests
 
-- [ ] T015 [P] [US3] 扩展 `tests/gitlab-status.test.ts`：刷新后 work_items 含 `original_url` 与 `gitlab:example-group/example-project#`；`fact_class=observed`；夹具 `description` 不出现在 stdout JSON；缺失 revision 不为 `0`
+- [x] T015 [P] [US3] 扩展 `tests/gitlab-status.test.ts`：刷新后 work_items 含 `original_url` 与 `gitlab:example-group/example-project#`；`fact_class=observed`；夹具 `description` 不出现在 stdout JSON；缺失 revision 不为 `0`
 
 ### Implementation
 
-- [ ] T016 [US3] 更新 `src/hufu/projector.ts`：gitlab 正本合并 GitLab 缓存与账本；无缓存时工作项集合 `data_insufficient`；不把 GitHub 缓存混入 gitlab 视图
+- [x] T016 [US3] 更新 `src/hufu/projector.ts`：gitlab 正本合并 GitLab 缓存与账本；无缓存时工作项集合 `data_insufficient`；不把 GitHub 缓存混入 gitlab 视图
 
 **Checkpoint**: 三轴与不可信正文测试绿
 
@@ -108,14 +108,14 @@
 
 ### Tests
 
-- [ ] T017 [P] [US4] 扩展 `tests/gitlab-adapter.test.ts`：先成功写入缓存，再让 list 失败，`status` 仍见旧项且 freshness 不是 `fresh`；缓存文件仍在
-- [ ] T018 [P] [US4] 在 `tests/gitlab-handoff.test.ts` 写失败测试：对缓存中的 `gitlab:example-group/example-project#456` 交接退出码 0 且 fetch 为 0；未知引用退出码 4；`github:` 引用退出码 2；Port 无写调用
-- [ ] T019 [P] [US4] 在 `tests/gitlab-decide.test.ts` 写失败测试：GitLab 正本下对缓存引用记下 packet 退出码 0 且不联网；输出不含议题正文；`github:` `task_ref` 被拒绝
+- [x] T017 [P] [US4] 扩展 `tests/gitlab-adapter.test.ts`：先成功写入缓存，再让 list 失败，`status` 仍见旧项且 freshness 不是 `fresh`；缓存文件仍在
+- [x] T018 [P] [US4] 在 `tests/gitlab-handoff.test.ts` 写失败测试：对缓存中的 `gitlab:example-group/example-project#456` 交接退出码 0 且 fetch 为 0；未知引用退出码 4；`github:` 引用退出码 2；Port 无写调用
+- [x] T019 [P] [US4] 在 `tests/gitlab-decide.test.ts` 写失败测试：GitLab 正本下对缓存引用记下 packet 退出码 0 且不联网；输出不含议题正文；`github:` `task_ref` 被拒绝
 
 ### Implementation
 
-- [ ] T020 [US4] 刷新失败映射 `OBSERVATION_UNAVAILABLE` 且不删 GitLab 缓存；过期阈值将无刷新查看标 `stale`
-- [ ] T021 [US4] 更新 `src/hufu/handoff.ts` 与 `src/hufu/decide.ts`：按当前正本分发到 `gitlab-ref.ts` 或 `github-ref.ts`；GitLab 正本只接受缓存中的 GitLab 引用；不调用 GitLabPort
+- [x] T020 [US4] 刷新失败映射 `OBSERVATION_UNAVAILABLE` 且不删 GitLab 缓存；过期阈值将无刷新查看标 `stale`
+- [x] T021 [US4] 更新 `src/hufu/handoff.ts` 与 `src/hufu/decide.ts`：按当前正本分发到 `gitlab-ref.ts` 或 `github-ref.ts`；GitLab 正本只接受缓存中的 GitLab 引用；不调用 GitLabPort
 
 **Checkpoint**: 失败保留、只读交接与裁决绿
 
@@ -123,9 +123,9 @@
 
 ## Phase 7: Polish
 
-- [ ] T022 [P] 按 `quickstart.md` 更新 `README.md` / `docs/SPEC.md` / `docs/ARCHITECTURE.md` / `CHANGELOG.md`：GitLab 只读投影已由本模块交付；会商 / LoopX / Web / 出站 Runtime 仍未实现；不得把合入写成 `0.1.0` 已发布
-- [ ] T023 [P] 扩展 `tests/ci-workflow.test.ts` 若需要：工作流仍只跑三道门、仍无 secrets、无本模块临时关 Issue 工作流
-- [ ] T024 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check` 并分别记录（通过只证明本地验证；夹具路径不替代真网验收）
+- [x] T022 [P] 按 `quickstart.md` 更新 `README.md` / `docs/SPEC.md` / `docs/ARCHITECTURE.md` / `CHANGELOG.md`：GitLab 只读投影已由本模块交付；会商 / LoopX / Web / 出站 Runtime 仍未实现；不得把合入写成 `0.1.0` 已发布
+- [x] T023 [P] 扩展 `tests/ci-workflow.test.ts` 若需要：工作流仍只跑三道门、仍无 secrets、无本模块临时关 Issue 工作流
+- [x] T024 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check` 并分别记录（通过只证明本地验证；夹具路径不替代真网验收）
 
 ## Dependencies
 

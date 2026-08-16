@@ -1,0 +1,29 @@
+[
+  {
+    "iid": 456,
+    "id": 900456,
+    "title": "M6：GitLab 只读投影",
+    "web_url": "https://gitlab.com/example-group/example-project/-/issues/456",
+    "state": "opened",
+    "updated_at": "2026-08-16T10:00:00Z",
+    "description": "THIS DESCRIPTION MUST NOT REACH CURRENT VIEW OR HANDOFF",
+    "type": "Issue"
+  },
+  {
+    "iid": 12,
+    "id": 900012,
+    "title": "A merge request disguised as an issue",
+    "web_url": "https://gitlab.com/example-group/example-project/-/merge_requests/12",
+    "state": "opened",
+    "type": "MergeRequest",
+    "description": "mr body"
+  },
+  {
+    "iid": 3,
+    "id": 900003,
+    "title": "A closed example issue",
+    "web_url": "https://gitlab.com/example-group/example-project/-/issues/3",
+    "state": "closed",
+    "updated_at": "2026-08-16T09:00:00Z"
+  }
+]

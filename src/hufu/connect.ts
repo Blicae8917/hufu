@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
 import { parseThisPublicGithubRepository } from "./github-ref.js";
+import { parseGitLabProject } from "./gitlab-ref.js";
 import { type EventDraft, mutateLedger } from "./storage.js";
 
 export interface ConnectInput {
@@ -17,7 +18,7 @@ export interface ConnectInput {
 
 export interface ConnectResult {
   readonly project_id: string;
-  readonly task_authority: "local" | "github";
+  readonly task_authority: "local" | "github" | "gitlab";
   readonly commander_id: string;
   readonly grant_id: string;
   readonly grant_revision: number;
@@ -29,7 +30,7 @@ export interface ConnectResult {
 interface NormalizedConnect {
   readonly projectId: string;
   readonly repository: string;
-  readonly taskAuthority: "local" | "github";
+  readonly taskAuthority: "local" | "github" | "gitlab";
   readonly commander: string;
   readonly projectLead: string;
   readonly grantScope: string;
@@ -81,13 +82,16 @@ function normalizeConnectInput(input: ConnectInput): NormalizedConnect {
   const commander = requiredName(input.commander, "commander");
   const grantScope = requiredName(input.grantScope, "grant-scope");
   const requestedAuthority = requiredName(input.taskAuthority, "task-authority");
-  let taskAuthority: "local" | "github";
+  let taskAuthority: "local" | "github" | "gitlab";
   let repository = requiredName(input.repository, "repository");
   if (requestedAuthority === "local") {
     taskAuthority = "local";
   } else if (requestedAuthority === "github") {
     taskAuthority = "github";
     repository = parseThisPublicGithubRepository(repository);
+  } else if (requestedAuthority === "gitlab") {
+    taskAuthority = "gitlab";
+    repository = parseGitLabProject(repository);
   } else {
     throw new CommandError(
       "TASK_AUTHORITY_UNSUPPORTED",
@@ -248,14 +252,17 @@ function toResult(
   const repository = String(bootstrap.connected.payload["repository"]);
   const result: ConnectResult = {
     project_id: String(bootstrap.connected.payload["project_id"]),
-    task_authority: taskAuthority === "github" ? "github" : "local",
+    task_authority:
+      taskAuthority === "github" || taskAuthority === "gitlab"
+        ? taskAuthority
+        : "local",
     commander_id: String(bootstrap.commander.payload["commander_id"]),
     grant_id: String(bootstrap.grant.payload["grant_id"]),
     grant_revision: Number(bootstrap.grant.payload["revision"]),
     project_lead_binding_id: String(bootstrap.lead.payload["binding_id"]),
     ledger_seq_end: last?.ledger_seq ?? 4,
   };
-  if (taskAuthority === "github") {
+  if (taskAuthority === "github" || taskAuthority === "gitlab") {
     return { ...result, repository_canonical: repository };
   }
   return result;

@@ -29,6 +29,8 @@ import {
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError, isJsonObject } from "./errors.js";
 import { parseExternalRef } from "./github-ref.js";
+import { readGitLabProjectionCache } from "./gitlab-cache.js";
+import { parseGitLabExternalRef } from "./gitlab-ref.js";
 import {
   currentRebaseFingerprint,
   evaluateGuardrails,
@@ -590,6 +592,17 @@ function assertWorkItemExists(
       throw new CommandError(
         "DATA_INSUFFICIENT",
         "github task_ref is not in the projection cache",
+      );
+    }
+    return;
+  }
+  if (authority === "gitlab") {
+    const parsed = parseGitLabExternalRef(taskRef);
+    const cache = readGitLabProjectionCache(workspaceRoot);
+    if (cache?.items.some((item) => item.external_ref === parsed.external_ref) !== true) {
+      throw new CommandError(
+        "DATA_INSUFFICIENT",
+        "gitlab task_ref is not in the projection cache",
       );
     }
     return;
