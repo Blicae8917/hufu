@@ -16,6 +16,10 @@ export const ERROR_CODES = [
   "ENVELOPE_INVALID",
   "ACK_INVALID",
   "ROLE_NOT_ACTIVE",
+  "ENGINE_NOT_BOUND",
+  "ENGINE_AUTHORITY_REJECTED",
+  "ENGINE_CONTROL_PLANE_REJECTED",
+  "RECEIPT_INVALID",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -41,6 +45,9 @@ const EXIT_CODE_2: ReadonlySet<ErrorCode> = new Set([
   "ENVELOPE_INVALID",
   "ACK_INVALID",
   "ROLE_NOT_ACTIVE",
+  "ENGINE_AUTHORITY_REJECTED",
+  "ENGINE_CONTROL_PLANE_REJECTED",
+  "RECEIPT_INVALID",
 ]);
 
 const EXIT_CODE_3: ReadonlySet<ErrorCode> = new Set([

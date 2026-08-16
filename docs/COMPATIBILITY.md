@@ -1,7 +1,7 @@
 # 上游兼容性与同步基线
 
 状态：DeepSeek 原生插件路径已实现；契约测试声明运行于 `@deepseek-ai/cordis` `4.0.1`。
-LoopX 已在开始 Module #9 前完成公开提交与许可证复核；Engine 集成尚未实现。
+LoopX 第一批机制已由 Module #9 按自有合同重写为可选引擎；完整控制面仍未采用，核对本仍为 MIT `0.4.7`。
 最后核对：2026-08-16
 
 本文件记录 Hufu 每个发布系列实际核对过的公开上游版本。它是动态兼容性记录，不是 Constitution；
@@ -13,7 +13,7 @@ LoopX 已在开始 Module #9 前完成公开提交与许可证复核；Engine �
 | --- | --- | --- | --- | --- |
 | DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | `@deepseek-ai/dsh` `0.1.0-rc.5` | 2026-08-16 再次核对公开 `master`，提交未变；插件契约测试使用隔离 mount/dispose，不声明浮动 `master` 支持。 |
 | DeepSeek 使用的 Cordis | DeepSeek Harness `vendor/cordis` | 同上 | `@deepseek-ai/cordis` `4.0.1` | 目标插件与生命周期基础；它是 DeepSeek 命名的实现，不等同于对其他 Cordis 项目的兼容承诺。 |
-| LoopX | `huangruiteng/loopx` | `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` | `loopx` `0.4.7` | 已完成机制级核对（MIT）。不是 Hufu 任务正本。2026-08-16 公开 `main` HEAD 为 `8c103dfecae0f4424ecb0b07bad7cbc5f0797d6d` / `v0.4.8`（Apache-2.0），相对核对本超前 47 个提交，尚未完成源码复盘，因此不是已接受实现基线。Engine 集成尚未开始。 |
+| LoopX | `huangruiteng/loopx` | `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` | `loopx` `0.4.7` | 已完成机制级核对（MIT）。不是 Hufu 任务正本。2026-08-16 公开 `main` HEAD 为 `8c103dfecae0f4424ecb0b07bad7cbc5f0797d6d` / `v0.4.8`（Apache-2.0），相对核对本超前 47 个提交，尚未完成源码复盘，因此不是已接受实现基线。#9 第一批机制已按 Hufu 自有合同重写交付，未复制上游源码、未引入 `loopx` 发行包。 |
 
 DeepSeek Harness 当前目标工具链基线为 Node.js `^22.19.0 || >=24.0.0`、pnpm `11.7.0`、
 严格 TypeScript、ESM、Vitest、Oxlint 和 tsdown。Hufu 第一张实现 Module 的 Plan 必须重新核对这些值，

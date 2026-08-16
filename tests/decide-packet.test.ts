@@ -96,4 +96,23 @@ describe("hufu decide --packet", () => {
       assert.equal(error["code"], "DATA_INSUFFICIENT");
     });
   });
+
+  it("keeps packet contract and unbound engine slots after a packet", () => {
+    withTempDir((dir) => {
+      const { grant_id } = connectOpenGrant(dir);
+      const recorded = recordPacket(dir, grant_id);
+      assert.equal(recorded["version"], 1);
+      const view = parseStdout(runHufu(["status"], dir).stdout)[
+        "result"
+      ] as Record<string, unknown>;
+      const engine = view["engine"] as Record<string, unknown>;
+      assert.equal(engine["availability"], "data_insufficient");
+      assert.equal(engine["value"], null);
+      const guardrails = view["execution_guardrails"] as Record<string, unknown>;
+      assert.equal(
+        (guardrails["value"] as string[]).includes("engine_no_progress"),
+        false,
+      );
+    });
+  });
 });

@@ -9,6 +9,12 @@ import {
   materializeDecision,
 } from "./decision-state.js";
 import {
+  currentEngineBinding,
+  latestReceipt,
+  latestTypedResult,
+} from "./engine-loopx.js";
+import { LOOPX_MECHANISMS_ENGINE_ID } from "./engine-schema.js";
+import {
   ackIsApplicable,
   evaluateGuardrails,
   firstDurableEffect,
@@ -58,6 +64,9 @@ export interface CurrentView {
     decision_id: string;
     version: number;
   }>;
+  readonly engine: FactSlot<{
+    engine_id: typeof LOOPX_MECHANISMS_ENGINE_ID;
+  }>;
   readonly execution_envelope: FactSlot<{
     content_digest: string;
     decision_id: string;
@@ -80,6 +89,12 @@ export interface CurrentView {
   readonly ledger: FactSlot<{ event_count: number; ledger_seq_end: number }>;
   readonly project: FactSlot<{ project_id: string; repository: string }>;
   readonly project_lead: FactSlot<{ binding_id: string; principal_id: string }>;
+  readonly receipt: FactSlot<{
+    effect_id?: string;
+    ok: boolean;
+    receipt_id: string;
+    result_id?: string;
+  }>;
   readonly route_ack: FactSlot<{
     added_scope_count: number;
     applicable: boolean;
@@ -88,6 +103,12 @@ export interface CurrentView {
   readonly run: FactSlot<null>;
   readonly session: FactSlot<null>;
   readonly task_authority: FactSlot<TaskAuthority>;
+  readonly typed_result: FactSlot<{
+    envelope_id: string;
+    kind: string;
+    result_id: string;
+    turn_ref: string;
+  }>;
   readonly view_schema_version: 1;
   readonly work_item_set: FactSlot<{ count: number; incomplete: boolean }>;
   readonly work_items: readonly WorkItemView[];
@@ -165,6 +186,7 @@ export function projectCurrentView(
     authorization_grant: grantSlot(currentGrant),
     commander: commanderSlot(commander),
     ...decisionSlots,
+    ...projectEngine(events),
     latest_handoff: latestHandoffSlot(latestHandoff),
     ledger: slot(
       {
@@ -196,6 +218,59 @@ export function projectCurrentView(
     view_schema_version: 1,
     work_item_set: workItemSet,
     work_items: workItems,
+  };
+}
+
+function projectEngine(
+  events: readonly EventEnvelope[],
+): Pick<CurrentView, "engine" | "receipt" | "typed_result"> {
+  const binding = currentEngineBinding(events);
+  if (binding === undefined) {
+    return {
+      engine: missing("observed", "data_insufficient"),
+      receipt: missing("observed", "data_insufficient"),
+      typed_result: missing("observed", "data_insufficient"),
+    };
+  }
+  const typed = latestTypedResult(events);
+  const receipt = latestReceipt(events);
+  const typedValue =
+    typed === undefined
+      ? undefined
+      : {
+          envelope_id: String(typed.payload["envelope_id"]),
+          kind: String(typed.payload["kind"]),
+          result_id: String(typed.payload["result_id"]),
+          turn_ref: String(typed.payload["turn_ref"]),
+        };
+  const receiptValue =
+    receipt === undefined
+      ? undefined
+      : {
+          ok: Boolean(receipt.payload["ok"]),
+          receipt_id: String(receipt.payload["receipt_id"]),
+          ...(typeof receipt.payload["result_id"] === "string"
+            ? { result_id: receipt.payload["result_id"] }
+            : {}),
+          ...(typeof receipt.payload["effect_id"] === "string"
+            ? { effect_id: receipt.payload["effect_id"] }
+            : {}),
+        };
+  return {
+    engine: slot(
+      { engine_id: LOOPX_MECHANISMS_ENGINE_ID },
+      "observed",
+      "available",
+      "fresh",
+    ),
+    receipt:
+      receiptValue === undefined
+        ? missing("observed", "data_insufficient")
+        : slot(receiptValue, "observed", "available", "fresh"),
+    typed_result:
+      typedValue === undefined
+        ? missing("observed", "data_insufficient")
+        : slot(typedValue, "observed", "available", "fresh"),
   };
 }
 

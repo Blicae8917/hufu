@@ -16,6 +16,8 @@
 - DeepSeek 原生插件包 `hufu-dsh`：隔离 Profile 真装真卸；六工具调用领域函数；与独立 CLI 对同一事件夹具
   折叠结构相等的 CurrentView；缺失墙钟/Token/Session/Run 不得写成 `0`；契约测试声明 `@deepseek-ai/cordis`。
 - GitLab 只读投影：显式 `status --refresh` 才联网，失败保留旧观测，不写回议题，不绑定真实客户项目。
+- 可选 `loopx-mechanisms` 引擎：须显式 `decide --engine` 选用；可记录类型化结果与核验回执；
+  不是任务正本，不引入 LoopX 发行包，不调度、不把 Goal 映射为工作项。
 - GitHub Actions 在 `main` 推送和 Pull Request 上运行 `pnpm test`、
   `node scripts/check-version.mjs` 与 `git diff --check`。
 
@@ -28,7 +30,7 @@
 - `0.1.0` 发布门在设计上收敛为只读影子纵切（四个有界命令、`local` 与本仓库 GitHub
   只读投影、三轴 CurrentView）。四个发布门命令、本机账本与本仓 GitHub 只读投影已交付；
   零拷贝决策流已由后续 Module #6 在同一版本系列交付；DeepSeek 原生插件路径已由 Module #7 交付；
-  GitLab 只读投影已由 Module #8 交付。会商仍由后续 Module 交付。
+  GitLab 只读投影已由 Module #8 交付。LoopX 第一批机制已由 Module #9 交付为可选引擎。会商仍由后续 Module 交付。
 
 ## [0.0.1] - 2026-08-13
 

@@ -1,0 +1,8 @@
+{
+  "decision_id": "decision-demo",
+  "envelope_id": "REPLACE_ME",
+  "goal_id": "effect-interpreter-fixture",
+  "kind": "progress",
+  "observed_at": "2026-08-16T13:00:00.000Z",
+  "turn_ref": "goal-effect-interpreter-fixture"
+}

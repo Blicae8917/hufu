@@ -1,0 +1,8 @@
+{
+  "decision_id": "decision-demo",
+  "envelope_id": "REPLACE_ME",
+  "kind": "stop",
+  "observed_at": "2026-08-16T13:05:00.000Z",
+  "result_id": "result-stop",
+  "turn_ref": "turn-stop"
+}

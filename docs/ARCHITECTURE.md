@@ -573,7 +573,8 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 6. DeepSeek Harness 原生插件路径（#7，已在本 `0.1.0` 系列交付）：隔离 Profile 真装真卸，
    与 Standalone CLI 对同一夹具折叠结构相等的 CurrentView；不修改 Agent Loop。
 7. GitLab Provider 以只读影子模式交付并验证同一 CurrentView（#8，已在本 `0.1.0` 系列交付）。
-8. `engine-loopx` 先接入 typed result、Receipt/readback 和有界恢复合同，再按试点收益决定扩大范围。
+8. `engine-loopx` 第一批 typed result、Receipt/readback 和有界恢复合同（#9，已在本 `0.1.0` 系列交付为可选引擎）；
+   再按试点收益决定是否扩大范围。
 9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token；
    只有出现可解释净收益，才实现 loopback Web Console 或更高自治能力，否则暂停扩充。
 
@@ -586,6 +587,6 @@ Module Issue 和 Spec Kit 合同。
 
 版本 `0.0.1` 只实现最初的不可变 `TaskEnvelope` 验证和确定性 CLI。
 本文所述 `0.1.0` Cordis-first 架构是候选规划范围。当前主线已交付 TypeScript 核心、本机账本、
-本仓 GitHub 只读投影、零拷贝决策流与 DeepSeek 原生插件路径；这不表示 LoopX Engine
-或 GitLab Provider 已经实现，也不表示已经获得远端进度授权。
+本仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径，以及 LoopX 第一批机制
+作为可选引擎；这不表示完整 LoopX 控制面已经实现，也不表示已经获得远端进度授权或 `0.1.0` 已正式发布。
 每个 Module 必须通过独立的已接受 Issue、Spec Kit 产物、失败测试、最小实现和可审阅证据交付。

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -129,6 +129,33 @@ export function recordEnvelope(
     ["decide", "--actor", "human:alice", "--envelope", path],
     dir,
   );
+  if (result.status !== 0) {
+    throw new Error(`${result.stdout}\n${result.stderr}`);
+  }
+  return parseStdout(result.stdout)["result"] as Record<string, unknown>;
+}
+
+export function engineFixture(name: string): Record<string, unknown> {
+  const path = fileURLToPath(
+    new URL(`../../tests/fixtures/engine/${name}`, import.meta.url),
+  );
+  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+}
+
+export function bindEngine(
+  dir: string,
+  actor = "human:alice",
+): Record<string, unknown> {
+  const path = writeJson(dir, "engine.json", engineFixture("engine.json"));
+  const result = runHufu(["decide", "--actor", actor, "--engine", path], dir);
+  if (result.status !== 0) {
+    throw new Error(`${result.stdout}\n${result.stderr}`);
+  }
+  return parseStdout(result.stdout)["result"] as Record<string, unknown>;
+}
+
+export function statusView(dir: string): Record<string, unknown> {
+  const result = runHufu(["status"], dir);
   if (result.status !== 0) {
     throw new Error(`${result.stdout}\n${result.stderr}`);
   }

@@ -95,8 +95,8 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
   CurrentView 能区分 `fact_class`、`availability` 和 `freshness` 三轴。
 - **后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）**：零拷贝决策流已由 GitHub Module Issue #6
   在 `0.1.0` 系列交付（Envelope、ACK、三类 Delta、semantic rebase 护栏）。DeepSeek 与 Standalone
-  双 Profile 夹具对等及插件真装真卸已由 #7 交付。GitLab 只读投影已由 #8 交付。其余仍待独立 Module：
-  `engine-loopx`、关键决策会商、loopback Web Console、出站 Runtime。
+  双 Profile 夹具对等及插件真装真卸已由 #7 交付。GitLab 只读投影已由 #8 交付。LoopX 第一批机制已由 #9
+  交付为可选引擎（须显式选用，不是任务正本）。其余仍待独立 Module：关键决策会商、loopback Web Console、出站 Runtime。
   每项由独立 Module Issue 与 Spec Kit 合同交付并各自验收。
 
 发布门若触碰决策记录，至多要求“一份裁决只完整保存一次，`status` 与 `handoff` 只传引用”。
@@ -344,7 +344,7 @@ GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库�
 
 发布门之后的已接受方向按独立 Module 依次评估：零拷贝决策流（#6，已在本系列交付）与事件驱动 semantic rebase、
 DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7，已交付）、GitLab 只读 Projection（#8，已交付）、
-`engine-loopx` 第一批 typed result 与 Receipt/readback、代表性效能试点与 loopback Web Console。
+`engine-loopx` 第一批 typed result 与 Receipt/readback（#9，已交付为可选引擎）、代表性效能试点与 loopback Web Console。
 
 除设计正本收敛外，每一实现阶段必须有独立 Module Issue 和 Spec Kit 功能合同。外部试点的内部项目名、
 路径、Issue 内容和用量明细不得进入公开仓；公开材料只能保留脱敏方法和聚合结果。
@@ -379,6 +379,7 @@ DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7，�
   Host 特有的不可观测字段明确为 `unavailable`。
 - DeepSeek 插件卸载后，其注册的 Tool、Event Listener 和其他运行时 Effect 被可靠清理；
   已持久化事实不被删除，只能通过新的 append-only 事件取消、撤回或取代。
+- 可选引擎必须显式选用；TypedResult 与 Receipt 不得成为任务正本或授权；无 complete 读回不得把效果写成已发生、确认不存在或 `0`。
 - 若 Web Console 通过效能门禁进入实现，则两类环境都能以前台方式完成 loopback serve 验证，
   且 Dashboard 拒绝非 loopback 绑定。
 - 每次试点能够区分任务总墙钟、Hufu 编排耗时、零效果尝试、协调唤醒、返工和可取得的

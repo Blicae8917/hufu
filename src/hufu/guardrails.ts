@@ -6,10 +6,12 @@ import {
   evidenceFrontierSeq,
   type MaterializedDecision,
 } from "./decision-state.js";
+import { engineIsBound, latestTypedResult } from "./engine-loopx.js";
 
 export type Guardrail =
   | "ack_required"
   | "data_insufficient"
+  | "engine_no_progress"
   | "scope_change_required"
   | "semantic_rebase_required"
   | "stale_envelope";
@@ -109,6 +111,20 @@ export function evaluateGuardrails(input: {
   }
   if (rebase === "required") {
     guardrails.add("semantic_rebase_required");
+  }
+  if (
+    engineIsBound(input.events) &&
+    !guardrails.has("stale_envelope") &&
+    durable.status === "confirmed_absent"
+  ) {
+    const typed = latestTypedResult(input.events);
+    if (
+      typed !== undefined &&
+      typed.payload["envelope_id"] === envelopeId &&
+      typed.payload["kind"] !== "progress"
+    ) {
+      guardrails.add("engine_no_progress");
+    }
   }
   return [...guardrails];
 }

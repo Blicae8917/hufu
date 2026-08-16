@@ -95,7 +95,11 @@ function normalizeConnectInput(input: ConnectInput): NormalizedConnect {
   } else {
     throw new CommandError(
       "TASK_AUTHORITY_UNSUPPORTED",
-      `task_authority ${requestedAuthority} is not supported in this module`,
+      requestedAuthority === "loopx" ||
+        requestedAuthority === "engine" ||
+        requestedAuthority === "engine-loopx"
+        ? "engine is not task_authority"
+        : `task_authority ${requestedAuthority} is not supported in this module`,
     );
   }
   let grantExpires: string | undefined;

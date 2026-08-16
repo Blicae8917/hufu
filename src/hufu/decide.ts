@@ -26,6 +26,14 @@ import {
   type MaterializedDecision,
   projectLeadPrincipal,
 } from "./decision-state.js";
+import {
+  currentEngineBinding,
+  enginePort,
+} from "./engine-loopx.js";
+import {
+  receiptContentDigest,
+  typedResultContentDigest,
+} from "./engine-schema.js";
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError, isJsonObject } from "./errors.js";
 import { parseExternalRef } from "./github-ref.js";
@@ -43,9 +51,12 @@ import { findWorkItem } from "./work-item.js";
 export type DecideKind =
   | "ack"
   | "effect"
+  | "engine"
   | "envelope"
   | "fact"
   | "packet"
+  | "receipt"
+  | "result"
   | "revise";
 
 export interface DecideInput {
@@ -82,6 +93,12 @@ export function decideWorkspace(
         return recordRevise(events, append, actor, payload);
       case "effect":
         return recordEffect(events, append, actor, payload);
+      case "engine":
+        return recordEngine(events, append, actor, payload);
+      case "result":
+        return recordTypedResult(events, append, actor, payload);
+      case "receipt":
+        return recordReceipt(events, append, actor, payload);
     }
   });
 }
@@ -522,6 +539,222 @@ function recordEffect(
     effect_id: payload["effect_id"],
     observation_id: observationId,
   };
+}
+
+function recordEngine(
+  events: readonly EventEnvelope[],
+  append: (drafts: readonly EventDraft[]) => readonly EventEnvelope[],
+  actor: string,
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  if (actor !== projectLeadPrincipal(events)) {
+    throw new CommandError(
+      "ROLE_NOT_ACTIVE",
+      "only the current project_lead may bind an engine",
+    );
+  }
+  const bind = enginePort.assertBindable(raw);
+  const current = currentEngineBinding(events);
+  if (
+    current !== undefined &&
+    current.payload["engine_id"] !== bind.engine_id
+  ) {
+    throw new CommandError(
+      "LEDGER_CAUSALITY_CONFLICT",
+      "a different engine is already bound",
+    );
+  }
+  const last = events[events.length - 1];
+  const written = append([
+    {
+      actor_binding_ref: actor,
+      caused_by: last?.event_id,
+      event_type: "hufu/engine.bound",
+      idempotency_key: `hufu/engine.bound:${bind.engine_id}`,
+      payload: { engine_id: bind.engine_id },
+    },
+  ]);
+  const recorded = written[written.length - 1];
+  return {
+    engine_id: bind.engine_id,
+    ledger_seq: recorded?.ledger_seq ?? last?.ledger_seq ?? 1,
+  };
+}
+
+function recordTypedResult(
+  events: readonly EventEnvelope[],
+  append: (drafts: readonly EventDraft[]) => readonly EventEnvelope[],
+  actor: string,
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  const input = enginePort.assertTypedResult(raw, { events });
+  const envelope = currentEnvelope(events, input.decision_id);
+  if (envelope === undefined) {
+    throw new CommandError("DATA_INSUFFICIENT", "envelope does not exist");
+  }
+  if (String(envelope.payload["envelope_id"]) !== input.envelope_id) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "typed result must reference the current envelope",
+    );
+  }
+  assertEnvelopeExecutor(events, actor, envelope);
+  const resultId =
+    typeof input.result_id === "string" && input.result_id.trim() !== ""
+      ? input.result_id.trim()
+      : randomUUID();
+  const semantic = {
+    decision_id: input.decision_id,
+    envelope_id: input.envelope_id,
+    kind: input.kind,
+    observed_at: input.observed_at,
+    result_id: resultId,
+    turn_ref: input.turn_ref,
+  };
+  const digest = typedResultContentDigest(semantic);
+  if (
+    typeof raw["content_digest"] === "string" &&
+    raw["content_digest"] !== digest
+  ) {
+    throw new CommandError("CONTRACT_INVALID", "content_digest does not match payload");
+  }
+  const last = events[events.length - 1];
+  const written = append([
+    {
+      actor_binding_ref: actor,
+      caused_by: last?.event_id,
+      event_type: "hufu/engine.typed_result",
+      idempotency_key: `hufu/engine.typed_result:${resultId}`,
+      payload: { ...semantic, content_digest: digest },
+    },
+  ]);
+  const recorded = written[written.length - 1];
+  return {
+    content_digest: digest,
+    kind: input.kind,
+    ledger_seq: recorded?.ledger_seq ?? last?.ledger_seq ?? 1,
+    result_id: resultId,
+  };
+}
+
+function recordReceipt(
+  events: readonly EventEnvelope[],
+  append: (drafts: readonly EventDraft[]) => readonly EventEnvelope[],
+  actor: string,
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  const input = enginePort.assertReceipt(raw, { events });
+  const target = receiptTarget(events, input);
+  const envelope = events.find(
+    (event) =>
+      event.event_type === "hufu/decision.envelope_attached" &&
+      event.payload["envelope_id"] === target.envelope_id,
+  );
+  if (envelope === undefined) {
+    throw new CommandError("DATA_INSUFFICIENT", "envelope does not exist");
+  }
+  const current = currentEnvelope(events, target.decision_id);
+  if (
+    current === undefined ||
+    String(current.payload["envelope_id"]) !== target.envelope_id
+  ) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "receipt must reference the current envelope",
+    );
+  }
+  assertEnvelopeExecutor(events, actor, envelope);
+  const receiptId =
+    typeof input.receipt_id === "string" && input.receipt_id.trim() !== ""
+      ? input.receipt_id.trim()
+      : randomUUID();
+  const semantic: Record<string, unknown> = {
+    evidence_ref: input.evidence_ref,
+    ok: input.ok,
+    receipt_id: receiptId,
+    ...(input.result_id === undefined ? {} : { result_id: input.result_id }),
+    ...(input.effect_id === undefined ? {} : { effect_id: input.effect_id }),
+  };
+  const digest = receiptContentDigest(semantic);
+  if (
+    typeof raw["content_digest"] === "string" &&
+    raw["content_digest"] !== digest
+  ) {
+    throw new CommandError("CONTRACT_INVALID", "content_digest does not match payload");
+  }
+  const last = events[events.length - 1];
+  const written = append([
+    {
+      actor_binding_ref: actor,
+      caused_by: last?.event_id,
+      event_type: "hufu/engine.receipt",
+      idempotency_key: `hufu/engine.receipt:${receiptId}`,
+      payload: { ...semantic, content_digest: digest },
+    },
+  ]);
+  const recorded = written[written.length - 1];
+  return {
+    ledger_seq: recorded?.ledger_seq ?? last?.ledger_seq ?? 1,
+    ok: input.ok,
+    receipt_id: receiptId,
+  };
+}
+
+function receiptTarget(
+  events: readonly EventEnvelope[],
+  input: { readonly effect_id?: string; readonly result_id?: string },
+): { decision_id: string; envelope_id: string } {
+  if (input.result_id !== undefined) {
+    const typed = events.find(
+      (event) =>
+        event.event_type === "hufu/engine.typed_result" &&
+        event.payload["result_id"] === input.result_id,
+    );
+    if (typed === undefined) {
+      throw new CommandError("DATA_INSUFFICIENT", "typed result does not exist");
+    }
+    return {
+      decision_id: String(typed.payload["decision_id"]),
+      envelope_id: String(typed.payload["envelope_id"]),
+    };
+  }
+  const effect = events.find(
+    (event) =>
+      event.event_type === "hufu/decision.effect_delta" &&
+      event.payload["effect_id"] === input.effect_id,
+  );
+  if (effect === undefined) {
+    throw new CommandError("DATA_INSUFFICIENT", "effect does not exist");
+  }
+  return {
+    decision_id: String(effect.payload["decision_id"]),
+    envelope_id: String(effect.payload["envelope_id"]),
+  };
+}
+
+function assertEnvelopeExecutor(
+  events: readonly EventEnvelope[],
+  actor: string,
+  envelope: EventEnvelope,
+): void {
+  if (actor === String(envelope.payload["executor_principal_id"])) {
+    return;
+  }
+  const envelopeId = String(envelope.payload["envelope_id"]);
+  const mission = events.find(
+    (event) =>
+      event.event_type === "hufu/role_binding.established" &&
+      event.payload["role"] === "mission_lead" &&
+      event.payload["scope_id"] === envelopeId &&
+      event.payload["principal_id"] === actor,
+  );
+  if (mission !== undefined) {
+    return;
+  }
+  throw new CommandError(
+    "ROLE_NOT_ACTIVE",
+    "actor is not the envelope owner or mission_lead",
+  );
 }
 
 function assertFactActor(
