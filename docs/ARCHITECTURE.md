@@ -3,9 +3,9 @@
 状态：候选，待 `0.1.0` 设计 Pull Request 接受
 最后更新：2026-08-16
 当前实现：零 Cordis 依赖的 TypeScript 领域核心、`hufu validate`、本机 `local` JSONL
-账本与有界命令（含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影，以及
+账本与有界命令（含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及
 `packages/hufu-dsh` DeepSeek Profile Module（`@deepseek-ai/cordis` 仅出现在该包）。
-下表「V1 实现」描述目标架构；GitLab 投影、会商或网页尚未交付。
+下表「V1 实现」描述目标架构；会商或网页尚未交付。
 
 ## 架构目标
 
@@ -572,7 +572,7 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 5. 零拷贝决策 Schema、决策增量回放和事件驱动 semantic rebase（#6，已在本 `0.1.0` 系列交付）。
 6. DeepSeek Harness 原生插件路径（#7，已在本 `0.1.0` 系列交付）：隔离 Profile 真装真卸，
    与 Standalone CLI 对同一夹具折叠结构相等的 CurrentView；不修改 Agent Loop。
-7. GitLab Provider 以只读影子模式交付并验证同一 CurrentView。
+7. GitLab Provider 以只读影子模式交付并验证同一 CurrentView（#8，已在本 `0.1.0` 系列交付）。
 8. `engine-loopx` 先接入 typed result、Receipt/readback 和有界恢复合同，再按试点收益决定扩大范围。
 9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token；
    只有出现可解释净收益，才实现 loopback Web Console 或更高自治能力，否则暂停扩充。

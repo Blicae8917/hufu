@@ -3,8 +3,8 @@
 状态：候选，待 `0.1.0` 设计 Pull Request 接受
 最后更新：2026-08-16
 当前实现：TypeScript 领域核心、`hufu validate`、本机 `local` 账本与有界命令
-（含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影，以及 DeepSeek 原生插件包 `hufu-dsh`。
-会商、GitLab 与网页尚未实现。
+（含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及 DeepSeek 原生插件包 `hufu-dsh`。
+会商与网页尚未实现。
 
 ## 产品目标
 
@@ -94,8 +94,8 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
   `handoff` 四个有界命令；`local` 与本仓库 GitHub 只读投影两种任务正本按交付顺序先后进入；
   CurrentView 能区分 `fact_class`、`availability` 和 `freshness` 三轴。
 - **后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）**：零拷贝决策流已由 GitHub Module Issue #6
-  在 `0.1.0` 系列交付（Envelope、ACK、三类 Delta、semantic rebase 护栏）。其余仍待独立 Module：
-  DeepSeek 与 Standalone 双 Profile 夹具对等、DeepSeek 插件真装真卸、GitLab 只读投影、
+  在 `0.1.0` 系列交付（Envelope、ACK、三类 Delta、semantic rebase 护栏）。DeepSeek 与 Standalone
+  双 Profile 夹具对等及插件真装真卸已由 #7 交付。GitLab 只读投影已由 #8 交付。其余仍待独立 Module：
   `engine-loopx`、关键决策会商、loopback Web Console、出站 Runtime。
   每项由独立 Module Issue 与 Spec Kit 合同交付并各自验收。
 
@@ -343,7 +343,7 @@ GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库�
 4. M3：增加本仓库 GitHub 只读 Projection，并以本项目自身为代表性项目验证同一 CurrentView。
 
 发布门之后的已接受方向按独立 Module 依次评估：零拷贝决策流（#6，已在本系列交付）与事件驱动 semantic rebase、
-DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理、GitLab 只读 Projection、
+DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7，已交付）、GitLab 只读 Projection（#8，已交付）、
 `engine-loopx` 第一批 typed result 与 Receipt/readback、代表性效能试点与 loopback Web Console。
 
 除设计正本收敛外，每一实现阶段必须有独立 Module Issue 和 Spec Kit 功能合同。外部试点的内部项目名、

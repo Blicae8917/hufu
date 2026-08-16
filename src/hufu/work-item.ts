@@ -35,10 +35,13 @@ export function openWorkItem(
         "workspace is not connected as a local project",
       );
     }
-    if (connected.payload["task_authority"] === "github") {
+    if (
+      connected.payload["task_authority"] === "github" ||
+      connected.payload["task_authority"] === "gitlab"
+    ) {
       throw new CommandError(
         "TASK_AUTHORITY_UNSUPPORTED",
-        "local work items cannot be opened when task_authority is github",
+        `local work items cannot be opened when task_authority is ${String(connected.payload["task_authority"])}`,
       );
     }
     const last = events[events.length - 1];

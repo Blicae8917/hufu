@@ -10,7 +10,7 @@ export interface DoctorResult {
   readonly healthy: true;
   readonly lock_present: false;
   readonly project_id: string;
-  readonly task_authority: "local" | "github";
+  readonly task_authority: "local" | "github" | "gitlab";
 }
 
 export function doctorWorkspace(
@@ -65,7 +65,11 @@ export function doctorWorkspace(
     );
   }
   const taskAuthority = connected.payload["task_authority"];
-  if (taskAuthority !== "local" && taskAuthority !== "github") {
+  if (
+    taskAuthority !== "local" &&
+    taskAuthority !== "github" &&
+    taskAuthority !== "gitlab"
+  ) {
     throw new CommandError(
       "TASK_AUTHORITY_UNSUPPORTED",
       "connected task_authority is not supported",

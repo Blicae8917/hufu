@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const workflowPath = fileURLToPath(
   new URL("../../.github/workflows/ci.yml", import.meta.url),
+);
+const workflowsDir = fileURLToPath(
+  new URL("../../.github/workflows", import.meta.url),
 );
 
 function readWorkflow(): string {
@@ -37,6 +41,11 @@ describe("GitHub Actions quality gates", () => {
     assert.doesNotMatch(workflow, /npm publish/);
     assert.doesNotMatch(workflow, /gh release/);
     assert.doesNotMatch(workflow, /HUFU_/);
+    assert.equal(
+      existsSync(join(workflowsDir, "close-accepted-modules.yml")),
+      false,
+      "temporary issue-closer workflow must not ship",
+    );
   });
 
   it("uses the declared Node and pnpm versions and is included in pnpm test", () => {

@@ -1,5 +1,6 @@
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
+import { type GitLabProjectionCache } from "./gitlab-cache.js";
 import { type ProjectionCache } from "./projection-cache.js";
 import {
   currentAck,
@@ -21,7 +22,7 @@ export type Availability =
   | "data_insufficient"
   | "conflict";
 export type Freshness = "fresh" | "stale" | "unknown" | "not_applicable";
-export type TaskAuthority = "local" | "github";
+export type TaskAuthority = "local" | "github" | "gitlab";
 
 export interface FactSlot<T> {
   readonly availability: Availability;
@@ -94,6 +95,7 @@ export interface CurrentView {
 
 export interface ProjectViewOptions {
   readonly cache?: ProjectionCache;
+  readonly gitlabCache?: GitLabProjectionCache;
   readonly now?: Date;
 }
 
@@ -109,10 +111,14 @@ export function projectCurrentView(
     );
   }
   const taskAuthority = connected.payload["task_authority"];
-  if (taskAuthority !== "local" && taskAuthority !== "github") {
+  if (
+    taskAuthority !== "local" &&
+    taskAuthority !== "github" &&
+    taskAuthority !== "gitlab"
+  ) {
     throw new CommandError(
       "TASK_AUTHORITY_UNSUPPORTED",
-      "only local and github task_authority can be projected in this module",
+      "only local, github and gitlab task_authority can be projected in this module",
     );
   }
 
@@ -134,15 +140,21 @@ export function projectCurrentView(
   const last = events[events.length - 1];
   const staleAfterHours = Number(connected.payload["stale_after_hours"] ?? 24);
   const now = options.now ?? new Date();
-  const workItems =
+  const projectionCache =
     taskAuthority === "github"
-      ? githubWorkItems(options.cache, handoffs, now, staleAfterHours)
+      ? options.cache
+      : taskAuthority === "gitlab"
+        ? options.gitlabCache
+        : undefined;
+  const workItems =
+    taskAuthority === "github" || taskAuthority === "gitlab"
+      ? projectedWorkItems(projectionCache, handoffs, now, staleAfterHours)
       : events
           .filter((event) => event.event_type === "hufu/work_item.opened")
           .map((item) => workItemView(item, events, handoffs));
-  const workItemSet = githubWorkItemSet(
+  const workItemSet = projectedWorkItemSet(
     taskAuthority,
-    options.cache,
+    projectionCache,
     workItems.length,
     now,
     staleAfterHours,
@@ -299,14 +311,14 @@ function projectDecision(
   };
 }
 
-function githubWorkItemSet(
+function projectedWorkItemSet(
   taskAuthority: TaskAuthority,
-  cache: ProjectionCache | undefined,
+  cache: ProjectionCache | GitLabProjectionCache | undefined,
   count: number,
   now: Date,
   staleAfterHours: number,
 ): FactSlot<{ count: number; incomplete: boolean }> {
-  if (taskAuthority !== "github") {
+  if (taskAuthority !== "github" && taskAuthority !== "gitlab") {
     return slot(
       { count, incomplete: false },
       "authoritative",
@@ -327,8 +339,8 @@ function githubWorkItemSet(
   );
 }
 
-function githubWorkItems(
-  cache: ProjectionCache | undefined,
+function projectedWorkItems(
+  cache: ProjectionCache | GitLabProjectionCache | undefined,
   handoffs: readonly EventEnvelope[],
   now: Date,
   staleAfterHours: number,

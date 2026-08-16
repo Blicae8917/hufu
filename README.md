@@ -29,17 +29,18 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - `hufu validate`：合法信封输出键排序 JSON 摘要，非法输入退出码 `2`；
 - 本机 `local` JSONL 账本，以及有界命令 `connect` / `doctor` / `status` / `handoff` / `decide`；
 - 本公开仓 GitHub 只读投影（`status --refresh` 才联网，默认读缓存）；
+- GitLab 只读投影（操作者声明的 `group/project`，同样仅显式刷新联网，不写回议题）；
 - 由账本与投影缓存回放得到的三轴 CurrentView（来源类别、可用性、时效）；
 - 零拷贝决策流：一份裁决只完整保存一次，下游只传引用、摘要与增量；`status` / `handoff` 不复制裁决正文；
 - DeepSeek 原生插件包 `hufu-dsh`：隔离 Profile 可装可卸，六工具调用同一领域函数，与独立 CLI 对同一夹具折叠结构相等的 CurrentView；
 - 一套当前有效的 pnpm / Node 门禁。
 
-当前版本**尚未**提供 GitLab 投影、关键决策会商、网页界面或出站 Runtime。
-请求 GitLab 正本会明确失败。GitHub 正本仅接受本公开仓，且不写回议题。
+当前版本**尚未**提供关键决策会商、网页界面或出站 Runtime。
+GitHub 正本仅接受本公开仓；GitLab 正本接受可解析的两段 `group/project`，且都不写回议题。
 
 `0.1.0` 的发布门是一个本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库
 GitHub 只读投影。零拷贝决策流与 DeepSeek 原生插件已由后续 Module（GitHub #6 / #7）在同一 `0.1.0`
-系列交付，仍不阻塞发布门。GitLab 只读投影、LoopX Engine、关键决策会商、loopback Web Console
+系列交付，仍不阻塞发布门。LoopX Engine、关键决策会商、loopback Web Console
 和出站 Runtime 仍是已接受方向，由独立 Module 分别交付。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
 ## 当前基线快速开始
@@ -95,6 +96,13 @@ pnpm --dir <repo> hufu status
 pnpm --dir <repo> hufu status --refresh
 ```
 
+GitLab 正本（连接时不上网；查看默认读缓存；门禁用夹具，不打真实 GitLab）：
+
+```bash
+pnpm --dir <repo> hufu connect --project-id demo --repository example-group/example-project --task-authority gitlab --commander human:alice --grant-scope "read-only projection and handoff"
+pnpm --dir <repo> hufu status
+```
+
 ## 历史 0.0.1
 
 最初公开发布的 Python 基线已冻结为标签 `v0.0.1`。需要核对或复现当时验证时，检出该标签，
@@ -124,8 +132,8 @@ git checkout v0.0.1
 
 当前开发版本是尚未发布的 `0.1.0`；最近的历史发布基线是 `0.0.1`（标签 `v0.0.1`）。
 这是一个早期、合同优先的构建。公共 API 在 `1.0.0` 前可能发生变化。
-当前仓库已提供五个有界命令、本机账本、本公开仓 GitHub 只读投影、零拷贝决策流，以及 DeepSeek 原生插件路径；尚未实现
-GitLab 投影、LoopX Engine、关键决策会商或远端 Provider，默认不启用写回或出站集成。
+当前仓库已提供五个有界命令、本机账本、本公开仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流，以及 DeepSeek 原生插件路径；尚未实现
+LoopX Engine、关键决策会商或远端 Provider，默认不启用写回或出站集成。
 
 ## 参与贡献与安全
 

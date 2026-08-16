@@ -119,6 +119,21 @@ describe("hufu connect", () => {
     });
   });
 
+  it("rejects gitlab task_authority for a non-gitlab repository with exit 2", () => {
+    withTempDir((dir) => {
+      const args = CONNECT_ARGS.map((value) =>
+        value === "local" ? "gitlab" : value,
+      );
+      const result = runHufu(args, dir);
+      assert.equal(result.status, 2, result.stderr);
+      const body = parseStdout(result.stdout);
+      assert.equal(body["ok"], false);
+      const error = body["error"] as Record<string, unknown>;
+      assert.equal(error["code"], "REPOSITORY_NOT_ALLOWED");
+      assert.equal(existsSync(join(dir, ".hufu")), false);
+    });
+  });
+
   it("rejects connect when write.lock already exists", () => {
     withTempDir((dir) => {
       const ledgerDir = join(dir, ".hufu", "ledger");
