@@ -33,4 +33,4 @@
 
 - 本仓第一读者是维护者，规格沿用 003–005 的命令、失败类别与摘要写法。官方安装契约字符串与运行时实现身份来自 Issue #7 与 `docs/COMPATIBILITY.md`，不是另选技术栈。
 - 工具名、服务名、补丁行、隔离 Profile 名与最小依赖集合由后续 `$speckit-plan` 固定。
-- 无 [NEEDS CLARIFICATION]。待维护者说「同意」后 Accepted，再写 plan/tasks。
+- 无 [NEEDS CLARIFICATION]。规格已 Accepted。设计见 `plan.md`；可执行拆解见 `tasks.md`。

@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-16
 
-**Status**: Draft
+**Status**: Accepted
 
 **Input**: User description: "GitHub Module Issue #7（M5）：把同一组领域合同接到 DeepSeek Harness 原生插件：装上可用，卸下只撤销运行时效果，不删除已持久事实。用版本化夹具证明与独立入口折叠出结构相等的当前视图。必须交付原生插件路径、真装真卸契约测试、不可观测字段显式为不可用且不以 0 填充；契约测试声明运行于当前唯一已验证的插件运行时实现。不修改 Host 的 Agent Loop，不声称兼容其他同名运行时，不做出站运行时，不把 Session 日志当成项目正本。"
 
