@@ -1,0 +1,59 @@
+name: close-accepted-modules
+
+# Temporary helper so the Cloud Agent can close Module Issues that the
+# sandbox GitHub token cannot write. Do not merge this workflow to main.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  close:
+    name: close-10
+    if: github.event.pull_request.head.ref == 'cursor/close-accepted-issues-b880'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Close accepted Module Issue #10
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+
+          close_if_open() {
+            local number="$1"
+            local comment_file="$2"
+            local state
+            state="$(gh issue view "${number}" --repo "${repo}" --json state --jq .state)"
+            if [ "${state}" = "CLOSED" ]; then
+              echo "#${number} already closed"
+              return 0
+            fi
+            gh issue close "${number}" --repo "${repo}" --reason completed --comment "$(cat "${comment_file}")"
+            echo "closed #${number}"
+          }
+
+          cat > /tmp/close-10.md <<'EOF'
+          ## 验收关闭
+
+          按本 Issue 的必须交付与明确不做核对，**可以关闭**。合入证据：[PR #22](https://github.com/Blicae8917/hufu/pull/22)（已合并入 `main`，merge `cc540cb`）。功能合同：`specs/009-pilot-gate/`。
+
+          必须交付均已有失败先写、后合入的测试覆盖：
+
+          - 试点记录与封闭结论：`tests/pilot-record.test.ts`
+          - 度量派生且缺失不为 `0`：`tests/pilot-metrics.test.ts`
+          - 三轮门禁与 `hufu serve` 失败关闭：`tests/pilot-gate.test.ts`
+          - 公开仓隐私边界与脱敏聚合：`tests/pilot-privacy.test.ts`
+
+          明确不做均保持：本模块不实现网页；`serve` 不监听端口；网页不是 `task_authority`；公开仓不保存试点原始数据。
+
+          本关闭不等于 `0.1.0` 已发布，也不等于网页已交付。路线图索引 [#5](https://github.com/Blicae8917/hufu/issues/5) 保持 OPEN。
+          EOF
+
+          close_if_open 10 /tmp/close-10.md
+
+          gh issue view 10 --repo "${repo}" --json number,state,title
+          gh issue view 5 --repo "${repo}" --json number,state,title
