@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-16
 
-**Status**: Draft
+**Status**: Accepted
 
 **Input**: User description: "GitHub Module Issue #9（M7）：通过引擎插件接入 LoopX 的第一批机制：类型化结果、回执、效果回读和有界恢复。LoopX 不是任务正本，也不是授权来源。只采用机制目录中已批准的部分：typed result、Receipt、readback、有界恢复。边界测试证明没有把 Goal / Todo / Registry 映射为 Hufu 正本。不作为默认 npm 依赖引入完整控制面。复制或改编源码时遵守许可证并更新 NOTICE。不引入 Scheduler、Heartbeat、Quota。不自动启动 Agent。不让 LoopX 拥有外部议题生命周期。不阻塞 0.1.0 发布。开始前必须重新核对公开上游提交与许可证。"
 
