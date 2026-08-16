@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-16
 
-**Status**: Draft
+**Status**: Accepted
 
 **Input**: User description: "GitHub Module Issue #8（M6）：增加 GitLab 只读投影，并验证与本机账本、GitHub 投影使用同一套当前视图合同。GitLab 工作项只读投影必须带来源链接、来源身份、观测时间和时效；适配器测试证明没有写回；外部文本视为不可信引用数据；external_ref 使用 gitlab:group/project#456，无法判定时拒绝。不写回议题，不把 GitLab 状态复制成本地第二套生命周期，不引入后台刷新。不阻塞 0.1.0 发布。"
 
