@@ -3,8 +3,8 @@
 状态：候选，待 `0.1.0` 设计 Pull Request 接受
 最后更新：2026-08-16
 当前实现：TypeScript 领域核心、`hufu validate`、本机 `local` 账本与有界命令
-（含 `hufu decide` 零拷贝决策流），以及本公开仓 GitHub 只读投影。Cordis 插件、会商、
-GitLab 与网页尚未实现。
+（含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影，以及 DeepSeek 原生插件包 `hufu-dsh`。
+会商、GitLab 与网页尚未实现。
 
 ## 产品目标
 

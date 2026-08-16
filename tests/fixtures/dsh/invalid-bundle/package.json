@@ -1,0 +1,10 @@
+{
+  "name": "invalid-hufu",
+  "version": "0.0.0",
+  "private": true,
+  "dsh": {
+    "bundle": {
+      "patch": "./missing.patch.yml"
+    }
+  }
+}

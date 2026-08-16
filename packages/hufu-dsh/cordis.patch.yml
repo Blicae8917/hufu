@@ -1,0 +1,8 @@
+# Hufu DeepSeek Profile Module. Self-contained insert; later layers replace the
+# whole row by id and must restate every key they need.
+- insert:
+    - id: hufu
+      name: hufu-dsh
+      runtime: isolate
+      inject:
+        - hufu

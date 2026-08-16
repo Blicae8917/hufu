@@ -15,8 +15,12 @@ function extract(pattern, filePath, label) {
 }
 
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const pluginPackage = JSON.parse(
+  readFileSync(join(root, "packages/hufu-dsh/package.json"), "utf8"),
+);
 const versions = {
   package: packageJson.version,
+  plugin: pluginPackage.version,
   source: extract(
     /^export const VERSION = "([^"]+)";$/m,
     join(root, "src/hufu/version.ts"),

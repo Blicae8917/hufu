@@ -9,3 +9,4 @@ dist/
 .hufu/
 node_modules/
 .pnpm-store/
+packages/*/lib/
