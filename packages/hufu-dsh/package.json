@@ -1,0 +1,27 @@
+{
+  "name": "hufu-dsh",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness Profile Module for Hufu",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": [
+    "lib",
+    "src",
+    "cordis.patch.yml"
+  ],
+  "license": "Apache-2.0",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "4.0.1",
+    "hufu": "workspace:*"
+  }
+}

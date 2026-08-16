@@ -13,6 +13,8 @@
 - 本公开仓 GitHub 只读投影：显式 `status --refresh` 才联网，失败保留旧观测，不写回议题。
 - 零拷贝决策流：一份 `DECISION_PACKET` 只完整保存一次；信封、路线确认、三类增量与交接只传引用；
   非空 `added_scope` 得到 `scope_change_required` 且不扩权；语义重基护栏只在既有命令边界同步求值。
+- DeepSeek 原生插件包 `hufu-dsh`：隔离 Profile 真装真卸；六工具调用领域函数；与独立 CLI 对同一事件夹具
+  折叠结构相等的 CurrentView；缺失墙钟/Token/Session/Run 不得写成 `0`；契约测试声明 `@deepseek-ai/cordis`。
 - GitHub Actions 在 `main` 推送和 Pull Request 上运行 `pnpm test`、
   `node scripts/check-version.mjs` 与 `git diff --check`。
 
@@ -24,7 +26,8 @@
 - `0.0.1` Python 实现从主线移除，历史由标签 `v0.0.1` 保留。
 - `0.1.0` 发布门在设计上收敛为只读影子纵切（四个有界命令、`local` 与本仓库 GitHub
   只读投影、三轴 CurrentView）。四个发布门命令、本机账本与本仓 GitHub 只读投影已交付；
-  零拷贝决策流已由后续 Module #6 在同一版本系列交付。GitLab 只读投影、Cordis 与会商仍由后续 Module 交付。
+  零拷贝决策流已由后续 Module #6 在同一版本系列交付；DeepSeek 原生插件路径已由 Module #7 交付。
+  GitLab 只读投影与会商仍由后续 Module 交付。
 
 ## [0.0.1] - 2026-08-13
 

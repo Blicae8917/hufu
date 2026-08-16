@@ -3,6 +3,7 @@ declare var process: {
   execPath: string;
   env: Record<string, string | undefined>;
   pid: number;
+  platform: string;
   stdout: { write(chunk: string): boolean };
   stderr: { write(chunk: string): boolean };
   cwd(): string;
@@ -117,6 +118,11 @@ declare module "node:fs" {
     options?: { recursive?: boolean },
   ): string | undefined;
   export function mkdtempSync(prefix: string): string;
+  export function readdirSync(
+    path: string,
+    options: { withFileTypes: true },
+  ): Array<{ name: string; isDirectory(): boolean; isFile(): boolean }>;
+  export function readdirSync(path: string): string[];
   export function openSync(path: string, flags: string): number;
   export function readFileSync(path: string, encoding: "utf8"): string;
   export function renameSync(oldPath: string, newPath: string): void;
@@ -141,15 +147,22 @@ declare module "node:fs" {
 
 declare module "node:os" {
   export function tmpdir(): string;
+  export function homedir(): string;
 }
 
 declare module "node:path" {
+  export function dirname(path: string): string;
   export function join(...paths: string[]): string;
+  export function relative(from: string, to: string): string;
 }
 
 declare module "node:test" {
   export function describe(name: string, fn: () => void | Promise<void>): void;
-  export function it(name: string, fn: () => void | Promise<void>): void;
+  export function it(
+    name: string,
+    options: { skip?: boolean } | (() => void | Promise<void>),
+    fn?: () => void | Promise<void>,
+  ): void;
 }
 
 declare module "node:url" {

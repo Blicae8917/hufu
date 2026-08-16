@@ -10,13 +10,20 @@
   "bin": {
     "hufu": "dist/src/hufu/main.js"
   },
+  "exports": {
+    ".": {
+      "types": "./src/hufu/index.ts",
+      "default": "./dist/src/hufu/index.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p packages/hufu-dsh/tsconfig.json",
     "hufu": "node dist/src/hufu/main.js",
-    "test": "tsc && node --test dist/tests/**/*.test.js"
+    "test": "tsc -p packages/hufu-dsh/tsconfig.json && tsc && node --test \"dist/tests/**/*.test.js\""
   },
   "license": "Apache-2.0",
   "devDependencies": {
+    "hufu-dsh": "workspace:*",
     "typescript": "~5.9.2"
   }
 }

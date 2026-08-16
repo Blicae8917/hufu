@@ -49,7 +49,8 @@ export type DecideKind =
 export interface DecideInput {
   readonly actor: string;
   readonly kind: DecideKind;
-  readonly file: string;
+  readonly file?: string;
+  readonly payload?: Record<string, unknown>;
 }
 
 export function decideWorkspace(
@@ -57,7 +58,7 @@ export function decideWorkspace(
   input: DecideInput,
 ): Record<string, unknown> {
   const actor = requiredActor(input.actor);
-  const payload = readJsonFile(input.file);
+  const payload = readDecidePayload(input);
   const snapshot = readLedger(workspaceRoot);
   if (snapshot.status === "missing") {
     throw new CommandError(
@@ -615,6 +616,28 @@ function requiredActor(actor: string): string {
     throw new CommandError("CONTRACT_INVALID", "--actor is required");
   }
   return actor.trim();
+}
+
+function readDecidePayload(input: DecideInput): Record<string, unknown> {
+  const file = input.file?.trim() ?? "";
+  const hasFile = file !== "";
+  const hasPayload = input.payload !== undefined;
+  if (hasFile === hasPayload) {
+    throw new CommandError(
+      "CONTRACT_INVALID",
+      "decide requires exactly one of file or payload",
+    );
+  }
+  if (hasPayload) {
+    if (!isJsonObject(input.payload)) {
+      throw new CommandError(
+        "CONTRACT_INVALID",
+        "decide payload must be a JSON object",
+      );
+    }
+    return input.payload;
+  }
+  return readJsonFile(file);
 }
 
 function readJsonFile(path: string): Record<string, unknown> {

@@ -31,20 +31,21 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - 本公开仓 GitHub 只读投影（`status --refresh` 才联网，默认读缓存）；
 - 由账本与投影缓存回放得到的三轴 CurrentView（来源类别、可用性、时效）；
 - 零拷贝决策流：一份裁决只完整保存一次，下游只传引用、摘要与增量；`status` / `handoff` 不复制裁决正文；
+- DeepSeek 原生插件包 `hufu-dsh`：隔离 Profile 可装可卸，六工具调用同一领域函数，与独立 CLI 对同一夹具折叠结构相等的 CurrentView；
 - 一套当前有效的 pnpm / Node 门禁。
 
-当前版本**尚未**提供 GitLab 投影、Cordis 插件运行时、关键决策会商、网页界面或出站 Runtime。
+当前版本**尚未**提供 GitLab 投影、关键决策会商、网页界面或出站 Runtime。
 请求 GitLab 正本会明确失败。GitHub 正本仅接受本公开仓，且不写回议题。
 
 `0.1.0` 的发布门是一个本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库
-GitHub 只读投影。零拷贝决策流已由后续 Module（GitHub #6）在同一 `0.1.0` 系列交付，仍不阻塞发布门。
-DeepSeek Harness 原生 Profile、GitLab 只读投影、LoopX Engine、关键决策会商、loopback Web Console
+GitHub 只读投影。零拷贝决策流与 DeepSeek 原生插件已由后续 Module（GitHub #6 / #7）在同一 `0.1.0`
+系列交付，仍不阻塞发布门。GitLab 只读投影、LoopX Engine、关键决策会商、loopback Web Console
 和出站 Runtime 仍是已接受方向，由独立 Module 分别交付。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
 ## 当前基线快速开始
 
 要求：Node.js `>=22.19.0`，pnpm（版本见根目录 `package.json` 的 `packageManager`）。
-运行时依赖：无。
+独立 CLI 运行时依赖：无。DeepSeek 插件包 `hufu-dsh` 依赖 `@deepseek-ai/cordis@4.0.1`。
 
 ```bash
 pnpm install
@@ -72,6 +73,19 @@ pnpm --dir <repo> hufu status
 本机工作项打开后，可用 `hufu decide` 记下裁决、附加信封、提交路线确认或追加增量。载荷为 JSON 文件，
 字段见 `specs/005-zero-copy-decision/`。`status` 与 `handoff` 只暴露 `decision_id` / 版本 / 摘要，
 不复制目标或验收正文。`decide` 不联网。
+
+### DeepSeek 原生插件（隔离 Profile）
+
+不要改本机默认 `~/.dsh`。若已安装 `dsh`，使用隔离主目录：
+
+```bash
+export DSH_HOME=<empty-temp-home>
+dsh plugin --profile hufu-fixture add <repo>/packages/hufu-dsh
+```
+
+无 `dsh` 时，以 `pnpm test` 中的隔离 Bundle 契约测试为准：真装真卸走同一契约的临时 Profile 与 `@deepseek-ai/cordis` mount/dispose，不把 `dsh` 二进制当门禁硬依赖。
+
+卸载只撤销运行时 Effect，工作区 `.hufu/ledger` 仍在，独立 CLI `status` 仍能回放。
 
 本公开仓 GitHub 正本（连接时不上网；查看默认读缓存）：
 
@@ -110,7 +124,7 @@ git checkout v0.0.1
 
 当前开发版本是尚未发布的 `0.1.0`；最近的历史发布基线是 `0.0.1`（标签 `v0.0.1`）。
 这是一个早期、合同优先的构建。公共 API 在 `1.0.0` 前可能发生变化。
-当前仓库已提供五个有界命令、本机账本、本公开仓 GitHub 只读投影，以及零拷贝决策流；尚未实现 Cordis、DeepSeek Harness Plugin、
+当前仓库已提供五个有界命令、本机账本、本公开仓 GitHub 只读投影、零拷贝决策流，以及 DeepSeek 原生插件路径；尚未实现
 GitLab 投影、LoopX Engine、关键决策会商或远端 Provider，默认不启用写回或出站集成。
 
 ## 参与贡献与安全

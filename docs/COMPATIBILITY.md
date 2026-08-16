@@ -1,7 +1,7 @@
 # 上游兼容性与同步基线
 
-状态：设计基线，尚未完成 Hufu 插件实现与兼容性测试
-最后核对：2026-08-15
+状态：DeepSeek 原生插件路径已实现；契约测试声明运行于 `@deepseek-ai/cordis` `4.0.1`
+最后核对：2026-08-16
 
 本文件记录 Hufu 每个发布系列实际核对过的公开上游版本。它是动态兼容性记录，不是 Constitution；
 版本出现于此只表示设计或测试基线，不表示 Hufu 已经实现、发布或支持对应集成。
@@ -10,7 +10,7 @@
 
 | 上游 | 公开仓库 | 已核对基线 | 相关版本 | 当前结论 |
 | --- | --- | --- | --- | --- |
-| DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | `@deepseek-ai/dsh` `0.1.0-rc.5` | 2026-08-15 核对过的源码快照；插件实现尚未开始，不声明浮动 `master` 支持。 |
+| DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | `@deepseek-ai/dsh` `0.1.0-rc.5` | 2026-08-16 再次核对公开 `master`，提交未变；插件契约测试使用隔离 mount/dispose，不声明浮动 `master` 支持。 |
 | DeepSeek 使用的 Cordis | DeepSeek Harness `vendor/cordis` | 同上 | `@deepseek-ai/cordis` `4.0.1` | 目标插件与生命周期基础；它是 DeepSeek 命名的实现，不等同于对其他 Cordis 项目的兼容承诺。 |
 | LoopX | `huangruiteng/loopx` | `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` | `loopx` `0.4.7` | 已完成机制级核对；不是 Hufu 任务正本，Engine 集成尚未开始。 |
 
@@ -26,6 +26,8 @@ Standalone Profile 不组装任何 Cordis 运行时。
 
 ## 漂移状态
 
+- 2026-08-16 再次读取公开 `deepseek-ai/deepseek-harness` `master`，提交仍为
+  `47f943859bef60e4160492346772ded9b24f765a`。
 - 2026-08-15 的一次 DeepSeek Harness 观测对应上述提交；这是一条带日期的观测，不是“当前永远一致”的承诺。
 - 2026-08-15 通过 `refs/heads/main` 直接读取的 LoopX 漂移观测为
   `38719201df6264a7d1940d32e853c3672aed9249`；
@@ -73,7 +75,7 @@ Usage、模型身份和授权读回；未验证字段必须报告 `UNKNOWN` 或 
 
 | Host | 已观察的候选接入面 | 已知限制 | Hufu 状态 |
 | --- | --- | --- | --- |
-| DeepSeek Harness | Cordis Plugin、Session Service、StorageDomain；Headless Profile 可执行一次 fresh task | Headless 只返回最终文本且没有 follow-up；外部插件不能假设任意自定义 SessionEvent | Adapter 未实现，`UNAVAILABLE` |
+| DeepSeek Harness | Cordis Plugin、Session Service、StorageDomain；Headless Profile 可执行一次 fresh task | Headless 只返回最终文本且没有 follow-up；外部插件不能假设任意自定义 SessionEvent | `hufu-dsh` 已作为隔离 Profile Module 交付；不修改 Agent Loop，不启用 Host JSON Storage Provider，不出站 Session |
 | Codex | App Server 的 thread/turn 生命周期；非交互执行、resume、JSONL、JSON Schema 和 Usage 事件 | 具体权限、模型身份和取消语义仍需版本化合同测试 | Adapter 未实现，`UNAVAILABLE` |
 | Claude Code | 非交互与 resume/continue；stream-json、JSON Schema、工具 allow/deny 和 Usage | 非交互模式的工作区信任与权限策略必须显式收窄 | Adapter 未实现，`UNAVAILABLE` |
 | Kimi Code | ACP 的 new/load/resume/prompt/cancel；stream-json、MCP 和权限规则 | 稳定的 Schema 约束与机器可读 Token 字段尚未确认；裸 `-p` 不适合作为默认只读会商路径 | Adapter 未实现，`UNAVAILABLE` |
