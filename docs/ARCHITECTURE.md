@@ -1,9 +1,9 @@
 # 架构说明
 
 状态：候选，待 `0.1.0` 设计 Pull Request 接受
-最后更新：2026-08-15
+最后更新：2026-08-16
 当前实现：零 Cordis 依赖的 TypeScript 领域核心、`hufu validate`、本机 `local` JSONL
-账本与四个有界命令，以及本公开仓 GitHub 只读投影。下表「V1 实现」描述目标架构；
+账本与有界命令（含 `hufu decide` 零拷贝决策流），以及本公开仓 GitHub 只读投影。下表「V1 实现」描述目标架构；
 GitLab 投影、插件、会商或网页尚未交付。
 
 ## 架构目标
@@ -568,7 +568,7 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 
 发布门之后的已接受方向按独立 Module 依次评估：
 
-5. 零拷贝决策 Schema、决策增量回放和事件驱动 semantic rebase。
+5. 零拷贝决策 Schema、决策增量回放和事件驱动 semantic rebase（#6，已在本 `0.1.0` 系列交付）。
 6. 以 DeepSeek Harness 原生插件验证 Tool、受支持的 Session Event、Storage 和卸载清理；
    以 Standalone Profile 的入站 Consumer 验证同一合同不依赖单一 Host。
 7. GitLab Provider 以只读影子模式交付并验证同一 CurrentView。
@@ -584,6 +584,7 @@ Module Issue 和 Spec Kit 合同。
 ## 与初始实现的关系
 
 版本 `0.0.1` 只实现最初的不可变 `TaskEnvelope` 验证和确定性 CLI。
-本文所述 `0.1.0` Cordis-first 架构是候选规划范围，不表示 Node/TypeScript、DeepSeek 插件、
-Standalone Profile、零拷贝决策传递、LoopX Engine 或 Provider 已经实现，也不表示已经获得远端进度授权。
+本文所述 `0.1.0` Cordis-first 架构是候选规划范围。当前主线已交付 TypeScript 核心、本机账本、
+本仓 GitHub 只读投影与零拷贝决策流；这不表示 DeepSeek 插件、Standalone Profile、LoopX Engine
+或 GitLab Provider 已经实现，也不表示已经获得远端进度授权。
 每个 Module 必须通过独立的已接受 Issue、Spec Kit 产物、失败测试、最小实现和可审阅证据交付。

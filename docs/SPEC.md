@@ -1,9 +1,10 @@
 # 产品规范
 
 状态：候选，待 `0.1.0` 设计 Pull Request 接受
-最后更新：2026-08-15
-当前实现：TypeScript 领域核心、`hufu validate`、本机 `local` 账本与四个有界命令，
-以及本公开仓 GitHub 只读投影。Cordis 插件、会商与网页尚未实现。
+最后更新：2026-08-16
+当前实现：TypeScript 领域核心、`hufu validate`、本机 `local` 账本与有界命令
+（含 `hufu decide` 零拷贝决策流），以及本公开仓 GitHub 只读投影。Cordis 插件、会商、
+GitLab 与网页尚未实现。
 
 ## 产品目标
 
@@ -92,13 +93,14 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
 - **发布门（`0.1.0` 必须交付）**：本机可用的只读影子纵切——`connect`、`doctor`、`status`、
   `handoff` 四个有界命令；`local` 与本仓库 GitHub 只读投影两种任务正本按交付顺序先后进入；
   CurrentView 能区分 `fact_class`、`availability` 和 `freshness` 三轴。
-- **后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）**：完整零拷贝决策流（Envelope、ACK、
-  三类 Delta、semantic rebase）、DeepSeek 与 Standalone 双 Profile 夹具对等、DeepSeek 插件
-  真装真卸、GitLab 只读投影、`engine-loopx`、关键决策会商、loopback Web Console、出站 Runtime。
+- **后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）**：零拷贝决策流已由 GitHub Module Issue #6
+  在 `0.1.0` 系列交付（Envelope、ACK、三类 Delta、semantic rebase 护栏）。其余仍待独立 Module：
+  DeepSeek 与 Standalone 双 Profile 夹具对等、DeepSeek 插件真装真卸、GitLab 只读投影、
+  `engine-loopx`、关键决策会商、loopback Web Console、出站 Runtime。
   每项由独立 Module Issue 与 Spec Kit 合同交付并各自验收。
 
-`0.1.0` 若触碰决策记录，至多实现“一份裁决只完整保存一次，`status` 与 `handoff` 只传引用”，
-不实现完整决策状态机。
+发布门若触碰决策记录，至多要求“一份裁决只完整保存一次，`status` 与 `handoff` 只传引用”。
+完整决策状态机已由后续 Module #6 交付，仍不阻塞 `0.1.0` 发布门。
 
 ### Project 连接与健康检查
 
@@ -133,8 +135,8 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
 
 ### 零拷贝决策传递
 
-本节合同属于已接受方向，由独立 Module 交付，不进入 `0.1.0` 发布门
-（见「0.1.0 发布门与后续 Module 验收」）。
+本节合同已由 GitHub Module Issue #6 / `specs/005-zero-copy-decision` 在 `0.1.0` 系列交付，
+仍不进入 `0.1.0` 发布门（见「0.1.0 发布门与后续 Module 验收」）。
 
 每个需要执行的裁决使用一个稳定 `decision_id`。Ledger 只完整保存一次初始 `DECISION_PACKET`；
 同一裁决的后续语义版本由连续的 `DECISION_DELTA` 确定性折叠生成。CurrentView 可以物化最新完整版本，
@@ -340,7 +342,7 @@ GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库�
    和 `connect`、`doctor`、`status`、`handoff` 四个有界命令。
 4. M3：增加本仓库 GitHub 只读 Projection，并以本项目自身为代表性项目验证同一 CurrentView。
 
-发布门之后的已接受方向按独立 Module 依次评估：零拷贝决策流与事件驱动 semantic rebase、
+发布门之后的已接受方向按独立 Module 依次评估：零拷贝决策流（#6，已在本系列交付）与事件驱动 semantic rebase、
 DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理、GitLab 只读 Projection、
 `engine-loopx` 第一批 typed result 与 Receipt/readback、代表性效能试点与 loopback Web Console。
 

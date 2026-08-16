@@ -11,6 +11,12 @@ export const EVENT_TYPES = [
   "hufu/work_item.opened",
   "hufu/handoff.recorded",
   "hufu/ledger.repair.truncated_tail",
+  "hufu/decision.packet_recorded",
+  "hufu/decision.envelope_attached",
+  "hufu/decision.route_acked",
+  "hufu/decision.fact_delta",
+  "hufu/decision.decision_delta",
+  "hufu/decision.effect_delta",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

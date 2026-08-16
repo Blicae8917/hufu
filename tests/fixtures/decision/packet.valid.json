@@ -1,0 +1,30 @@
+{
+  "acceptance_metric": "tests pass and status shows a decision ref",
+  "authoritative_state": {
+    "freshness": "not_applicable",
+    "observed_at": "2026-08-16T00:00:00.000Z",
+    "task_ref": "wi-1"
+  },
+  "authority_scope_ref": {
+    "grant_id": "REPLACE",
+    "revision": 1
+  },
+  "business_outcome": "Record one canonical decision",
+  "decision_id": "decision-demo",
+  "evidence_as_of": "2026-08-16T00:00:00.000Z",
+  "non_goals": ["rewrite the github issue"],
+  "recheck_when": {
+    "at_or_after": "2026-01-01T00:00:00.000Z",
+    "type": "wall_clock"
+  },
+  "simplest_safe_route": "record packet then envelope then ack",
+  "true_stoplines": ["do not write back issues"],
+  "unknowns": ["runtime token usage"],
+  "verified_facts": [
+    {
+      "evidence_ref": "ev-connect",
+      "proposition": "workspace is connected"
+    }
+  ],
+  "version": 1
+}

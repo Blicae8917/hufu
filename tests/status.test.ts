@@ -73,6 +73,29 @@ describe("hufu status", () => {
     });
   });
 
+  it("marks decision slots data_insufficient when none is recorded", () => {
+    withTempDir((dir) => {
+      assert.equal(runHufu(CONNECT_ARGS, dir).status, 0);
+      const view = parseStdout(runHufu(["status"], dir).stdout)[
+        "result"
+      ] as Record<string, unknown>;
+      assert.equal(view["view_schema_version"], 1);
+      for (const key of [
+        "decision",
+        "execution_envelope",
+        "route_ack",
+        "first_durable_effect",
+      ] as const) {
+        const slot = view[key] as Record<string, unknown>;
+        assert.equal(slot["availability"], "data_insufficient");
+        assert.equal(slot["value"], null);
+        assert.notEqual(slot["value"], 0);
+      }
+      const guardrails = view["execution_guardrails"] as Record<string, unknown>;
+      assert.deepEqual(guardrails["value"], []);
+    });
+  });
+
   it("rejects --refresh as a contract error", () => {
     withTempDir((dir) => {
       assert.equal(runHufu(CONNECT_ARGS, dir).status, 0);
