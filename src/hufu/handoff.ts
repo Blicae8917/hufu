@@ -16,6 +16,11 @@ export interface HandoffInput {
 }
 
 export interface HandoffResult {
+  readonly decision_ref: {
+    content_digest: string;
+    decision_id: string;
+    version: number;
+  } | null;
   readonly grant_id: string;
   readonly grant_revision: number;
   readonly handoff_id: string;
@@ -81,7 +86,9 @@ export function recordHandoff(
       );
     }
 
-    const nextActionText = `Work item ${workItemId}: continue within recorded authorization scope.`;
+    const decisionValue = view.decision.value;
+    const guardrails = view.execution_guardrails.value ?? [];
+    const nextActionText = nextActionFor(workItemId, decisionValue, guardrails);
     assertNextActionInScope(nextActionText, grant.scope_text);
 
     const handoffId = randomUUID();
@@ -116,6 +123,7 @@ export function recordHandoff(
     ]);
 
     return {
+      decision_ref: decisionValue,
       grant_id: grant.grant_id,
       grant_revision: grant.revision,
       handoff_id: handoffId,
@@ -123,6 +131,29 @@ export function recordHandoff(
       work_item_id: workItemId,
     };
   });
+}
+
+function nextActionFor(
+  workItemId: string,
+  decisionValue: {
+    content_digest: string;
+    decision_id: string;
+    version: number;
+  } | null,
+  guardrails: readonly string[],
+): string {
+  const blocked =
+    guardrails.includes("scope_change_required") ||
+    guardrails.includes("semantic_rebase_required");
+  const scope = "continue within recorded authorization scope.";
+  const ref =
+    decisionValue === null
+      ? ""
+      : ` Decision ${decisionValue.decision_id} v${String(decisionValue.version)}.`;
+  if (blocked) {
+    return `Work item ${workItemId}: blocked by ${guardrails.join(", ")}; ${scope}${ref}`;
+  }
+  return `Work item ${workItemId}: ${scope}${ref}`;
 }
 
 function assertNextActionInScope(

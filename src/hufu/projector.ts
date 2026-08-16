@@ -1,6 +1,18 @@
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
 import { type ProjectionCache } from "./projection-cache.js";
+import {
+  currentAck,
+  currentEnvelope,
+  latestPacketIds,
+  materializeDecision,
+} from "./decision-state.js";
+import {
+  ackIsApplicable,
+  evaluateGuardrails,
+  firstDurableEffect,
+  type Guardrail,
+} from "./guardrails.js";
 
 export type FactClass = "authoritative" | "observed" | "derived";
 export type Availability =
@@ -40,6 +52,24 @@ export interface CurrentView {
     scope_text: string;
   }>;
   readonly commander: FactSlot<string>;
+  readonly decision: FactSlot<{
+    content_digest: string;
+    decision_id: string;
+    version: number;
+  }>;
+  readonly execution_envelope: FactSlot<{
+    content_digest: string;
+    decision_id: string;
+    envelope_id: string;
+    version: number;
+    work_item_ids: readonly string[];
+  }>;
+  readonly execution_guardrails: FactSlot<readonly Guardrail[]>;
+  readonly first_durable_effect: FactSlot<{
+    effect_id?: string;
+    observed_at?: string;
+    status: string;
+  }>;
   readonly latest_handoff: FactSlot<{
     completed: string;
     handoff_id: string;
@@ -49,6 +79,11 @@ export interface CurrentView {
   readonly ledger: FactSlot<{ event_count: number; ledger_seq_end: number }>;
   readonly project: FactSlot<{ project_id: string; repository: string }>;
   readonly project_lead: FactSlot<{ binding_id: string; principal_id: string }>;
+  readonly route_ack: FactSlot<{
+    added_scope_count: number;
+    applicable: boolean;
+    envelope_id: string;
+  }>;
   readonly run: FactSlot<null>;
   readonly session: FactSlot<null>;
   readonly task_authority: FactSlot<TaskAuthority>;
@@ -112,10 +147,12 @@ export function projectCurrentView(
     now,
     staleAfterHours,
   );
+  const decisionSlots = projectDecision(events, now);
 
   return {
     authorization_grant: grantSlot(currentGrant),
     commander: commanderSlot(commander),
+    ...decisionSlots,
     latest_handoff: latestHandoffSlot(latestHandoff),
     ledger: slot(
       {
@@ -147,6 +184,118 @@ export function projectCurrentView(
     view_schema_version: 1,
     work_item_set: workItemSet,
     work_items: workItems,
+  };
+}
+
+function projectDecision(
+  events: readonly EventEnvelope[],
+  now: Date,
+): Pick<
+  CurrentView,
+  | "decision"
+  | "execution_envelope"
+  | "execution_guardrails"
+  | "first_durable_effect"
+  | "route_ack"
+> {
+  const ids = latestPacketIds(events);
+  const decisionId = ids[ids.length - 1];
+  if (decisionId === undefined) {
+    return {
+      decision: missing("authoritative", "data_insufficient"),
+      execution_envelope: missing("observed", "data_insufficient"),
+      execution_guardrails: slot([], "derived", "available", "not_applicable"),
+      first_durable_effect: missing("derived", "data_insufficient"),
+      route_ack: missing("observed", "data_insufficient"),
+    };
+  }
+  const materialized = materializeDecision(events, decisionId);
+  if (materialized === undefined) {
+    return {
+      decision: missing("authoritative", "data_insufficient"),
+      execution_envelope: missing("observed", "data_insufficient"),
+      execution_guardrails: slot([], "derived", "available", "not_applicable"),
+      first_durable_effect: missing("derived", "data_insufficient"),
+      route_ack: missing("observed", "data_insufficient"),
+    };
+  }
+  const decisionSlot = materialized.conflict
+    ? {
+        availability: "conflict" as const,
+        fact_class: "authoritative" as const,
+        freshness: "not_applicable" as const,
+        value: null,
+      }
+    : slot(
+        {
+          content_digest: materialized.content_digest,
+          decision_id: materialized.decision_id,
+          version: materialized.version,
+        },
+        "authoritative",
+        "available",
+        "not_applicable",
+      );
+  const envelope = currentEnvelope(events, decisionId);
+  const envelopeStale =
+    envelope !== undefined &&
+    (String(envelope.payload["content_digest"]) !== materialized.content_digest ||
+      Number(envelope.payload["version"]) !== materialized.version);
+  const envelopeSlot: CurrentView["execution_envelope"] =
+    envelope === undefined
+      ? missing("observed", "data_insufficient")
+      : envelopeStale
+        ? {
+            availability: "conflict",
+            fact_class: "observed",
+            freshness: "not_applicable",
+            value: null,
+          }
+        : slot(
+            {
+              content_digest: String(envelope.payload["content_digest"]),
+              decision_id: String(envelope.payload["decision_id"]),
+              envelope_id: String(envelope.payload["envelope_id"]),
+              version: Number(envelope.payload["version"]),
+              work_item_ids: Array.isArray(envelope.payload["work_item_ids"])
+                ? envelope.payload["work_item_ids"].filter(
+                    (item): item is string => typeof item === "string",
+                  )
+                : [],
+            },
+            "observed",
+            "available",
+            "fresh",
+          );
+  const ack =
+    envelope === undefined
+      ? undefined
+      : currentAck(events, String(envelope.payload["envelope_id"]));
+  const ackSlot: CurrentView["route_ack"] =
+    ack === undefined || envelope === undefined
+      ? missing("observed", "data_insufficient")
+      : slot(
+          {
+            added_scope_count: Array.isArray(ack.payload["added_scope"])
+              ? ack.payload["added_scope"].length
+              : 0,
+            applicable: ackIsApplicable(ack, materialized, envelope),
+            envelope_id: String(ack.payload["envelope_id"]),
+          },
+          "observed",
+          "available",
+          "fresh",
+        );
+  const durable = firstDurableEffect(events, decisionId);
+  const guardrails = materialized.conflict
+    ? []
+    : evaluateGuardrails({ events, materialized, now });
+  return {
+    decision: decisionSlot,
+    execution_envelope: envelopeSlot,
+    execution_guardrails: slot(guardrails, "derived", "available", "not_applicable"),
+    first_durable_effect: slot(durable, "derived", "available", "not_applicable"),
+    route_ack: ackSlot,
   };
 }
 

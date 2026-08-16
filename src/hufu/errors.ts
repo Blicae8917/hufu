@@ -12,6 +12,10 @@ export const ERROR_CODES = [
   "GRANT_SCOPE_EXCEEDED",
   "REPOSITORY_NOT_ALLOWED",
   "EXTERNAL_REF_INVALID",
+  "DECISION_CONFLICT",
+  "ENVELOPE_INVALID",
+  "ACK_INVALID",
+  "ROLE_NOT_ACTIVE",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -34,6 +38,9 @@ const EXIT_CODE_2: ReadonlySet<ErrorCode> = new Set([
   "GRANT_SCOPE_EXCEEDED",
   "REPOSITORY_NOT_ALLOWED",
   "EXTERNAL_REF_INVALID",
+  "ENVELOPE_INVALID",
+  "ACK_INVALID",
+  "ROLE_NOT_ACTIVE",
 ]);
 
 const EXIT_CODE_3: ReadonlySet<ErrorCode> = new Set([
@@ -41,6 +48,7 @@ const EXIT_CODE_3: ReadonlySet<ErrorCode> = new Set([
   "LEDGER_CAUSALITY_CONFLICT",
   "LEDGER_DIGEST_CONFLICT",
   "LEDGER_CORRUPT",
+  "DECISION_CONFLICT",
 ]);
 
 export function exitCodeFor(code: ErrorCode): 2 | 3 | 4 {

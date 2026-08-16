@@ -1,0 +1,24 @@
+{
+  "acceptance_metric": "copied from issue",
+  "authoritative_state": {
+    "freshness": "fresh",
+    "observed_at": "2026-08-16T00:00:00.000Z",
+    "task_ref": "wi-1"
+  },
+  "authority_scope_ref": {
+    "grant_id": "REPLACE",
+    "revision": 1
+  },
+  "body": "this issue body must never appear in status or handoff",
+  "business_outcome": "Do not copy issue body",
+  "evidence_as_of": "2026-08-16T00:00:00.000Z",
+  "non_goals": [],
+  "recheck_when": {
+    "type": "implementation_activity"
+  },
+  "simplest_safe_route": "keep refs only",
+  "true_stoplines": [],
+  "unknowns": [],
+  "verified_facts": [],
+  "version": 1
+}

@@ -81,6 +81,13 @@ describe("hufu status github", () => {
       assert.equal(view.task_authority.value, "github");
       assert.equal(view.work_items.length, 0);
       assert.equal(view.work_item_set.availability, "data_insufficient");
+      assert.equal(view.decision.availability, "data_insufficient");
+      assert.equal(view.decision.value, null);
+      assert.equal(view.execution_envelope.availability, "data_insufficient");
+      assert.equal(view.route_ack.availability, "data_insufficient");
+      assert.equal(view.first_durable_effect.availability, "data_insufficient");
+      assert.deepEqual(view.execution_guardrails.value, []);
+      assert.equal(view.view_schema_version, 1);
     });
   });
 

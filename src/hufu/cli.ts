@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { connectWorkspace } from "./connect.js";
 import { validateTask } from "./contracts.js";
+import { decideWorkspace, type DecideKind } from "./decide.js";
 import { doctorWorkspace } from "./doctor.js";
 import {
   CommandError,
@@ -45,6 +46,9 @@ export async function main(argv: string[]): Promise<number> {
   }
   if (command === "handoff") {
     return runJsonCommand(() => runHandoff(parseArgs(argv)));
+  }
+  if (command === "decide") {
+    return runJsonCommand(() => runDecide(parseArgs(argv)));
   }
   process.stderr.write(`unknown command: ${command ?? "(none)"}\n`);
   return 1;
@@ -152,6 +156,37 @@ function runHandoff(args: ParsedArgs): unknown {
     remaining: requireOption(args.options, "remaining"),
     risks: args.options["risks"],
     workItemId: requireOption(args.options, "work-item"),
+  });
+}
+
+const DECIDE_KINDS = [
+  "ack",
+  "effect",
+  "envelope",
+  "fact",
+  "packet",
+  "revise",
+] as const satisfies readonly DecideKind[];
+
+function runDecide(args: ParsedArgs): unknown {
+  assertNoPositionals(args);
+  rejectUnknownSwitches(args.switches);
+  rejectUnknownOptions(args.options, ["actor", ...DECIDE_KINDS]);
+  const present = DECIDE_KINDS.filter((kind) => args.options[kind] !== undefined);
+  if (present.length !== 1) {
+    throw new CommandError(
+      "CONTRACT_INVALID",
+      "decide requires exactly one of --packet --envelope --ack --fact --revise --effect",
+    );
+  }
+  const kind = present[0];
+  if (kind === undefined) {
+    throw new CommandError("CONTRACT_INVALID", "decide kind is required");
+  }
+  return decideWorkspace(process.cwd(), {
+    actor: requireOption(args.options, "actor"),
+    file: requireOption(args.options, kind),
+    kind,
   });
 }
 
