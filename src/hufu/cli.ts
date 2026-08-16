@@ -162,9 +162,12 @@ function runHandoff(args: ParsedArgs): unknown {
 const DECIDE_KINDS = [
   "ack",
   "effect",
+  "engine",
   "envelope",
   "fact",
   "packet",
+  "receipt",
+  "result",
   "revise",
 ] as const satisfies readonly DecideKind[];
 
@@ -176,7 +179,7 @@ function runDecide(args: ParsedArgs): unknown {
   if (present.length !== 1) {
     throw new CommandError(
       "CONTRACT_INVALID",
-      "decide requires exactly one of --packet --envelope --ack --fact --revise --effect",
+      "decide requires exactly one of --packet --envelope --ack --fact --revise --effect --engine --result --receipt",
     );
   }
   const kind = present[0];

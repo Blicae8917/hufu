@@ -85,6 +85,9 @@ describe("hufu status", () => {
         "execution_envelope",
         "route_ack",
         "first_durable_effect",
+        "engine",
+        "typed_result",
+        "receipt",
       ] as const) {
         const slot = view[key] as Record<string, unknown>;
         assert.equal(slot["availability"], "data_insufficient");

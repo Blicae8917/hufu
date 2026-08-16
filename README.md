@@ -33,6 +33,7 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - 由账本与投影缓存回放得到的三轴 CurrentView（来源类别、可用性、时效）；
 - 零拷贝决策流：一份裁决只完整保存一次，下游只传引用、摘要与增量；`status` / `handoff` 不复制裁决正文；
 - DeepSeek 原生插件包 `hufu-dsh`：隔离 Profile 可装可卸，六工具调用同一领域函数，与独立 CLI 对同一夹具折叠结构相等的 CurrentView；
+- 可选 `loopx-mechanisms` 引擎：须显式 `decide --engine` 选用；可记录类型化结果与核验回执，不是任务正本，不引入 LoopX 发行包或控制面；
 - 一套当前有效的 pnpm / Node 门禁。
 
 当前版本**尚未**提供关键决策会商、网页界面或出站 Runtime。
@@ -40,7 +41,8 @@ GitHub 正本仅接受本公开仓；GitLab 正本接受可解析的两段 `grou
 
 `0.1.0` 的发布门是一个本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库
 GitHub 只读投影。零拷贝决策流与 DeepSeek 原生插件已由后续 Module（GitHub #6 / #7）在同一 `0.1.0`
-系列交付，仍不阻塞发布门。LoopX Engine、关键决策会商、loopback Web Console
+系列交付，仍不阻塞发布门。LoopX 第一批机制已由后续 Module（GitHub #9）交付为可选引擎；
+完整 LoopX 控制面、关键决策会商、loopback Web Console
 和出站 Runtime 仍是已接受方向，由独立 Module 分别交付。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
 ## 当前基线快速开始
@@ -72,8 +74,9 @@ pnpm --dir <repo> hufu status
 `validate` 仍可按上面的例子使用。
 
 本机工作项打开后，可用 `hufu decide` 记下裁决、附加信封、提交路线确认或追加增量。载荷为 JSON 文件，
-字段见 `specs/005-zero-copy-decision/`。`status` 与 `handoff` 只暴露 `decision_id` / 版本 / 摘要，
-不复制目标或验收正文。`decide` 不联网。
+字段见 `specs/005-zero-copy-decision/`。可选引擎须显式 `decide --engine` 选用 `loopx-mechanisms`，
+再用 `--result` / `--receipt` 记录类型化结果与核验回执；合同见 `specs/008-loopx-engine/`。
+`status` 与 `handoff` 只暴露 `decision_id` / 版本 / 摘要，不复制目标或验收正文。`decide` 不联网。
 
 ### DeepSeek 原生插件（隔离 Profile）
 
@@ -132,8 +135,8 @@ git checkout v0.0.1
 
 当前开发版本是尚未发布的 `0.1.0`；最近的历史发布基线是 `0.0.1`（标签 `v0.0.1`）。
 这是一个早期、合同优先的构建。公共 API 在 `1.0.0` 前可能发生变化。
-当前仓库已提供五个有界命令、本机账本、本公开仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流，以及 DeepSeek 原生插件路径；尚未实现
-LoopX Engine、关键决策会商或远端 Provider，默认不启用写回或出站集成。
+当前仓库已提供五个有界命令、本机账本、本公开仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径，以及可选 `loopx-mechanisms` 引擎；尚未实现
+完整 LoopX 控制面、关键决策会商或远端出站 Runtime，默认不启用写回或出站集成。
 
 ## 参与贡献与安全
 

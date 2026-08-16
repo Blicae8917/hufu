@@ -17,6 +17,9 @@ export const EVENT_TYPES = [
   "hufu/decision.fact_delta",
   "hufu/decision.decision_delta",
   "hufu/decision.effect_delta",
+  "hufu/engine.bound",
+  "hufu/engine.typed_result",
+  "hufu/engine.receipt",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

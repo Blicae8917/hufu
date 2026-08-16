@@ -161,7 +161,8 @@ function nextActionFor(
 ): string {
   const blocked =
     guardrails.includes("scope_change_required") ||
-    guardrails.includes("semantic_rebase_required");
+    guardrails.includes("semantic_rebase_required") ||
+    guardrails.includes("engine_no_progress");
   const scope = "continue within recorded authorization scope.";
   const ref =
     decisionValue === null

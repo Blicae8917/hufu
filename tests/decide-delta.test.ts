@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  bindEngine,
   connectOpenGrant,
   parseStdout,
   recordEnvelope,
@@ -126,6 +127,30 @@ describe("hufu decide deltas", () => {
         const path = writeJson(dir, `effect-${String(observed_result)}.json`, {
           decision_id: packet["decision_id"],
           effect_id: "fx-1",
+          envelope_id: envelope["envelope_id"],
+          observed_result,
+          readback_status: "unavailable",
+          version: 1,
+        });
+        const result = runHufu(
+          ["decide", "--actor", "human:alice", "--effect", path],
+          dir,
+        );
+        assert.equal(result.status, 2, result.stdout);
+      }
+    });
+  });
+
+  it("still rejects applied or zero without complete readback after engine bind", () => {
+    withTempDir((dir) => {
+      const { grant_id } = connectOpenGrant(dir);
+      const packet = recordPacket(dir, grant_id);
+      const envelope = recordEnvelope(dir, packet);
+      bindEngine(dir);
+      for (const observed_result of ["applied", "confirmed_absent", 0] as const) {
+        const path = writeJson(dir, `engine-effect-${String(observed_result)}.json`, {
+          decision_id: packet["decision_id"],
+          effect_id: "fx-engine-1",
           envelope_id: envelope["envelope_id"],
           observed_result,
           readback_status: "unavailable",
