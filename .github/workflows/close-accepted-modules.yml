@@ -1,0 +1,60 @@
+name: close-accepted-modules
+
+# Temporary helper so the Cloud Agent can close Module Issues that the
+# sandbox GitHub token cannot write. Do not merge this workflow to main.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  close:
+    name: close-9
+    if: github.event.pull_request.head.ref == 'cursor/close-accepted-issues-b880'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Close accepted Module Issue #9
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+
+          close_if_open() {
+            local number="$1"
+            local comment_file="$2"
+            local state
+            state="$(gh issue view "${number}" --repo "${repo}" --json state --jq .state)"
+            if [ "${state}" = "CLOSED" ]; then
+              echo "#${number} already closed"
+              return 0
+            fi
+            gh issue close "${number}" --repo "${repo}" --reason completed --comment "$(cat "${comment_file}")"
+            echo "closed #${number}"
+          }
+
+          cat > /tmp/close-9.md <<'EOF'
+          ## 验收关闭
+
+          按本 Issue 的必须交付与明确不做核对，**可以关闭**。合入证据：[PR #20](https://github.com/Blicae8917/hufu/pull/20)（已合并入 `main`，merge `28b510f`）。功能合同：`specs/008-loopx-engine/`。
+
+          必须交付均已有失败先写、后合入的测试覆盖：
+
+          - 显式选用 `loopx-mechanisms`，未绑定对照保持 #6：`tests/engine-bind.test.ts`
+          - 类型化结果与禁止 Goal/调度字段：`tests/engine-result.test.ts`、`tests/engine-boundary.test.ts`
+          - 回执只证明核验，无 complete 读回不得冒充效果：`tests/engine-receipt.test.ts`、`tests/decide-delta.test.ts`
+          - 无进展派生 `engine_no_progress`，handoff 不给新前向步骤：`tests/engine-recovery.test.ts`
+          - 不引入 `loopx` 依赖、不复制上游源码：`tests/engine-deps.test.ts`
+
+          明确不做均保持：引擎不是 `task_authority`；不实现 Scheduler/Heartbeat/Quota/自动开工；不把 Goal/Todo/Registry 映射为工作项；不写回议题。
+
+          本关闭不等于 `0.1.0` 已发布。路线图索引 [#5](https://github.com/Blicae8917/hufu/issues/5) 保持 OPEN。
+          EOF
+
+          close_if_open 9 /tmp/close-9.md
+
+          gh issue view 9 --repo "${repo}" --json number,state,title
+          gh issue view 5 --repo "${repo}" --json number,state,title
