@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-16
 
-**Status**: Draft
+**Status**: Accepted
 
 **Input**: User description: "GitHub Module Issue #6（M4）：实现零拷贝决策传递。一份裁决只完整保存一次；后续只追加引用、摘要和增量；在既有交互边界上做语义重基护栏。必须交付初始 DECISION_PACKET、EXECUTION_ENVELOPE、ROUTE_ACK、三类 Delta、CurrentView 护栏；status / handoff 只传引用；非空 added_scope 只能得到 scope_change_required。不写回外部议题，不引入后台监控，不自动回滚，不把路线确认做成审批流。开干前必须先回答 ADR 0005 列出的基数必答题。"
 

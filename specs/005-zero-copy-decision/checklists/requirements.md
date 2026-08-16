@@ -34,4 +34,4 @@
 - 本仓第一读者是维护者，规格沿用 003/004 的命令、失败类别与摘要写法；未写入语言、框架或具体网络接口。
 - ADR 0005 四道必答题写在 Assumptions，作为本模块已选择的默认合同，不是未决澄清。
 - 新命令的具体名字、事件类型字符串与错误码字符串由后续 `$speckit-plan` 固定。
-- 无 [NEEDS CLARIFICATION]。待维护者说「同意」后进入 `$speckit-plan`。
+- 无 [NEEDS CLARIFICATION]。规格已 Accepted。设计见 `plan.md`；可执行拆解见 `tasks.md`。
