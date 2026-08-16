@@ -13,6 +13,7 @@ export {
   type ErrorCode,
 } from "./errors.js";
 export { recordHandoff, type HandoffInput, type HandoffResult } from "./handoff.js";
+export { recordPilot } from "./pilot.js";
 export { projectCurrentView, type CurrentView } from "./projector.js";
 export { statusWorkspace, type StatusOptions } from "./status.js";
 export { ledgerPaths, readLedger } from "./storage.js";

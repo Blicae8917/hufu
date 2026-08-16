@@ -3,9 +3,9 @@
 状态：候选，待 `0.1.0` 设计 Pull Request 接受
 最后更新：2026-08-16
 当前实现：零 Cordis 依赖的 TypeScript 领域核心、`hufu validate`、本机 `local` JSONL
-账本与有界命令（含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及
+账本与有界命令（含 `hufu decide` 零拷贝决策流、`hufu pilot` 效能试点记录）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及
 `packages/hufu-dsh` DeepSeek Profile Module（`@deepseek-ai/cordis` 仅出现在该包）。
-下表「V1 实现」描述目标架构；会商或网页尚未交付。
+下表「V1 实现」描述目标架构；会商或网页尚未交付。效能试点门禁已交付，不表示网页已实现，也不表示 `0.1.0` 已正式发布。
 
 ## 架构目标
 
@@ -575,8 +575,8 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 7. GitLab Provider 以只读影子模式交付并验证同一 CurrentView（#8，已在本 `0.1.0` 系列交付）。
 8. `engine-loopx` 第一批 typed result、Receipt/readback 和有界恢复合同（#9，已在本 `0.1.0` 系列交付为可选引擎）；
    再按试点收益决定是否扩大范围。
-9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token；
-   只有出现可解释净收益，才实现 loopback Web Console 或更高自治能力，否则暂停扩充。
+9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token（#10，已在本 `0.1.0` 系列交付为记录与扩充门禁）；
+   只有出现可解释净收益且另有明确批准，才实现 loopback Web Console 或更高自治能力，否则暂停扩充。本模块合入不等于网页已交付，也不等于 `0.1.0` 已正式发布。
 
 关键决策会商、多 Host 出站 Runtime 和自动 CLI 扇出不在上述 `0.1.0` 顺序内；它们必须另立
 Module Issue 和 Spec Kit 合同。
@@ -587,6 +587,6 @@ Module Issue 和 Spec Kit 合同。
 
 版本 `0.0.1` 只实现最初的不可变 `TaskEnvelope` 验证和确定性 CLI。
 本文所述 `0.1.0` Cordis-first 架构是候选规划范围。当前主线已交付 TypeScript 核心、本机账本、
-本仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径，以及 LoopX 第一批机制
-作为可选引擎；这不表示完整 LoopX 控制面已经实现，也不表示已经获得远端进度授权或 `0.1.0` 已正式发布。
+本仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径、LoopX 第一批机制
+作为可选引擎，以及效能试点记录与扩充门禁；这不表示完整 LoopX 控制面已经实现，也不表示已经获得远端进度授权、网页已交付或 `0.1.0` 已正式发布。
 每个 Module 必须通过独立的已接受 Issue、Spec Kit 产物、失败测试、最小实现和可审阅证据交付。

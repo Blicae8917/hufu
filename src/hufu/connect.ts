@@ -99,7 +99,11 @@ function normalizeConnectInput(input: ConnectInput): NormalizedConnect {
         requestedAuthority === "engine" ||
         requestedAuthority === "engine-loopx"
         ? "engine is not task_authority"
-        : `task_authority ${requestedAuthority} is not supported in this module`,
+        : requestedAuthority === "web" ||
+            requestedAuthority === "ui" ||
+            requestedAuthority === "dashboard"
+          ? "web is not task_authority"
+          : `task_authority ${requestedAuthority} is not supported in this module`,
     );
   }
   let grantExpires: string | undefined;

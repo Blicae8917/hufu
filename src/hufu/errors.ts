@@ -20,6 +20,8 @@ export const ERROR_CODES = [
   "ENGINE_AUTHORITY_REJECTED",
   "ENGINE_CONTROL_PLANE_REJECTED",
   "RECEIPT_INVALID",
+  "PILOT_INVALID",
+  "EXPANSION_GATE_CLOSED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -48,6 +50,8 @@ const EXIT_CODE_2: ReadonlySet<ErrorCode> = new Set([
   "ENGINE_AUTHORITY_REJECTED",
   "ENGINE_CONTROL_PLANE_REJECTED",
   "RECEIPT_INVALID",
+  "PILOT_INVALID",
+  "EXPANSION_GATE_CLOSED",
 ]);
 
 const EXIT_CODE_3: ReadonlySet<ErrorCode> = new Set([

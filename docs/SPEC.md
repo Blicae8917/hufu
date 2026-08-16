@@ -4,7 +4,7 @@
 最后更新：2026-08-16
 当前实现：TypeScript 领域核心、`hufu validate`、本机 `local` 账本与有界命令
 （含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及 DeepSeek 原生插件包 `hufu-dsh`。
-会商与网页尚未实现。
+会商与网页尚未实现。效能试点合同已交付为记录与扩充门禁，不表示网页已实现，也不表示 `0.1.0` 已发布。
 
 ## 产品目标
 
@@ -96,7 +96,7 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
 - **后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）**：零拷贝决策流已由 GitHub Module Issue #6
   在 `0.1.0` 系列交付（Envelope、ACK、三类 Delta、semantic rebase 护栏）。DeepSeek 与 Standalone
   双 Profile 夹具对等及插件真装真卸已由 #7 交付。GitLab 只读投影已由 #8 交付。LoopX 第一批机制已由 #9
-  交付为可选引擎（须显式选用，不是任务正本）。其余仍待独立 Module：关键决策会商、loopback Web Console、出站 Runtime。
+  交付为可选引擎（须显式选用，不是任务正本）。效能试点记录与扩充门禁已由 #10 交付；网页仍未实现，须另一次明确批准。其余仍待独立 Module：关键决策会商、loopback Web Console、出站 Runtime。
   每项由独立 Module Issue 与 Spec Kit 合同交付并各自验收。
 
 发布门若触碰决策记录，至多要求“一份裁决只完整保存一次，`status` 与 `handoff` 只传引用”。
@@ -344,7 +344,7 @@ GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库�
 
 发布门之后的已接受方向按独立 Module 依次评估：零拷贝决策流（#6，已在本系列交付）与事件驱动 semantic rebase、
 DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7，已交付）、GitLab 只读 Projection（#8，已交付）、
-`engine-loopx` 第一批 typed result 与 Receipt/readback（#9，已交付为可选引擎）、代表性效能试点与 loopback Web Console。
+`engine-loopx` 第一批 typed result 与 Receipt/readback（#9，已交付为可选引擎）、代表性效能试点记录与扩充门禁（#10，已交付；网页仍未实现）。
 
 除设计正本收敛外，每一实现阶段必须有独立 Module Issue 和 Spec Kit 功能合同。外部试点的内部项目名、
 路径、Issue 内容和用量明细不得进入公开仓；公开材料只能保留脱敏方法和聚合结果。

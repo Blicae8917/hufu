@@ -15,6 +15,10 @@ import {
 } from "./engine-loopx.js";
 import { LOOPX_MECHANISMS_ENGINE_ID } from "./engine-schema.js";
 import {
+  evaluateExpansionGate,
+  latestPilotEvent,
+} from "./pilot.js";
+import {
   ackIsApplicable,
   evaluateGuardrails,
   firstDurableEffect,
@@ -87,6 +91,20 @@ export interface CurrentView {
     work_item_id: string;
   }>;
   readonly ledger: FactSlot<{ event_count: number; ledger_seq_end: number }>;
+  readonly expansion_gate: FactSlot<{
+    comparison_class: string | null;
+    net_benefit_rounds: number;
+    round_count: number;
+    serve_allowed: false;
+    status: "closed" | "evaluation_allowed" | "paused";
+    web_implemented: false;
+  }>;
+  readonly pilot: FactSlot<{
+    comparison_class: string;
+    conclusion: string;
+    pilot_id: string;
+    work_item_id: string;
+  }>;
   readonly project: FactSlot<{ project_id: string; repository: string }>;
   readonly project_lead: FactSlot<{ binding_id: string; principal_id: string }>;
   readonly receipt: FactSlot<{
@@ -187,6 +205,7 @@ export function projectCurrentView(
     commander: commanderSlot(commander),
     ...decisionSlots,
     ...projectEngine(events),
+    ...projectPilot(events),
     latest_handoff: latestHandoffSlot(latestHandoff),
     ledger: slot(
       {
@@ -271,6 +290,36 @@ function projectEngine(
       typedValue === undefined
         ? missing("observed", "data_insufficient")
         : slot(typedValue, "observed", "available", "fresh"),
+  };
+}
+
+function projectPilot(
+  events: readonly EventEnvelope[],
+): Pick<CurrentView, "expansion_gate" | "pilot"> {
+  const latest = latestPilotEvent(events);
+  if (latest === undefined) {
+    return {
+      expansion_gate: missing("derived", "data_insufficient"),
+      pilot: missing("observed", "data_insufficient"),
+    };
+  }
+  const gate = evaluateExpansionGate(events);
+  return {
+    expansion_gate:
+      gate === undefined
+        ? missing("derived", "data_insufficient")
+        : slot(gate, "derived", "available", "not_applicable"),
+    pilot: slot(
+      {
+        comparison_class: String(latest.payload["comparison_class"]),
+        conclusion: String(latest.payload["conclusion"]),
+        pilot_id: String(latest.payload["pilot_id"]),
+        work_item_id: String(latest.payload["work_item_id"]),
+      },
+      "observed",
+      "available",
+      "fresh",
+    ),
   };
 }
 

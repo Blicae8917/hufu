@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "pilot_id": "pilot-fail",
+  "work_item_id": "wi-1",
+  "comparison_class": "loopx-bound-decide",
+  "conclusion": "FAIL",
+  "metrics": {
+    "planning_wall_clock": {
+      "availability": "available",
+      "value": 120000,
+      "origin": "estimated",
+      "unit": "ms"
+    },
+    "execution_wall_clock": {
+      "availability": "data_insufficient",
+      "value": null,
+      "origin": "unavailable",
+      "unit": "ms"
+    },
+    "total_wall_clock": {
+      "availability": "unavailable",
+      "value": null,
+      "origin": "unavailable",
+      "unit": "ms"
+    },
+    "human_coordination_time": {
+      "availability": "available",
+      "value": 1800000,
+      "origin": "estimated",
+      "unit": "ms"
+    },
+    "zero_effect_attempts": {
+      "availability": "data_insufficient",
+      "value": null,
+      "origin": "unavailable",
+      "unit": "count"
+    },
+    "coordination_wakeups": {
+      "availability": "data_insufficient",
+      "value": null,
+      "origin": "unavailable",
+      "unit": "count"
+    },
+    "rework": {
+      "availability": "data_insufficient",
+      "value": null,
+      "origin": "unavailable",
+      "unit": "count"
+    },
+    "setup_cost": {
+      "availability": "data_insufficient",
+      "value": null,
+      "origin": "unavailable"
+    },
+    "native_usage": {
+      "availability": "unavailable",
+      "value": null,
+      "origin": "unavailable"
+    }
+  },
+  "baseline": {
+    "source": "operator-observation",
+    "observed_at": "2026-08-16T00:00:00.000Z",
+    "method_ref": "docs/SPEC.md#operational-definitions"
+  }
+}
