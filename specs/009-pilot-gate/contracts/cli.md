@@ -20,7 +20,7 @@ hufu pilot --actor <actor_id> --record <file>
 | 记录非法、结论越界、单一用量宣称成功、隐私越界 | 2 | `PILOT_INVALID` |
 | 工作项无 handoff 或关键度量窗口不足 | 2 | `DATA_INSUFFICIENT` |
 | 角色不是 commander / 当值 project_lead | 2 | `ROLE_NOT_ACTIVE` |
-| 重复 `pilot_id` 且 payload 冲突 | 2 | `LEDGER_DIGEST_CONFLICT` |
+| 重复 `pilot_id` 且 payload 冲突 | 3 | `LEDGER_DIGEST_CONFLICT` |
 | 缺少 `--actor` / `--record` | 1 | 用法错误 |
 
 `--actor` 必须与 `--record` 同时出现，沿用现有 CLI 组合校验风格。

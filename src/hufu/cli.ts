@@ -11,6 +11,7 @@ import {
   stableStringify,
 } from "./errors.js";
 import { recordHandoff } from "./handoff.js";
+import { recordPilot } from "./pilot.js";
 import { statusWorkspace } from "./status.js";
 
 const SUMMARY_KEYS = [
@@ -49,6 +50,12 @@ export async function main(argv: string[]): Promise<number> {
   }
   if (command === "decide") {
     return runJsonCommand(() => runDecide(parseArgs(argv)));
+  }
+  if (command === "pilot") {
+    return runJsonCommand(() => runPilot(parseArgs(argv)));
+  }
+  if (command === "serve") {
+    return runJsonCommand(() => runServe(parseArgs(argv)));
   }
   process.stderr.write(`unknown command: ${command ?? "(none)"}\n`);
   return 1;
@@ -157,6 +164,26 @@ function runHandoff(args: ParsedArgs): unknown {
     risks: args.options["risks"],
     workItemId: requireOption(args.options, "work-item"),
   });
+}
+
+function runPilot(args: ParsedArgs): unknown {
+  assertNoPositionals(args);
+  rejectUnknownSwitches(args.switches);
+  rejectUnknownOptions(args.options, ["actor", "record"]);
+  return recordPilot(process.cwd(), {
+    actor: requireOption(args.options, "actor"),
+    file: requireOption(args.options, "record"),
+  });
+}
+
+function runServe(args: ParsedArgs): unknown {
+  assertNoPositionals(args);
+  rejectUnknownSwitches(args.switches);
+  rejectUnknownOptions(args.options, []);
+  throw new CommandError(
+    "EXPANSION_GATE_CLOSED",
+    "loopback web is not implemented; a separate approval is required before serve can listen",
+  );
 }
 
 const DECIDE_KINDS = [

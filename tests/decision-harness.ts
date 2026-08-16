@@ -142,6 +142,42 @@ export function engineFixture(name: string): Record<string, unknown> {
   return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
 }
 
+export function pilotFixture(name: string): Record<string, unknown> {
+  const path = fileURLToPath(
+    new URL(`../../tests/fixtures/pilot/${name}`, import.meta.url),
+  );
+  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+}
+
+export function recordDefaultHandoff(dir: string, workItemId = "wi-1"): void {
+  const result = runHufu(
+    [
+      "handoff",
+      "--work-item",
+      workItemId,
+      "--completed",
+      "accepted",
+      "--remaining",
+      "none",
+    ],
+    dir,
+  );
+  if (result.status !== 0) {
+    throw new Error(`${result.stdout}\n${result.stderr}`);
+  }
+}
+
+export function recordPilotFromFixture(
+  dir: string,
+  name: string,
+  extras: Record<string, unknown> = {},
+  actor = "human:alice",
+): ReturnType<typeof runHufu> {
+  const payload = { ...pilotFixture(name), ...extras };
+  const path = writeJson(dir, `${String(payload["pilot_id"] ?? "pilot")}.json`, payload);
+  return runHufu(["pilot", "--actor", actor, "--record", path], dir);
+}
+
 export function bindEngine(
   dir: string,
   actor = "human:alice",

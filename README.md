@@ -27,13 +27,14 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - 零 Cordis 依赖的严格 TypeScript ESM 领域核心骨架；
 - 与 `0.0.1` 对齐的最小 `TaskEnvelope` 合同（`native` / `external`）；
 - `hufu validate`：合法信封输出键排序 JSON 摘要，非法输入退出码 `2`；
-- 本机 `local` JSONL 账本，以及有界命令 `connect` / `doctor` / `status` / `handoff` / `decide`；
+- 本机 `local` JSONL 账本，以及有界命令 `connect` / `doctor` / `status` / `handoff` / `decide` / `pilot`；
 - 本公开仓 GitHub 只读投影（`status --refresh` 才联网，默认读缓存）；
 - GitLab 只读投影（操作者声明的 `group/project`，同样仅显式刷新联网，不写回议题）；
 - 由账本与投影缓存回放得到的三轴 CurrentView（来源类别、可用性、时效）；
 - 零拷贝决策流：一份裁决只完整保存一次，下游只传引用、摘要与增量；`status` / `handoff` 不复制裁决正文；
 - DeepSeek 原生插件包 `hufu-dsh`：隔离 Profile 可装可卸，六工具调用同一领域函数，与独立 CLI 对同一夹具折叠结构相等的 CurrentView；
 - 可选 `loopx-mechanisms` 引擎：须显式 `decide --engine` 选用；可记录类型化结果与核验回执，不是任务正本，不引入 LoopX 发行包或控制面；
+- 效能试点记录与扩充门禁：`hufu pilot --record` 写入封闭结论与派生度量；`hufu serve` 保持拒绝；缺失墙钟或用量不得写成 `0`；
 - 一套当前有效的 pnpm / Node 门禁。
 
 当前版本**尚未**提供关键决策会商、网页界面或出站 Runtime。
@@ -42,6 +43,7 @@ GitHub 正本仅接受本公开仓；GitLab 正本接受可解析的两段 `grou
 `0.1.0` 的发布门是一个本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库
 GitHub 只读投影。零拷贝决策流与 DeepSeek 原生插件已由后续 Module（GitHub #6 / #7）在同一 `0.1.0`
 系列交付，仍不阻塞发布门。LoopX 第一批机制已由后续 Module（GitHub #9）交付为可选引擎；
+效能试点门禁已由后续 Module（GitHub #10）交付为记录与门禁，**网页仍未实现**，合入不等于 `0.1.0` 已发布。
 完整 LoopX 控制面、关键决策会商、loopback Web Console
 和出站 Runtime 仍是已接受方向，由独立 Module 分别交付。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
@@ -76,6 +78,8 @@ pnpm --dir <repo> hufu status
 本机工作项打开后，可用 `hufu decide` 记下裁决、附加信封、提交路线确认或追加增量。载荷为 JSON 文件，
 字段见 `specs/005-zero-copy-decision/`。可选引擎须显式 `decide --engine` 选用 `loopx-mechanisms`，
 再用 `--result` / `--receipt` 记录类型化结果与核验回执；合同见 `specs/008-loopx-engine/`。
+已交接的工作可用 `hufu pilot --record` 记下效能试点；`status` 投影门禁，`hufu serve` 在本模块拒绝启动网页。
+合同见 `specs/009-pilot-gate/`。
 `status` 与 `handoff` 只暴露 `decision_id` / 版本 / 摘要，不复制目标或验收正文。`decide` 不联网。
 
 ### DeepSeek 原生插件（隔离 Profile）

@@ -23,9 +23,9 @@
 
 **Purpose**: 合成夹具与测试入口，不含产品行为。
 
-- [ ] T001 [P] 在 `tests/fixtures/pilot/` 增加合法净收益、权衡、数据不足、非法结论、单一用量宣称成功、含绝对路径和内部项目名的拒绝夹具；全部脱敏，不含凭据
-- [ ] T002 [P] 在 `tests/fixtures/pilot/` 增加同一 `comparison_class` 的三轮净收益序列和三轮 `NO_NET_BENEFIT` 序列，供门禁测试使用
-- [ ] T003 [P] 确认 `.gitignore` 与仓库根目录不存在 `pilots/`、`research-data/` 或其它 gitignored 研究目录；测试将锁定这一边界
+- [x] T001 [P] 在 `tests/fixtures/pilot/` 增加合法净收益、权衡、数据不足、非法结论、单一用量宣称成功、含绝对路径和内部项目名的拒绝夹具；全部脱敏，不含凭据
+- [x] T002 [P] 在 `tests/fixtures/pilot/` 增加同一 `comparison_class` 的三轮净收益序列和三轮 `NO_NET_BENEFIT` 序列，供门禁测试使用
+- [x] T003 [P] 确认 `.gitignore` 与仓库根目录不存在 `pilots/`、`research-data/` 或其它 gitignored 研究目录；测试将锁定这一边界
 
 ---
 
@@ -35,10 +35,10 @@
 
 **⚠️ CRITICAL**: 本阶段未完成时，用户故事无法落地。
 
-- [ ] T004 [P] 在 `tests/pilot-record.test.ts` 增加失败测试：非法结论、`NET_BENEFIT` 缺质量声明、把缺失度量写成 `0`、估算标成实测均应 `PILOT_INVALID`
-- [ ] T005 [P] 在 `src/hufu/pilot-schema.ts` 实现记录 schema、结论枚举、度量槽三态和隐私字符串拒绝
-- [ ] T006 [P] 在 `tests/` 锁定 `hufu/pilot.recorded` 事件名与幂等键 `hufu/pilot.recorded:<pilot_id>`；payload 不得含系统时间戳
-- [ ] T007 在 `src/hufu/envelope.ts` 与 `src/hufu/errors.ts` 登记 `hufu/pilot.recorded`、`PILOT_INVALID`、`EXPANSION_GATE_CLOSED`
+- [x] T004 [P] 在 `tests/pilot-record.test.ts` 增加失败测试：非法结论、`NET_BENEFIT` 缺质量声明、把缺失度量写成 `0`、估算标成实测均应 `PILOT_INVALID`
+- [x] T005 [P] 在 `src/hufu/pilot-schema.ts` 实现记录 schema、结论枚举、度量槽三态和隐私字符串拒绝
+- [x] T006 [P] 在 `tests/` 锁定 `hufu/pilot.recorded` 事件名与幂等键 `hufu/pilot.recorded:<pilot_id>`；payload 不得含系统时间戳
+- [x] T007 在 `src/hufu/envelope.ts` 与 `src/hufu/errors.ts` 登记 `hufu/pilot.recorded`、`PILOT_INVALID`、`EXPANSION_GATE_CLOSED`
 
 **Checkpoint**: Schema 与错误码已有失败测试和最小实现，可以开始 US1。
 
@@ -52,14 +52,14 @@
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T008 [P] [US1] 在 `tests/pilot-record.test.ts` 覆盖：合法 `NET_BENEFIT` 成功；无 handoff 返回 `DATA_INSUFFICIENT`；非授权角色返回 `ROLE_NOT_ACTIVE`
-- [ ] T009 [P] [US1] 在 `tests/pilot-record.test.ts` 覆盖同一 `pilot_id` 的幂等成功与 payload 冲突时的 `LEDGER_DIGEST_CONFLICT`
+- [x] T008 [P] [US1] 在 `tests/pilot-record.test.ts` 覆盖：合法 `NET_BENEFIT` 成功；无 handoff 返回 `DATA_INSUFFICIENT`；非授权角色返回 `ROLE_NOT_ACTIVE`
+- [x] T009 [P] [US1] 在 `tests/pilot-record.test.ts` 覆盖同一 `pilot_id` 的幂等成功与 payload 冲突时的 `LEDGER_DIGEST_CONFLICT`
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] 在 `src/hufu/pilot.ts` 实现记录校验、工作项 `handoff` 前置检查和质量声明检查
-- [ ] T011 [US1] 在 `src/hufu/cli.ts` 增加 `hufu pilot --actor <id> --record <file>`，成功 stdout 只含脱敏摘要
-- [ ] T012 [US1] 在 `src/hufu/projector.ts` 增加 `pilot` 槽；未记录时 `data_insufficient` 且 `value=null`
+- [x] T010 [US1] 在 `src/hufu/pilot.ts` 实现记录校验、工作项 `handoff` 前置检查和质量声明检查
+- [x] T011 [US1] 在 `src/hufu/cli.ts` 增加 `hufu pilot --actor <id> --record <file>`，成功 stdout 只含脱敏摘要
+- [x] T012 [US1] 在 `src/hufu/projector.ts` 增加 `pilot` 槽；未记录时 `data_insufficient` 且 `value=null`
 
 **Checkpoint**: US1 可独立演示记录与拒绝。
 
@@ -73,14 +73,14 @@
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T013 [P] [US2] 在 `tests/pilot-metrics.test.ts` 覆盖协调唤醒与返工的事件派生，以及把缺失写成 `0` 的拒绝
-- [ ] T014 [P] [US2] 在 `tests/pilot-metrics.test.ts` 覆盖无观测窗口时零效果尝试为 `data_insufficient`，有窗口且无新效果时计数为 1
-- [ ] T015 [P] [US2] 在 `tests/pilot-metrics.test.ts` 覆盖估算用量不得标 `measured`，原生用量缺失不得输出 `0`
+- [x] T013 [P] [US2] 在 `tests/pilot-metrics.test.ts` 覆盖协调唤醒与返工的事件派生，以及把缺失写成 `0` 的拒绝
+- [x] T014 [P] [US2] 在 `tests/pilot-metrics.test.ts` 覆盖无观测窗口时零效果尝试为 `data_insufficient`，有窗口且无新效果时计数为 1
+- [x] T015 [P] [US2] 在 `tests/pilot-metrics.test.ts` 覆盖估算用量不得标 `measured`，原生用量缺失不得输出 `0`
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] 在 `src/hufu/pilot.ts` 实现 `coordination_wakeups`、`rework`、`zero_effect_attempts` 派生，并在冲突时 fail closed
-- [ ] T017 [US2] 把派生结果写入 `hufu/pilot.recorded` payload 与 status 投影，保持 `origin` 语义
+- [x] T016 [US2] 在 `src/hufu/pilot.ts` 实现 `coordination_wakeups`、`rework`、`zero_effect_attempts` 派生，并在冲突时 fail closed
+- [x] T017 [US2] 把派生结果写入 `hufu/pilot.recorded` payload 与 status 投影，保持 `origin` 语义
 
 **Checkpoint**: US2 可独立证明度量合同。
 
@@ -94,14 +94,14 @@
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T018 [P] [US3] 在 `tests/pilot-gate.test.ts` 覆盖不足三轮时 `expansion_gate.status=closed`，`hufu serve` 返回 `EXPANSION_GATE_CLOSED` 且不监听端口
-- [ ] T019 [P] [US3] 在 `tests/pilot-gate.test.ts` 覆盖三轮同类 `NET_BENEFIT` 后门禁为 `evaluation_allowed`，但 `serve` 仍失败，`web_implemented=false`
-- [ ] T020 [P] [US3] 在 `tests/pilot-gate.test.ts` 覆盖三轮 `NO_NET_BENEFIT` 后 `status=paused`；`TRADEOFF`/`FAIL`/`DATA_INSUFFICIENT` 不能打开评估；`connect --task-authority web` 失败
+- [x] T018 [P] [US3] 在 `tests/pilot-gate.test.ts` 覆盖不足三轮时 `expansion_gate.status=closed`，`hufu serve` 返回 `EXPANSION_GATE_CLOSED` 且不监听端口
+- [x] T019 [P] [US3] 在 `tests/pilot-gate.test.ts` 覆盖三轮同类 `NET_BENEFIT` 后门禁为 `evaluation_allowed`，但 `serve` 仍失败，`web_implemented=false`
+- [x] T020 [P] [US3] 在 `tests/pilot-gate.test.ts` 覆盖三轮 `NO_NET_BENEFIT` 后 `status=paused`；`TRADEOFF`/`FAIL`/`DATA_INSUFFICIENT` 不能打开评估；`connect --task-authority web` 失败
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] 在 `src/hufu/pilot.ts` 与 `src/hufu/projector.ts` 实现 `ExpansionGate` 三态，`serve_allowed` 与 `web_implemented` 恒为 `false`
-- [ ] T022 [US3] 在 `src/hufu/cli.ts` 把 `serve` 登记为已知拒绝命令；在 `src/hufu/connect.ts` 明确拒绝网页类 `task_authority`
+- [x] T021 [US3] 在 `src/hufu/pilot.ts` 与 `src/hufu/projector.ts` 实现 `ExpansionGate` 三态，`serve_allowed` 与 `web_implemented` 恒为 `false`
+- [x] T022 [US3] 在 `src/hufu/cli.ts` 把 `serve` 登记为已知拒绝命令；在 `src/hufu/connect.ts` 明确拒绝网页类 `task_authority`
 
 **Checkpoint**: US3 可独立证明默认不做网页。
 
@@ -115,14 +115,14 @@
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T023 [P] [US4] 在 `tests/pilot-privacy.test.ts` 覆盖绝对路径、内部项目名和凭据形态的 `PILOT_INVALID`
-- [ ] T024 [P] [US4] 在 `tests/pilot-privacy.test.ts` 覆盖脱敏聚合只含比较类别、结论计数、度量名称和方法引用，不含按工作项用量明细
-- [ ] T025 [P] [US4] 在 `tests/pilot-privacy.test.ts` 断言仓库不新增 gitignored 研究目录，夹具不含本机绝对路径
+- [x] T023 [P] [US4] 在 `tests/pilot-privacy.test.ts` 覆盖绝对路径、内部项目名和凭据形态的 `PILOT_INVALID`
+- [x] T024 [P] [US4] 在 `tests/pilot-privacy.test.ts` 覆盖脱敏聚合只含比较类别、结论计数、度量名称和方法引用，不含按工作项用量明细
+- [x] T025 [P] [US4] 在 `tests/pilot-privacy.test.ts` 断言仓库不新增 gitignored 研究目录，夹具不含本机绝对路径
 
 ### Implementation for User Story 4
 
-- [ ] T026 [US4] 在 `src/hufu/pilot-schema.ts` 与记录输出路径落实隐私扫描和脱敏聚合
-- [ ] T027 [US4] 确保 `tests/fixtures/pilot/` 只有合成脱敏数据，不添加真实试点文件
+- [x] T026 [US4] 在 `src/hufu/pilot-schema.ts` 与记录输出路径落实隐私扫描和脱敏聚合
+- [x] T027 [US4] 确保 `tests/fixtures/pilot/` 只有合成脱敏数据，不添加真实试点文件
 
 **Checkpoint**: US4 可独立证明公开仓边界。
 
@@ -130,8 +130,8 @@
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T028 [P] 更新 `README.md`、`docs/SPEC.md`、`docs/ARCHITECTURE.md`、`CHANGELOG.md`：写明试点合同已交付为记录与门禁，网页仍未实现，且不把合入写成 `0.1.0` 已发布
-- [ ] T029 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check`；版本保持 `0.1.0`
+- [x] T028 [P] 更新 `README.md`、`docs/SPEC.md`、`docs/ARCHITECTURE.md`、`CHANGELOG.md`：写明试点合同已交付为记录与门禁，网页仍未实现，且不把合入写成 `0.1.0` 已发布
+- [x] T029 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check`；版本保持 `0.1.0`
 
 ---
 

@@ -20,6 +20,7 @@ export const EVENT_TYPES = [
   "hufu/engine.bound",
   "hufu/engine.typed_result",
   "hufu/engine.receipt",
+  "hufu/pilot.recorded",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
