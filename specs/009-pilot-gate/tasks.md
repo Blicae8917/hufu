@@ -1,8 +1,8 @@
 # Tasks: M8 效能试点与条件式本机网页
 
-**Input**: `specs/009-pilot-gate/` 的设计产物  
-**Prerequisites**: plan.md、spec.md、research.md、data-model.md、contracts/  
-**GitHub Issue**: [#10](https://github.com/Blicae8917/hufu/issues/10)  
+**Input**: `specs/009-pilot-gate/` 的设计产物
+**Prerequisites**: plan.md、spec.md、research.md、data-model.md、contracts/
+**GitHub Issue**: [#10](https://github.com/Blicae8917/hufu/issues/10)
 **Tests**: 实现行为前必须先有失败测试。
 
 ## Format: `[ID] [P?] [Story] Description`

@@ -1,7 +1,7 @@
 # Implementation Plan: M8 效能试点与条件式本机网页
 
-**Branch**: `009-pilot-gate` | **Date**: 2026-08-16 | **Spec**: [spec.md](./spec.md)  
-**Input**: Feature specification from `/specs/009-pilot-gate/spec.md`  
+**Branch**: `009-pilot-gate` | **Date**: 2026-08-16 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `/specs/009-pilot-gate/spec.md`
 **GitHub Issue**: [#10](https://github.com/Blicae8917/hufu/issues/10)
 
 ## Summary
@@ -10,14 +10,14 @@
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.9 / Node.js `>=22.19.0`  
-**Primary Dependencies**: 现有运行时（commander、zod、neverthrow）。不新增网页框架、HTTP 服务器、daemon 或遥测依赖。  
-**Storage**: 既有 JSONL Journal + SHA-256 digest。试点记录作为 durable 事件写入，不新建研究目录或独立数据库。  
-**Testing**: node:test + tsx；零网络。合成夹具覆盖三轮同类净收益、非净收益、缺失度量、隐私拒绝与 `serve` 失败关闭。  
-**Target Platform**: Windows 10+ 与 POSIX 前台 CLI；本机绝对路径、内部项目名和凭据不得进入公开仓或 Journal。  
-**Project Type**: 单包 CLI + 领域库（`src/hufu/` 扁平结构）。  
-**Performance Goals**: 门禁评估只扫描当前工作项相关事件；合成夹具在现有测试预算内完成。  
-**Constraints**: Constitution；ADR 0001–0005；`docs/SPEC.md` 操作定义；Issue #10。不得把 Journal 当授权。不得把网页写成 `task_authority`。不得把估算用量标成实测。  
+**Language/Version**: TypeScript 5.9 / Node.js `>=22.19.0`
+**Primary Dependencies**: 现有运行时（commander、zod、neverthrow）。不新增网页框架、HTTP 服务器、daemon 或遥测依赖。
+**Storage**: 既有 JSONL Journal + SHA-256 digest。试点记录作为 durable 事件写入，不新建研究目录或独立数据库。
+**Testing**: node:test + tsx；零网络。合成夹具覆盖三轮同类净收益、非净收益、缺失度量、隐私拒绝与 `serve` 失败关闭。
+**Target Platform**: Windows 10+ 与 POSIX 前台 CLI；本机绝对路径、内部项目名和凭据不得进入公开仓或 Journal。
+**Project Type**: 单包 CLI + 领域库（`src/hufu/` 扁平结构）。
+**Performance Goals**: 门禁评估只扫描当前工作项相关事件；合成夹具在现有测试预算内完成。
+**Constraints**: Constitution；ADR 0001–0005；`docs/SPEC.md` 操作定义；Issue #10。不得把 Journal 当授权。不得把网页写成 `task_authority`。不得把估算用量标成实测。
 **Scale/Scope**: 单工作项试点记录、三轮同类比较门禁、CurrentView 两个新槽、保留命令 `serve`。不实现网页、远程访问或新控制面。
 
 ## Constitution Check
