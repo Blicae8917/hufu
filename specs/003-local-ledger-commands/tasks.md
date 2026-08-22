@@ -152,13 +152,13 @@
 
 ### Tests ⚠️
 
-- [ ] T030 [P] [US5] 在 `tests/project-root.test.ts` 写失败测试：解析顺序、stdout 顶层 `project_root`、跨 cwd 落点、空值/非目录退出码 2、`path.win32` 盘符/混用分隔符/UNC
+- [x] T030 [P] [US5] 在 `tests/project-root.test.ts` 写失败测试：解析顺序、stdout 顶层 `project_root`、跨 cwd 落点、空值/非目录退出码 2、`path.win32` 盘符/混用分隔符/UNC
 
 ### Implementation
 
-- [ ] T031 [US5] 实现 `src/hufu/project-root.ts` 与 `src/hufu/cli.ts` 接入，使 T030 转绿；不改事件格式
-- [ ] T032 [P] [US5] 更新 README、003 quickstart、CHANGELOG 与 `docs/SPEC.md`：写明 `--project-root` / `HUFU_PROJECT_ROOT` 为 #38 的显式逃生舱
-- [ ] T033 [US5] 运行 `pnpm test`、`node scripts/check-version.mjs`、`node scripts/check-upstream-drift.mjs --mode=static`、`git diff --check`
+- [x] T031 [US5] 实现 `src/hufu/project-root.ts` 与 `src/hufu/cli.ts` 接入，使 T030 转绿；不改事件格式
+- [x] T032 [P] [US5] 更新 README、003 quickstart、CHANGELOG 与 `docs/SPEC.md`：写明 `--project-root` / `HUFU_PROJECT_ROOT` 为 #38 的显式逃生舱
+- [x] T033 [US5] 运行 `pnpm test`、`node scripts/check-version.mjs`、`node scripts/check-upstream-drift.mjs --mode=static`、`git diff --check`
 
 ---
 
