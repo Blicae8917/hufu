@@ -2,7 +2,7 @@
 
 状态：DeepSeek 原生插件路径已实现；契约测试声明运行于 `@deepseek-ai/cordis` `4.0.1`。
 LoopX 第一批机制已由 Module #9 按自有合同重写为可选引擎；完整控制面仍未采用，核对本仍为 MIT `0.4.7`。
-最后核对：2026-08-16
+最后核对：2026-08-22
 
 本文件记录 Hufu 每个发布系列实际核对过的公开上游版本。它是动态兼容性记录，不是 Constitution；
 版本出现于此只表示设计或测试基线，不表示 Hufu 已经实现、发布或支持对应集成。
@@ -11,9 +11,9 @@ LoopX 第一批机制已由 Module #9 按自有合同重写为可选引擎；完
 
 | 上游 | 公开仓库 | 已核对基线 | 相关版本 | 当前结论 |
 | --- | --- | --- | --- | --- |
-| DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | `@deepseek-ai/dsh` `0.1.0-rc.5` | 2026-08-16 再次核对公开 `master`，提交未变；插件契约测试使用隔离 mount/dispose，不声明浮动 `master` 支持。 |
+| DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | `@deepseek-ai/dsh` `0.1.0-rc.5` | 已核对基线保持 `47f9438` / rc.5。2026-08-16「提交未变」不成立：当日 `master` 实际停在 `5bb600f`。2026-08-19 观测 HEAD 为 `99f6f02` / `dsh-v0.1.0-rc.7`（超前基线 111 commits / 24 first-parent）。2026-08-22 再核 HEAD 为 `b150a551` / `dsh-v0.1.1-rc.2`（超前基线 854 commits / 101 first-parent）。rc.7、rc.8 与 `0.1.1-rc.2` 都不是已接受实现基线。插件契约测试使用隔离 mount/dispose，不声明浮动 `master` 支持。 |
 | DeepSeek 使用的 Cordis | DeepSeek Harness `vendor/cordis` | 同上 | `@deepseek-ai/cordis` `4.0.1` | 目标插件与生命周期基础；它是 DeepSeek 命名的实现，不等同于对其他 Cordis 项目的兼容承诺。 |
-| LoopX | `huangruiteng/loopx` | `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` | `loopx` `0.4.7` | 已完成机制级核对（MIT）。不是 Hufu 任务正本。2026-08-16 公开 `main` HEAD 为 `8c103dfecae0f4424ecb0b07bad7cbc5f0797d6d` / `v0.4.8`（Apache-2.0），相对核对本超前 47 个提交，尚未完成源码复盘，因此不是已接受实现基线。#9 第一批机制已按 Hufu 自有合同重写交付，未复制上游源码、未引入 `loopx` 发行包。 |
+| LoopX | `huangruiteng/loopx` | `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` | `loopx` `0.4.7` | 已完成机制级核对（MIT）。不是 Hufu 任务正本。2026-08-16 公开 `main` HEAD 为 `8c103df` / `v0.4.8`（Apache-2.0），相对核对本超前 47 个提交。2026-08-19 观测 HEAD 为 `88f96da2` / `v0.4.9`，相对核对本超前 146 个提交，相对 `v0.4.8` 超前 99 个提交。2026-08-22 再核 HEAD 为 `02cb68bb`（`pyproject` `0.5.1`），相对核对本超前 294 个提交。手工记录的 LoopX HEAD 具有当日失效性，上述观测都不是已接受实现基线。#9 第一批机制已按 Hufu 自有合同重写交付，未复制上游源码、未引入 `loopx` 发行包。定位裁决见 #26，不在本文件作出。 |
 
 DeepSeek Harness 当前目标工具链基线为 Node.js `^22.19.0 || >=24.0.0`、pnpm `11.7.0`、
 严格 TypeScript、ESM、Vitest、Oxlint 和 tsdown。Hufu 第一张实现 Module 的 Plan 必须重新核对这些值，
@@ -25,11 +25,38 @@ Hufu 当前唯一已验证的 Cordis 实现（决策见 ADR 0003「Cordis 实现
 `4.0.0-rc.7` 的改名 vendored fork，Hufu 不声称兼容上游 `cordis`；`0.1.0` 的领域核心与
 Standalone Profile 不组装任何 Cordis 运行时。
 
+## 观测方法
+
+全部提交计数必须在**完整历史**上取得（`git rev-parse --is-shallow-repository` 为 `false`）。
+浅克隆的 `git rev-list --count` 会因历史截断给出错误结果。`git ls-remote` 只核验 ref 身份，不需要本地历史。
+
+复核命令：
+
+```
+git ls-remote https://github.com/deepseek-ai/deepseek-harness
+git rev-parse --is-shallow-repository    # 必须为 false 才能计数
+git rev-list --count 47f943859bef60e4160492346772ded9b24f765a..origin/master
+git rev-list --count --first-parent 47f943859bef60e4160492346772ded9b24f765a..origin/master
+git ls-remote https://github.com/huangruiteng/loopx
+git rev-list --count 58f545aee1ce00c57b7a4f21b13d78ee0367b3da..origin/main
+```
+
 ## 漂移状态
 
-- 2026-08-16 再次读取公开 `deepseek-ai/deepseek-harness` `master`，提交仍为
-  `47f943859bef60e4160492346772ded9b24f765a`。
-- 2026-08-15 的一次 DeepSeek Harness 观测对应上述提交；这是一条带日期的观测，不是“当前永远一致”的承诺。
+- 2026-08-16 现文曾写公开 `deepseek-ai/deepseek-harness` `master`「提交未变」、仍为
+  `47f943859bef60e4160492346772ded9b24f765a`。该观测为假。`master` first-parent 链在基线之后
+  13 分钟即到 `fdab3aa`，17 分钟到 `fb82698`（rc.6）；2026-08-16 全天 `master` 停在
+  `5bb600f9fb17c31f26089ada6c25eaf900104e71`（2026-08-15 02:49 +0800，超前基线 9 次
+  first-parent / 40 个提交）。其后下一次 first-parent 合并为 `66cd593`（2026-08-17 10:05）。
+- 2026-08-19 完整历史复核：当时 HEAD 为 `99f6f02fecdb7dff40c3fbc9470f5907c29f74ca`
+  （tag `dsh-v0.1.0-rc.7`，2026-08-17 19:03 +0800）。相对已核对基线 111 commits
+  （first-parent 24 次合并），539 文件，+8183 / −1625。rc.7 不是已接受实现基线。
+- 2026-08-22 再核：`git ls-remote` `refs/heads/master` =
+  `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（tag `dsh-v0.1.1-rc.2`，2026-08-21 20:03 +0800）。
+  相对已核对基线 854 commits / 101 first-parent。另有 tag `dsh-v0.1.0-rc.8` =
+  `141eb6fef83422698aef7a981029e843e8161534`。这些观测都不是已接受实现基线，也不把 rc.7
+  或后续 rc 提升为插件目标。
+- 2026-08-15 的一次 DeepSeek Harness 观测对应已核对基线提交；这是一条带日期的观测，不是“当前永远一致”的承诺。
 - 2026-08-16 开始 Module #9（`engine-loopx`）前重新读取公开 `huangruiteng/loopx` `refs/heads/main`：
   HEAD 为 `8c103dfecae0f4424ecb0b07bad7cbc5f0797d6d`（tag `v0.4.8`，`pyproject` `0.4.8`），
   相对已接受机制核对本 `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` 超前 47 个提交。
@@ -37,8 +64,17 @@ Standalone Profile 不组装任何 Cordis 运行时。
   从 MIT 改为 Apache-2.0；上游 NOTICE 声明 `v0.4.7` 及更早仍为 MIT，并由 `LICENSE-MIT` 保留历史文本。
   该 HEAD 观测不是已接受实现基线；#9 规格 Draft 默认不复制上游源码、不把 LoopX 发行包列为默认依赖。
   若后续 Plan 改钉提交或复制源码，必须按该提交许可证更新 NOTICE，并重新核对应采用的机制边界。
+- 2026-08-19 完整历史复核 LoopX：当时 `main` HEAD 为
+  `88f96da2674c2dc3d65d1b55597f17c196c00af7`（2026-08-19 16:55 +0800，当时版本 `v0.4.9`），
+  相对已接受基线超前 **146 commits**，相对 2026-08-16 观测 `8c103df` 超前 99 commits。
+  近日 first-parent 节奏（08-16 至 08-19）为四次 / 十八次 / 十次 / 三十三次。核对期间 `main`
+  在同一天内从 `247b628`（09:49）前进到 `88f96da2`（16:55）。手工记录的 LoopX HEAD 具有当日失效性。
+- 2026-08-22 再核 LoopX：`git ls-remote` `refs/heads/main` =
+  `02cb68bb06fc811d41f207b62c5378249164f8c1`（2026-08-22 20:43 +0800，`pyproject` `0.5.1`），
+  相对已接受基线超前 294 commits；tag `v0.4.9` 现为 `8bd1b6c426f3856a86f4a059b7cfd7215d159ef3`。
+  `0.5.1` 与 `v0.4.9` 都不是已接受实现基线。
 - 2026-08-15 通过 `refs/heads/main` 直接读取的 LoopX 漂移观测
-  `38719201df6264a7d1940d32e853c3672aed9249` 已被 2026-08-16 HEAD 观测取代，仍不是已接受基线。
+  `38719201df6264a7d1940d32e853c3672aed9249` 已被后续 HEAD 观测取代，仍不是已接受基线。
 - DeepSeek Harness 官方明确处于 Developer Preview，并提示可能发生破坏性兼容变更；
   Hufu 不使用浮动的“最新版本”声明支持。
 
@@ -65,6 +101,15 @@ Standalone Profile 不组装任何 Cordis 运行时。
    测试：装入 Profile 后服务可用，卸载后 Tool、Event Listener 与其他运行时 Effect 全部撤销，
    已持久化事实保留。
 
+2026-08-19 在完整历史上复核：上述 8 条安装契约项在 `dsh-v0.1.0-rc.7`（`99f6f02`）下仍成立。
+证据：`vendor/cordis/package.json` 仍为 `@deepseek-ai/cordis` `4.0.1`；
+`packages/bundle/README.md` 仍要求 `"dsh": { "bundle": { "patch": "./cordis.patch.yml" } }`；
+`$DSH_HOME/profiles/<name>` 与 `$DSH_HOME` → `~/.dsh` 解析仍见 `packages/boot/app-boot/README.md`；
+无 bundle 声明的包被显式列入 Profile 时 fail loud；`dsh plugin --profile <name> add <package>`
+仍见 `packages/boot/app-boot/src/profile.ts`；`node-addon-require-builtin` 仍为可选 peer；
+patch 对匹配条目整块替换 `config`、不深合并；安装 / Bundle 加载 / Cordis 卸载仍为三种生命周期。
+该结论只覆盖 rc.7，不把后续 HEAD 或 `0.1.1-rc.2` 提升为已接受实现基线。
+
 DeepSeek Harness 的包安装、Profile Bundle 加载和 Cordis 运行时卸载是三种不同生命周期：安装一个
 没有 `dsh.bundle` 声明的普通包可能只产生警告并保留依赖；把没有有效 Bundle 的包显式列入
 Profile 加载项时必须 fail loud；Cordis 卸载只撤销运行时 Effect。实现测试必须分别覆盖三者，
@@ -81,9 +126,9 @@ Usage、模型身份和授权读回；未验证字段必须报告 `UNKNOWN` 或 
 
 | Host | 已观察的候选接入面 | 已知限制 | Hufu 状态 |
 | --- | --- | --- | --- |
-| DeepSeek Harness | Cordis Plugin、Session Service、StorageDomain；Headless Profile 可执行一次 fresh task | Headless 只返回最终文本且没有 follow-up；外部插件不能假设任意自定义 SessionEvent | `hufu-dsh` 已作为隔离 Profile Module 交付；不修改 Agent Loop，不启用 Host JSON Storage Provider，不出站 Session |
-| Codex | App Server 的 thread/turn 生命周期；非交互执行、resume、JSONL、JSON Schema 和 Usage 事件 | 具体权限、模型身份和取消语义仍需版本化合同测试 | Adapter 未实现，`UNAVAILABLE` |
-| Claude Code | 非交互与 resume/continue；stream-json、JSON Schema、工具 allow/deny 和 Usage | 非交互模式的工作区信任与权限策略必须显式收窄 | Adapter 未实现，`UNAVAILABLE` |
+| DeepSeek Harness | Cordis Plugin、Session Service、StorageDomain；Headless Profile 可执行一次 fresh task。已核对基线 `47f9438` **即已自带** `packages/goal/`（事件溯源 goal 服务，`GoalRef {id, revision}` CAS，phase `active\|paused\|blocked\|complete`，模型工具 `get_goal` / `create_goal` / `update_goal`，`/goal` 命令）、`packages/plan/plan-mode/`、`packages/acp/`（ACP over JSON-RPC stdio）、以及 `packages/subagent/subagent-codex`、`subagent-claude-code`、`subagent-acp`、`subagent-dsh-sdk`（均以 `git cat-file -e 47f9438:<path>` 验证 EXISTED at baseline） | Headless 只返回最终文本且没有 follow-up；外部插件不能假设任意自定义 SessionEvent。目标 Host 已自带同名 provider，会抬高与 Hufu / LoopX 的重合面，不能只看 Hufu Adapter 是否实现 | `hufu-dsh` 已作为隔离 Profile Module 交付；不修改 Agent Loop，不启用 Host JSON Storage Provider，不出站 Session |
+| Codex | App Server 的 thread/turn 生命周期；非交互执行、resume、JSONL、JSON Schema 和 Usage 事件 | 具体权限、模型身份和取消语义仍需版本化合同测试。DeepSeek Harness 已自带 `subagent-codex`，与「Hufu Adapter 未实现」不是同一层事实 | Adapter 未实现，`UNAVAILABLE` |
+| Claude Code | 非交互与 resume/continue；stream-json、JSON Schema、工具 allow/deny 和 Usage | 非交互模式的工作区信任与权限策略必须显式收窄。DeepSeek Harness 已自带 `subagent-claude-code`，与「Hufu Adapter 未实现」不是同一层事实 | Adapter 未实现，`UNAVAILABLE` |
 | Kimi Code | ACP 的 new/load/resume/prompt/cancel；stream-json、MCP 和权限规则 | 稳定的 Schema 约束与机器可读 Token 字段尚未确认；裸 `-p` 不适合作为默认只读会商路径 | Adapter 未实现，`UNAVAILABLE` |
 | Grok Build | Headless、ACP、resume/continue、JSON Schema、sandbox 和权限规则 | 稳定的机器可读 Token 字段尚未确认；扩展面仍需固定版本 | Adapter 未实现，`UNAVAILABLE` |
 
@@ -128,3 +173,7 @@ DeepSeek Harness 当前不接受外部 Pull Request，官方建议通过 GitHub 
 - [Grok Build Headless 与 ACP](https://docs.x.ai/build/cli/headless-scripting)
 - [LoopX 已接受机制核对基线](https://github.com/huangruiteng/loopx/tree/58f545aee1ce00c57b7a4f21b13d78ee0367b3da)
 - [LoopX 2026-08-16 HEAD 观测（`v0.4.8`，非已接受基线）](https://github.com/huangruiteng/loopx/commit/8c103dfecae0f4424ecb0b07bad7cbc5f0797d6d)
+- [LoopX 2026-08-19 HEAD 观测（当时 `v0.4.9`，非已接受基线）](https://github.com/huangruiteng/loopx/commit/88f96da2674c2dc3d65d1b55597f17c196c00af7)
+- [LoopX 2026-08-22 HEAD 观测（`pyproject` `0.5.1`，非已接受基线；HEAD 具有当日失效性）](https://github.com/huangruiteng/loopx/commit/02cb68bb06fc811d41f207b62c5378249164f8c1)
+- [DeepSeek Harness 2026-08-19 HEAD 观测（`dsh-v0.1.0-rc.7`，非已接受基线）](https://github.com/deepseek-ai/deepseek-harness/commit/99f6f02fecdb7dff40c3fbc9470f5907c29f74ca)
+- [DeepSeek Harness 2026-08-22 HEAD 观测（`dsh-v0.1.1-rc.2`，非已接受基线）](https://github.com/deepseek-ai/deepseek-harness/commit/b150a551b8d465e31e418e1b2eaf5e79bbb7d28e)
