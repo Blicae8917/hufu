@@ -16,6 +16,10 @@
       "default": "./dist/src/hufu/index.js"
     }
   },
+  "files": [
+    "dist/src",
+    "src/hufu"
+  ],
   "scripts": {
     "build": "tsc && tsc -p packages/hufu-dsh/tsconfig.json",
     "hufu": "node dist/src/hufu/main.js",
