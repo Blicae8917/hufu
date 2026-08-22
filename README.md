@@ -79,7 +79,7 @@ pnpm --dir <repo> hufu status
 字段见 `specs/005-zero-copy-decision/`。可选引擎须显式 `decide --engine` 选用 `loopx-mechanisms`，
 再用 `--result` / `--receipt` 记录类型化结果与核验回执；合同见 `specs/008-loopx-engine/`。
 已交接的工作可用 `hufu pilot --record` 记下效能试点；`status` 投影门禁，`hufu serve` 在本模块拒绝启动网页。
-合同见 `specs/009-pilot-gate/`。
+合同见 `specs/009-pilot-gate/`。首轮基线的脱敏方法、聚合口径与槽位缺口见 [docs/pilot-baseline.md](docs/pilot-baseline.md)。
 `status` 与 `handoff` 只暴露 `decision_id` / 版本 / 摘要，不复制目标或验收正文。`decide` 不联网。
 
 ### DeepSeek 原生插件（隔离 Profile）

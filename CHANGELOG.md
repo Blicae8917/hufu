@@ -20,6 +20,8 @@
   不是任务正本，不引入 LoopX 发行包，不调度、不把 Goal 映射为工作项。
 - 效能试点记录与扩充门禁：`hufu pilot --record` 写入封闭结论并从事件派生协调类度量；
   `hufu serve` 保持拒绝；三轮净收益只打开评估报告，本模块不实现网页。合入不等于 `0.1.0` 已发布。
+- 首轮效能试点基线（#39）：公开仓只保留脱敏方法、聚合口径与三条槽位缺口；结论为
+  `DATA_INSUFFICIENT`。原始账本不入库。计数按 1 轮基线 + 3 轮对比，不把本轮当作对比轮。
 - GitHub Actions 在 `main` 推送和 Pull Request 上运行 `pnpm test`、
   `node scripts/check-version.mjs` 与 `git diff --check`。
 
