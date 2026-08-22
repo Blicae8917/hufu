@@ -41,6 +41,16 @@ git ls-remote https://github.com/huangruiteng/loopx
 git rev-list --count 58f545aee1ce00c57b7a4f21b13d78ee0367b3da..origin/main
 ```
 
+## 门禁核对表
+
+本表是 `scripts/check-upstream-drift.mjs` 的解析输入。只记录公开 git ref 的 **HEAD 观测**，
+不把「已核对基线」改成 HEAD，也不自动升级已接受实现基线。漂移由人复核后改此表。
+
+| 上游 | 仓库 | ref | 记录 SHA | 观测日期 |
+| --- | --- | --- | --- | --- |
+| DeepSeek Harness | `deepseek-ai/deepseek-harness` | `refs/heads/master` | `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e` | 2026-08-22 |
+| LoopX | `huangruiteng/loopx` | `refs/heads/main` | `5df619c6aaf5c19629f55df9b5796bef12d70f96` | 2026-08-22 |
+
 ## 漂移状态
 
 - 2026-08-16 现文曾写公开 `deepseek-ai/deepseek-harness` `master`「提交未变」、仍为
@@ -72,6 +82,7 @@ git rev-list --count 58f545aee1ce00c57b7a4f21b13d78ee0367b3da..origin/main
 - 2026-08-22 再核 LoopX：`git ls-remote` `refs/heads/main` =
   `02cb68bb06fc811d41f207b62c5378249164f8c1`（2026-08-22 20:43 +0800，`pyproject` `0.5.1`），
   相对已接受基线超前 294 commits；tag `v0.4.9` 现为 `8bd1b6c426f3856a86f4a059b7cfd7215d159ef3`。
+  同日稍后 HEAD 为 `5df619c6aaf5c19629f55df9b5796bef12d70f96`（见门禁核对表）。
   `0.5.1` 与 `v0.4.9` 都不是已接受实现基线。
 - 2026-08-15 通过 `refs/heads/main` 直接读取的 LoopX 漂移观测
   `38719201df6264a7d1940d32e853c3672aed9249` 已被后续 HEAD 观测取代，仍不是已接受基线。

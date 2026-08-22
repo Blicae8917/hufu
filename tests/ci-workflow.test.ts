@@ -21,7 +21,7 @@ function readWorkflow(): string {
 }
 
 describe("GitHub Actions quality gates", () => {
-  it("runs the three constitution gates on pull requests and main pushes", () => {
+  it("runs the constitution gates on pull requests and main pushes", () => {
     const workflow = readWorkflow();
 
     assert.match(workflow, /^name:\s*ci\s*$/m);
@@ -29,6 +29,7 @@ describe("GitHub Actions quality gates", () => {
     assert.match(workflow, /branches:\s*\n(?:[^\n]*\n)*?\s*-\s*main/m);
     assert.match(workflow, /pnpm test/);
     assert.match(workflow, /node scripts\/check-version\.mjs/);
+    assert.match(workflow, /node scripts\/check-upstream-drift\.mjs/);
     assert.match(workflow, /git diff --check/);
   });
 
