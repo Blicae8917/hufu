@@ -6,6 +6,8 @@
 
 **Parent Issue**: [#3](https://github.com/Blicae8917/hufu/issues/3)
 
+**Increment**: [#40](https://github.com/Blicae8917/hufu/issues/40) CLI 项目根合同（`--project-root` / `HUFU_PROJECT_ROOT` / cwd）
+
 ## Summary
 
 在 M1 零 Cordis TypeScript 核心上增加单安装、单写者的本机 `local` JSONL 账本，以及 `connect` / `doctor` / `status` / `handoff` 四个有界命令。冷启动固定写入指挥官身份、首份 `AuthorizationGrant` 与当值 `project_lead`。CurrentView 按三轴物化。不引入网络默认路径、数据库、守护进程、Cordis 或外部正本。
@@ -50,6 +52,21 @@
 | ADR 0003 | 通过。Standalone CLI 组装同一核心；不组装 Cordis |
 
 Phase 1 设计后复检：仍通过。`contracts/` 只描述本地 CLI、事件信封与视图 JSON，无网络接口。锁与修复尾部是本机文件操作，不是后台服务。
+
+### #40 增量 Constitution Check
+
+| 原则 | 本增量结论 |
+| --- | --- |
+| I 单一任务正本与显式授权 | 通过。只改项目根输入，不改授权或正本 |
+| II 正交分离与插件优先 | 通过。解析发生在 CLI Consumer；领域函数仍接收已解析 `workspaceRoot` |
+| III 公开核心，研究外置 | 通过。文档只用占位符，不写入本机绝对路径 |
+| IV 真实事件与证据 | 通过。不改事件语义；`project_root` 只出现在命令信封 |
+| V 唯一责任角色 | 通过。不改角色 |
+| VI 默认小型、可移植、可逆 | 通过。无配置文件、无新退出码、无 CI 矩阵扩张 |
+| VII Spec 驱动、测试优先 | 通过。父合同增量 + 先失败测试 |
+| VIII 有界且经济 | 通过。不增加控制面；不猜测未观测的 Windows 运行时缺陷 |
+| 版本纪律 | 通过。保持 `0.1.0` |
+| ADR 0001 / 0003 | 通过。CLI 仍是 Consumer，不拥有任务状态 |
 
 ## Project Structure
 
@@ -103,6 +120,15 @@ tests/
 ```
 
 **Structure Decision**: 继续根目录单包、`src/hufu/` 扁平模块。不建 apps/packages，不引入 Cordis 插件树。测试仍由 `tsc` 输出到 `dist/` 后用 `node --test dist/tests/` 运行。`.hufu/` 已忽略，测试必须使用临时目录。
+
+### #40 增量结构
+
+```text
+src/hufu/project-root.ts   # 解析顺序、落实目录、失败关闭
+tests/project-root.test.ts # POSIX 命令契约 + Windows 路径形状契约
+```
+
+CLI 在进入六条有界命令后先解析项目根，再调用既有领域函数。`project_root` 只加在 stdout JSON 顶层，不改 CurrentView 或事件信封。
 
 ## Complexity Tracking
 

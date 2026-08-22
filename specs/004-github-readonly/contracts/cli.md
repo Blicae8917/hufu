@@ -1,6 +1,6 @@
 # CLI 合同: `hufu`（M3 GitHub 正本扩展）
 
-M2 `specs/003-local-ledger-commands/contracts/cli.md` 对 `local` 仍然有效。本文件只写差异。
+M2 `specs/003-local-ledger-commands/contracts/cli.md` 对 `local` 仍然有效（含 #40 项目根解析）。本文件只写差异。
 
 `validate` 保持 M1。未知子命令保持退出码 `1`。
 

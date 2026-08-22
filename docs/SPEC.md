@@ -109,6 +109,8 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
   且不修改外部系统。
 - Standalone Profile 的本地运行态位于 `.hufu/`，并排除在版本控制之外；DeepSeek Profile 的项目事实
   位于 Hufu StorageDomain 后的已验证 Host 存储，两者都不进入公开仓库正本。
+- Standalone CLI 的项目根按 `--project-root`、`HUFU_PROJECT_ROOT`、进程 cwd 的顺序解析；`.hufu/`
+  仍位于该根下。未指定时与历史 cwd 行为兼容。不得用配置文件改写落点。
 - `local` 正本是单操作者、单安装边界：权威数据位于本机 `.hufu/`，不进入版本控制，也不跨机器
   同步——换机即失是已声明行为，不是缺陷；需要跨机器共享任务状态的项目应选择 `github` 或
   `gitlab` 正本。写入前必须排除并发写者，冲突或无法确认唯一写者时 fail closed。角色唯一性等

@@ -29,6 +29,7 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
 export class CommandError extends Error {
   readonly code: ErrorCode;
   readonly schema_version = "1" as const;
+  project_root?: string;
 
   constructor(code: ErrorCode, message: string) {
     super(message);

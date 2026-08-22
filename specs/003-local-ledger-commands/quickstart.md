@@ -23,17 +23,17 @@ pnpm hufu validate examples/task.json
 
 ## 本机纵切（临时目录）
 
-在空目录中（PowerShell 可用 `cd $env:TEMP\hufu-m2` 一类路径）：
+在空目录中（PowerShell 可用 `cd $env:TEMP\hufu-m2` 一类路径）。不要用 `pnpm --dir` 代替项目根：它会改写 cwd。从其他目录调用时传 `--project-root <workdir>` 或设置 `HUFU_PROJECT_ROOT`。
 
 ```bash
-pnpm --dir <repo> hufu connect --project-id demo --repository https://example.com/demo.git --task-authority local --commander human:alice --grant-scope "local ledger and handoff"
-pnpm --dir <repo> hufu doctor
-pnpm --dir <repo> hufu status
+node <repo>/dist/src/hufu/main.js connect --project-root <workdir> --project-id demo --repository https://example.com/demo.git --task-authority local --commander human:alice --grant-scope "local ledger and handoff"
+node <repo>/dist/src/hufu/main.js doctor --project-root <workdir>
+node <repo>/dist/src/hufu/main.js status --project-root <workdir>
 ```
 
 期望：
 
-- `connect` 退出码 0，stdout 含 `grant_id` 与 `project_lead_binding_id`
+- `connect` 退出码 0，stdout 含 `project_root`、`grant_id` 与 `project_lead_binding_id`；`project_root` 即 `<workdir>` 的已落实路径
 - 再次执行 **完全相同** 的 `connect` 仍退出码 0，身份不变
 - `doctor` 退出码 0，`healthy` 为 true
 - `status` 退出码 0，`task_authority.value` 为 `local`，且能读到三轴字段；`work_items` 可为空但不得把缺失写成 `0`
@@ -42,8 +42,8 @@ pnpm --dir <repo> hufu status
 然后用测试夹具或领域服务打开一个工作项 `wi-1` 后：
 
 ```bash
-pnpm --dir <repo> hufu handoff --work-item wi-1 --completed "spec kit artifacts" --remaining "implementation" --risks "none"
-pnpm --dir <repo> hufu status
+node <repo>/dist/src/hufu/main.js handoff --project-root <workdir> --work-item wi-1 --completed "spec kit artifacts" --remaining "implementation" --risks "none"
+node <repo>/dist/src/hufu/main.js status --project-root <workdir>
 ```
 
 期望：`handoff` 退出码 0，`next_action_text` 含 `wi-1`；`status` 能看到交接摘要。
@@ -55,6 +55,7 @@ pnpm --dir <repo> hufu status
 - 未连接时 `status` → 退出码 4
 - `hufu status --refresh` → 退出码 2
 - 未连接时 `handoff --work-item wi-1 --completed x --remaining y` → 退出码 4
+- `--project-root` 指向不存在的目录 → 退出码 2，不创建 `.hufu/`
 
 ## 回放
 

@@ -130,7 +130,8 @@ declare module "node:fs" {
     path: string,
     options?: { recursive?: boolean; force?: boolean },
   ): void;
-  export function statSync(path: string): { size: number };
+  export function realpathSync(path: string): string;
+  export function statSync(path: string): { size: number; isDirectory(): boolean };
   export function truncateSync(path: string, len: number): void;
   export function unlinkSync(path: string): void;
   export function writeFileSync(
@@ -154,6 +155,10 @@ declare module "node:path" {
   export function dirname(path: string): string;
   export function join(...paths: string[]): string;
   export function relative(from: string, to: string): string;
+  export function resolve(...paths: string[]): string;
+  export const win32: {
+    resolve(...paths: string[]): string;
+  };
 }
 
 declare module "node:test" {

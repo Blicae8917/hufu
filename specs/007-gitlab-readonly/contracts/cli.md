@@ -1,6 +1,6 @@
 # CLI 合同: `hufu`（M6 GitLab 正本扩展）
 
-M2 `local`、M3 本仓 `github`、M4 `decide` 仍然有效。本文件只写差异。004 合同中「`--task-authority gitlab` → `TASK_AUTHORITY_UNSUPPORTED`」由本模块解除。
+M2 `local`、M3 本仓 `github`、M4 `decide` 仍然有效（含 #40 项目根解析）。本文件只写差异。004 合同中「`--task-authority gitlab` → `TASK_AUTHORITY_UNSUPPORTED`」由本模块解除。
 
 `validate` 保持 M1。未知子命令保持退出码 `1`。
 

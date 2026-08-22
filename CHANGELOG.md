@@ -22,6 +22,9 @@
   `hufu serve` 保持拒绝；三轮净收益只打开评估报告，本模块不实现网页。合入不等于 `0.1.0` 已发布。
 - 首轮效能试点基线（#39）：公开仓只保留脱敏方法、聚合口径与三条槽位缺口；结论为
   `DATA_INSUFFICIENT`。原始账本不入库。计数按 1 轮基线 + 3 轮对比，不把本轮当作对比轮。
+- 有界命令显式工作目录合同（#40）：`connect` / `doctor` / `status` / `handoff` / `decide` / `pilot`
+  按 `--project-root` → `HUFU_PROJECT_ROOT` → 进程 cwd 解析项目根，并在 stdout 打印 `project_root`。
+  未指定时与历史 cwd 落点兼容；不改 `.hufu` 事件格式。
 - GitHub Actions 在 `main` 推送和 Pull Request 上运行 `pnpm test`、
   `node scripts/check-version.mjs` 与 `git diff --check`。
 

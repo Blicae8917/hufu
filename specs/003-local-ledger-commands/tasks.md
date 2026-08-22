@@ -144,6 +144,24 @@
 
 ---
 
+## Phase 8: Increment - 显式项目根（#40）
+
+**Goal**: 六条有界命令按标志 → 环境变量 → cwd 解析项目根，输出 `project_root`，失败关闭且不新增退出码。
+
+**Independent Test**: 从非目标 cwd 用 `--project-root` 连接，账本只出现在指定目录；空值/缺失路径退出码 2；Windows 路径形状契约在 Ubuntu 上可跑。
+
+### Tests ⚠️
+
+- [ ] T030 [P] [US5] 在 `tests/project-root.test.ts` 写失败测试：解析顺序、stdout 顶层 `project_root`、跨 cwd 落点、空值/非目录退出码 2、`path.win32` 盘符/混用分隔符/UNC
+
+### Implementation
+
+- [ ] T031 [US5] 实现 `src/hufu/project-root.ts` 与 `src/hufu/cli.ts` 接入，使 T030 转绿；不改事件格式
+- [ ] T032 [P] [US5] 更新 README、003 quickstart、CHANGELOG 与 `docs/SPEC.md`：写明 `--project-root` / `HUFU_PROJECT_ROOT` 为 #38 的显式逃生舱
+- [ ] T033 [US5] 运行 `pnpm test`、`node scripts/check-version.mjs`、`node scripts/check-upstream-drift.mjs --mode=static`、`git diff --check`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -155,6 +173,7 @@
 - **US3 (Phase 5)**: 依赖 US1；可与 US2 并行（不同文件）
 - **US4 (Phase 6)**: 依赖 US3 的 `work-item.ts` 与 projector
 - **Polish (Phase 7)**: 依赖 US1–US4
+- **#40 Increment (Phase 8)**: 依赖已交付的六条有界命令；不改事件或 CurrentView
 
 ### User Story Dependencies
 

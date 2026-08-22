@@ -46,3 +46,17 @@
 - **Decision**: `package.json` 的 `test` 改为 `tsc && node --test dist/tests/`，自动收录本模块新增测试文件。版本保持 `0.1.0`。
 - **Rationale**: M1 显式列举两个文件；继续列举会每次加测试都改门禁脚本。`dist/tests/` 仍只跑本仓库测试。
 - **Alternatives considered**: 继续手写文件列表（易漏）；引入 Vitest（ADR 禁止本阶段膨胀工具链）。
+
+## 8. 显式项目根（#40）
+
+- **Decision**:
+  - 六条有界命令共用解析顺序：`--project-root` → `HUFU_PROJECT_ROOT` → `process.cwd()`。
+  - 环境变量名取既有 `HUFU_*` 前缀下最短一致名 `HUFU_PROJECT_ROOT`（Issue 未另给名字）。
+  - 相对路径相对进程 cwd 落实；成功后输出顶层 `project_root`（绝对、可访问的目录）。
+  - 标志以无值开关出现、来源为空/空白、路径不存在或不是目录 → `CONTRACT_INVALID`、退出码 2。
+  - 解析成功后的命令失败仍带 `project_root`。解析失败不猜测路径。
+  - `.hufu/ledger/` 仍挂在该根下。不移动旧账本，不引入配置文件，不新增退出码，不把 Windows 加入 CI。
+  - Windows 盘符、混用分隔符与 UNC 用 `path.win32` 做契约测试，即使 CI 只跑 Ubuntu。
+  - #38 第 3 项没有 Windows `pnpm test` 失败输出；本增量不猜测运行时缺陷，只吸收「需要显式工作目录合同」这一切片。
+- **Rationale**: Issue 要求把 cwd 从隐式假设提升为可校验输入，并保留既有 `.hufu` 落点。顶层字段避免改 CurrentView v1。`HUFU_PROJECT_ROOT` 与 `HUFU_DENY_NETWORK` / `HUFU_COMPATIBILITY_PATH` 一致。
+- **Alternatives considered**: 只改文档（#38 已做，无法作为逃生舱）；配置文件（Issue 禁止）；把 `project_root` 写入 CurrentView 或账本（改领域合同）；新增退出码；把 Windows 加入 CI 矩阵（属独立基础设施决策）。
