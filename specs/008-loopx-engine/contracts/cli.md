@@ -1,6 +1,6 @@
 # CLI 合同: `hufu decide`（M7 引擎机制扩展）
 
-M2–M6 对 `connect` / `doctor` / `status` / `handoff` / `validate` / `decide` 既有标志仍然有效。本文件只写差异。
+M2–M6 对 `connect` / `doctor` / `status` / `handoff` / `validate` / `decide` 既有标志仍然有效。本文件只写差异。项目根解析见 `specs/003-local-ledger-commands/contracts/cli.md`。
 
 未知子命令保持退出码 `1`。
 

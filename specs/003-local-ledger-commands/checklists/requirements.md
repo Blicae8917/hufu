@@ -35,3 +35,4 @@
 - 无 `[NEEDS CLARIFICATION]`。锁文件、账本目录、错误码表、冷启动参数、工作项不另开产品命令等默认均写入 Assumptions。
 - SHA-256 / 规范化摘要、单写者拒绝写入、三轴事实字段是架构正本已接受的验收合同，出现在 FR 中；物理路径与 JSONL 布局只出现在 Assumptions，供 Plan 固定。
 - 清单已通过，可进入 `$speckit-plan`。若要对「无第五个产品命令创建工作项」或「崩溃锁需手工删除」提出异议，可先走 `$speckit-clarify`。
+- #40 增量已补 User Story 5、FR-023–026、SC-009–011、项目根兼容说明；无 `[NEEDS CLARIFICATION]`。环境变量名按既有 `HUFU_*` 最短一致名裁决为 `HUFU_PROJECT_ROOT`。

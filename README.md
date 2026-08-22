@@ -64,7 +64,7 @@ pnpm hufu validate examples/task.json
 
 验证成功时会输出紧凑的 JSON 摘要。输入无效时退出码为 `2`，合同错误写入 stderr。
 
-在空的临时工作目录中试用本机账本。先完成上面的 `pnpm test`（会编译出 `dist/`），再进入目标工作目录，直接调用已构建的 CLI（把 `<repo>` 换成 Hufu 仓库路径，不要把本机绝对路径写进仓库文档）。不要用 `pnpm --dir <repo>`：它会把进程 cwd 改成仓库根，账本会写进源码树。
+在空的临时工作目录中试用本机账本。先完成上面的 `pnpm test`（会编译出 `dist/`），再进入目标工作目录，直接调用已构建的 CLI（把 `<repo>` 换成 Hufu 仓库路径，不要把本机绝对路径写进仓库文档）。不要用 `pnpm --dir <repo>`：它会把进程 cwd 改成仓库根，账本会写进源码树。必须从其他目录调用时，显式传入 `--project-root <workdir>`，或设置 `HUFU_PROJECT_ROOT`。成功输出的 `project_root` 即账本将落在的目录。
 
 ```bash
 node <repo>/dist/src/hufu/main.js connect --project-id demo --repository https://example.com/demo.git --task-authority local --commander human:alice --grant-scope "local ledger and handoff"
@@ -72,7 +72,13 @@ node <repo>/dist/src/hufu/main.js doctor
 node <repo>/dist/src/hufu/main.js status
 ```
 
-成功时标准输出是一个 JSON 对象。`connect` 会在该工作目录写下 `.hufu/ledger/events.jsonl`（已 gitignore）。
+成功时标准输出是一个 JSON 对象，含已解析的 `project_root`。`connect` 会在该项目根写下 `.hufu/ledger/events.jsonl`（已 gitignore）。
+从任意 cwd 指向目标工作目录（#38 的显式逃生舱）：
+
+```bash
+node <repo>/dist/src/hufu/main.js connect --project-root <workdir> --project-id demo --repository https://example.com/demo.git --task-authority local --commander human:alice --grant-scope "local ledger and handoff"
+```
+
 `validate` 仍可按上面的例子使用。
 
 本机工作项打开后，可用 `hufu decide` 记下裁决、附加信封、提交路线确认或追加增量。载荷为 JSON 文件，

@@ -2,6 +2,8 @@
 
 持久实体全部以只追加事件存在于 `.hufu/ledger/events.jsonl`。CurrentView 是回放结果，不是另一份正本。
 
+项目根是 CLI 输入，不是新的持久实体。`#40` 只改变如何选定工作区根；账本仍写在该根下的 `.hufu/ledger/events.jsonl`。`project_root` 不得写入事件 payload。
+
 ## EventEnvelope
 
 每条事件的共享外壳。`event_schema_version` 按 **事件类型** 独立计；信封本身的字段合同版本为 `1`。

@@ -12,6 +12,7 @@ import {
 } from "./errors.js";
 import { recordHandoff } from "./handoff.js";
 import { recordPilot } from "./pilot.js";
+import { PROJECT_ROOT_ENV, resolveProjectRoot } from "./project-root.js";
 import { statusWorkspace } from "./status.js";
 
 const SUMMARY_KEYS = [
@@ -89,12 +90,29 @@ function runValidate(argv: string[]): number {
 
 async function runJsonCommand(fn: () => unknown | Promise<unknown>): Promise<number> {
   try {
-    const result = await fn();
-    process.stdout.write(`${stableStringify({ ok: true, result })}\n`);
+    const value = await fn();
+    if (isProjectRootEnvelope(value)) {
+      process.stdout.write(
+        `${stableStringify({
+          ok: true,
+          project_root: value.project_root,
+          result: value.result,
+        })}\n`,
+      );
+    } else {
+      process.stdout.write(`${stableStringify({ ok: true, result: value })}\n`);
+    }
     return 0;
   } catch (error) {
     if (error instanceof CommandError) {
-      process.stdout.write(`${stableStringify(commandErrorBody(error))}\n`);
+      const body = commandErrorBody(error);
+      process.stdout.write(
+        `${stableStringify(
+          error.project_root === undefined
+            ? body
+            : { ...body, project_root: error.project_root },
+        )}\n`,
+      );
       return exitCodeFor(error.code);
     }
     throw error;
@@ -104,11 +122,6 @@ async function runJsonCommand(fn: () => unknown | Promise<unknown>): Promise<num
 function runConnect(args: ParsedArgs): unknown {
   assertNoPositionals(args);
   const options = args.options;
-  const projectId = requireOption(options, "project-id");
-  const repository = requireOption(options, "repository");
-  const taskAuthority = requireOption(options, "task-authority");
-  const commander = requireOption(options, "commander");
-  const grantScope = requireOption(options, "grant-scope");
   rejectUnknownSwitches(args.switches);
   rejectUnknownOptions(options, [
     "project-id",
@@ -118,33 +131,43 @@ function runConnect(args: ParsedArgs): unknown {
     "grant-scope",
     "project-lead",
     "grant-expires",
+    "project-root",
   ]);
-  return connectWorkspace(process.cwd(), {
-    commander,
-    grantExpires: options["grant-expires"],
-    grantScope,
-    projectId,
-    projectLead: options["project-lead"],
-    repository,
-    taskAuthority,
-  });
+  return withResolvedRoot(args, (projectRoot) =>
+    connectWorkspace(projectRoot, {
+      commander: requireOption(options, "commander"),
+      grantExpires: options["grant-expires"],
+      grantScope: requireOption(options, "grant-scope"),
+      projectId: requireOption(options, "project-id"),
+      projectLead: options["project-lead"],
+      repository: requireOption(options, "repository"),
+      taskAuthority: requireOption(options, "task-authority"),
+    }),
+  );
 }
 
 function runDoctor(args: ParsedArgs): unknown {
   assertNoPositionals(args);
-  rejectUnknownOptions(args.options, []);
+  rejectUnknownOptions(args.options, ["project-root"]);
   rejectUnknownSwitches(args.switches, ["repair-truncated-tail"]);
-  return doctorWorkspace(process.cwd(), {
-    repairTruncatedTail: args.switches.has("repair-truncated-tail"),
-  });
+  return withResolvedRoot(args, (projectRoot) =>
+    doctorWorkspace(projectRoot, {
+      repairTruncatedTail: args.switches.has("repair-truncated-tail"),
+    }),
+  );
 }
 
 async function runStatus(args: ParsedArgs): Promise<unknown> {
   assertNoPositionals(args);
   const refresh = hasRefreshFlag(args);
-  rejectUnknownOptions(args.options, refresh ? [...REFRESH_FLAGS] : []);
+  rejectUnknownOptions(
+    args.options,
+    refresh ? [...REFRESH_FLAGS, "project-root"] : ["project-root"],
+  );
   rejectUnknownSwitches(args.switches, refresh ? [...REFRESH_FLAGS] : []);
-  return statusWorkspace(process.cwd(), { refresh });
+  return withResolvedRoot(args, (projectRoot) =>
+    statusWorkspace(projectRoot, { refresh }),
+  );
 }
 
 function runHandoff(args: ParsedArgs): unknown {
@@ -156,24 +179,29 @@ function runHandoff(args: ParsedArgs): unknown {
     "remaining",
     "risks",
     "next-review",
+    "project-root",
   ]);
-  return recordHandoff(process.cwd(), {
-    completed: requireOption(args.options, "completed"),
-    nextReview: args.options["next-review"],
-    remaining: requireOption(args.options, "remaining"),
-    risks: args.options["risks"],
-    workItemId: requireOption(args.options, "work-item"),
-  });
+  return withResolvedRoot(args, (projectRoot) =>
+    recordHandoff(projectRoot, {
+      completed: requireOption(args.options, "completed"),
+      nextReview: args.options["next-review"],
+      remaining: requireOption(args.options, "remaining"),
+      risks: args.options["risks"],
+      workItemId: requireOption(args.options, "work-item"),
+    }),
+  );
 }
 
 function runPilot(args: ParsedArgs): unknown {
   assertNoPositionals(args);
   rejectUnknownSwitches(args.switches);
-  rejectUnknownOptions(args.options, ["actor", "record"]);
-  return recordPilot(process.cwd(), {
-    actor: requireOption(args.options, "actor"),
-    file: requireOption(args.options, "record"),
-  });
+  rejectUnknownOptions(args.options, ["actor", "record", "project-root"]);
+  return withResolvedRoot(args, (projectRoot) =>
+    recordPilot(projectRoot, {
+      actor: requireOption(args.options, "actor"),
+      file: requireOption(args.options, "record"),
+    }),
+  );
 }
 
 function runServe(args: ParsedArgs): unknown {
@@ -201,22 +229,24 @@ const DECIDE_KINDS = [
 function runDecide(args: ParsedArgs): unknown {
   assertNoPositionals(args);
   rejectUnknownSwitches(args.switches);
-  rejectUnknownOptions(args.options, ["actor", ...DECIDE_KINDS]);
-  const present = DECIDE_KINDS.filter((kind) => args.options[kind] !== undefined);
-  if (present.length !== 1) {
-    throw new CommandError(
-      "CONTRACT_INVALID",
-      "decide requires exactly one of --packet --envelope --ack --fact --revise --effect --engine --result --receipt",
-    );
-  }
-  const kind = present[0];
-  if (kind === undefined) {
-    throw new CommandError("CONTRACT_INVALID", "decide kind is required");
-  }
-  return decideWorkspace(process.cwd(), {
-    actor: requireOption(args.options, "actor"),
-    file: requireOption(args.options, kind),
-    kind,
+  rejectUnknownOptions(args.options, ["actor", ...DECIDE_KINDS, "project-root"]);
+  return withResolvedRoot(args, (projectRoot) => {
+    const present = DECIDE_KINDS.filter((kind) => args.options[kind] !== undefined);
+    if (present.length !== 1) {
+      throw new CommandError(
+        "CONTRACT_INVALID",
+        "decide requires exactly one of --packet --envelope --ack --fact --revise --effect --engine --result --receipt",
+      );
+    }
+    const kind = present[0];
+    if (kind === undefined) {
+      throw new CommandError("CONTRACT_INVALID", "decide kind is required");
+    }
+    return decideWorkspace(projectRoot, {
+      actor: requireOption(args.options, "actor"),
+      file: requireOption(args.options, kind),
+      kind,
+    });
   });
 }
 
@@ -288,6 +318,58 @@ function rejectUnknownOptions(
       throw new CommandError("CONTRACT_INVALID", `unknown option --${name}`);
     }
   }
+}
+
+function takeProjectRoot(args: ParsedArgs): string {
+  if (args.switches.has("project-root")) {
+    throw new CommandError(
+      "CONTRACT_INVALID",
+      "--project-root requires a directory path",
+    );
+  }
+  return resolveProjectRoot({
+    cwd: process.cwd(),
+    env: process.env[PROJECT_ROOT_ENV],
+    flag: args.options["project-root"],
+  }).project_root;
+}
+
+function withResolvedRoot(
+  args: ParsedArgs,
+  fn: (projectRoot: string) => unknown | Promise<unknown>,
+):
+  | { project_root: string; result: unknown }
+  | Promise<{ project_root: string; result: unknown }>
+{
+  const project_root = takeProjectRoot(args);
+  const apply = (result: unknown) => ({ project_root, result });
+  const attach = (error: unknown): never => {
+    if (error instanceof CommandError) {
+      error.project_root = project_root;
+    }
+    throw error;
+  };
+  try {
+    const value = fn(project_root);
+    if (value instanceof Promise) {
+      return value.then(apply, attach);
+    }
+    return apply(value);
+  } catch (error) {
+    return attach(error);
+  }
+}
+
+function isProjectRootEnvelope(
+  value: unknown,
+): value is { project_root: string; result: unknown } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "project_root" in value &&
+    "result" in value &&
+    typeof (value as { project_root: unknown }).project_root === "string"
+  );
 }
 
 function rejectUnknownSwitches(

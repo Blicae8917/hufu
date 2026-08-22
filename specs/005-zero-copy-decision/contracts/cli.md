@@ -1,6 +1,6 @@
 # CLI 合同: `hufu decide`（M4 决策流）
 
-M2/M3 对 `connect` / `doctor` / `status` / `handoff` / `validate` 仍然有效。本文件只写本模块差异与新命令。
+M2/M3 对 `connect` / `doctor` / `status` / `handoff` / `validate` 仍然有效。本文件只写本模块差异与新命令。项目根解析见 `specs/003-local-ledger-commands/contracts/cli.md`。
 
 未知子命令保持退出码 `1`。
 

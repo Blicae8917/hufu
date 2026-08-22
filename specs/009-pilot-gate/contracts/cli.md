@@ -1,5 +1,7 @@
 # CLI Contract: `hufu pilot` / `hufu serve`
 
+项目根解析（`--project-root` / `HUFU_PROJECT_ROOT` / cwd）见 `specs/003-local-ledger-commands/contracts/cli.md`。
+
 ## `hufu pilot`
 
 ```text

@@ -40,6 +40,9 @@ describe("workdir and publish surface (#38)", () => {
     );
     assert.match(readme, /pnpm --dir/);
     assert.match(readme, /cwd/);
+    assert.match(readme, /--project-root/);
+    assert.match(readme, /HUFU_PROJECT_ROOT/);
+    assert.match(readme, /project_root/);
   });
 
   it("keeps types on source and packs only the runtime surface", () => {
