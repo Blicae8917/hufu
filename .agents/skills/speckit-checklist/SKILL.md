@@ -7,6 +7,9 @@ metadata:
   source: "templates/commands/checklist.md"
 ---
 
+## Script selection (Hufu)
+
+On Linux or when `pwsh` is unavailable, run the bash twins under `.specify/scripts/bash/` with `--json` instead of `.specify/scripts/powershell/*.ps1 -Json`. Flag map: `-RequireTasks` → `--require-tasks`, `-IncludeTasks` → `--include-tasks`, `-PathsOnly` → `--paths-only`, `-Template NAME` → `--template NAME`, `-DryRun` → `--dry-run`.
 
 ## Checklist Purpose: "Unit Tests for English"
 
