@@ -18,3 +18,9 @@
 ## Phase 3: 文档
 
 - [x] T007 合同 `specs/010-upstream-drift/contracts/gate.md`
+
+## Amendment (#41)
+
+- [x] T008 测试覆盖 `static` / `observe` / `release`：match、HEAD 前进、tag 移动、不可达、离线、契约错误
+- [x] T009 脚本按 mode 映射退出码；`drift` 在 observe 中不是不兼容
+- [x] T010 普通 CI 只跑 `--mode=static`；观测放入 `schedule` / `workflow_dispatch`

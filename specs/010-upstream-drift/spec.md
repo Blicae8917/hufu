@@ -10,29 +10,33 @@
 
 **Parent Issue**: [#27](https://github.com/Blicae8917/hufu/issues/27)
 
+**Amendment**: [#41](https://github.com/Blicae8917/hufu/issues/41) 把单一「HEAD ≠ 记录即失败」拆成 `static` / `observe` / `release`。
+
 **Parent Contract**: [docs/COMPATIBILITY.md](../../docs/COMPATIBILITY.md)（#25 订正后的事实表是本脚本的解析输入与首个基准）
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - CI 核对记录 SHA 与公开 ref 是否仍一致 (Priority: P1)
+### User Story 1 - 普通 CI 只核静态完整性；HEAD 观测与发布完整性分模式 (Priority: P1)
 
-维护者推送或开 PR 时，门禁读取 `docs/COMPATIBILITY.md` 的门禁核对表，对每个公开上游执行匿名 `git ls-remote`，把记录 SHA 与真实 ref 比对。一致则通过；不一致则失败并打印上游名、记录值、真实值、漂移说明和观测时间。
+维护者推送或开 PR 时，默认 `--mode=static` 只解析门禁核对表并核记录 SHA 形态，不查询实时上游 HEAD。定时或人工 `--mode=observe` 才对每个公开上游执行匿名 `git ls-remote`；HEAD 前进输出类型化 `drift`（退出 0），只表示需再观察，不自动推断不兼容。发布前 `--mode=release` 核不可变 tag 是否仍指向记录 SHA，或无 tag 时记录 commit 是否仍从已接受 ref 可达；单纯 HEAD 前进不阻塞发布。
 
-**Why this priority**: 假观测「提交未变」已经进过强制读物。没有自动核对，下游每次交付都会再继承一次。
+**Why this priority**: 假观测「提交未变」已经进过强制读物，但把移动分支 HEAD 前进写成普通 PR 失败，会阻断与上游无关的交付（#41）。
 
-**Independent Test**: 夹具表记录值等于注入的 ls-remote 结果时退出码 0；不等时非零退出且输出含两侧 SHA。
+**Independent Test**: 静态模式不调用 ls-remote 且 HEAD 前进不失败；observe 在 SHA 不等时退出 0 且 `incompatibility: false`；release 在 tag 移动或 commit 不可达时非零退出。
 
 **Acceptance Scenarios**:
 
-1. **Given** 门禁表有两个合法上游且注入的 ls-remote 与记录 SHA 相同，**When** 运行脚本，**Then** 退出码 0，不把距离写成 `0`。
-2. **Given** 某一上游真实 SHA 与记录不同，**When** 运行脚本，**Then** 非零退出，输出含上游名、记录值、真实值、观测时间；漂移量不得为数字 `0`。
+1. **Given** 门禁表有两个合法上游，**When** 以 `static`（默认）运行，**Then** 退出码 0，不查询实时 ref，不把距离写成 `0`。
+2. **Given** 某一上游真实 SHA 与记录不同且 mode 为 `observe`，**When** 运行脚本，**Then** 退出码 0，`status` 为 `drift`，输出含上游名、记录值、真实值、观测时间；不得写成不兼容；漂移量不得为数字 `0`。
 3. **Given** 脚本发现漂移，**When** 结束，**Then** 不得改写 `docs/COMPATIBILITY.md`，不得把已核对基线改成 HEAD。
+4. **Given** 不可变 tag 的实时 SHA 与记录不同且 mode 为 `release`，**When** 运行，**Then** 非零退出，`status` 为 `tag_moved`。
+5. **Given** 分支 HEAD 已前进但记录 commit 仍可达且 mode 为 `release`，**When** 运行，**Then** 退出码 0，`status` 为 `head_advanced`。
 
 ---
 
 ### User Story 2 - 失败必须关闭，缺失不得冒充未漂移 (Priority: P1)
 
-网络不可达、仓库不可解析或已删除、表格无法解析或字段缺失、记录值不是 40 位 commit，都必须 fail closed。不得静默通过，不得把缺失写成 `0`，不得推断「未漂移」。
+表格无法解析或记录值不是 40 位 commit，在所有 mode 都必须 fail closed。`observe` / `release` 下网络不可达或仓库不可解析必须报告 `unavailable` 并非零退出。`static` 不因外部网络不可用失败。不得静默把缺失写成 `0`，不得把 `drift` 写成不兼容。
 
 **Why this priority**: Issue 初版因浅克隆写错过数字。Constitution IV / VIII 禁止用 `0` 冒充未观测。
 
@@ -50,32 +54,34 @@
 
 ### User Story 3 - 离线开关标成未核对而不是通过 (Priority: P1)
 
-`HUFU_DENY_NETWORK=1` 时跳过真实 ls-remote，必须显式标记「未核对」，不得标记为通过。
+`HUFU_DENY_NETWORK=1` 时，`observe` / `release` 跳过真实 ls-remote，必须显式标记「未核对」，不得标记为通过。`static` 不查询网络，仍做表完整性，不得打印「通过」或「未核对」。
 
-**Why this priority**: 与 GitHub/GitLab 只读端口同一开关语义；跳过若算通过，门禁会被关掉。
+**Why this priority**: 与 GitHub/GitLab 只读端口同一开关语义；跳过若算通过，观测/发布门禁会被关掉。
 
-**Independent Test**: 该环境下退出码非 0，输出含「未核对」，不含「通过」。
+**Independent Test**: observe/release 在该环境下退出码非 0，输出含「未核对」，不含「通过」；static 退出码 0 且不含「通过」。
 
 **Acceptance Scenarios**:
 
-1. **Given** `HUFU_DENY_NETWORK=1`，**When** 运行脚本，**Then** 不发起 ls-remote，输出「未核对」，非零退出。
+1. **Given** `HUFU_DENY_NETWORK=1` 且 mode 为 `observe` 或 `release`，**When** 运行脚本，**Then** 不发起 ls-remote，输出「未核对」，非零退出。
+2. **Given** `HUFU_DENY_NETWORK=1` 且 mode 为 `static`，**When** 运行脚本，**Then** 不发起 ls-remote，表合法则退出码 0，不得打印「通过」或「未核对」。
 
 ### Edge Cases
 
 - Cordis 行写的是 `vendor/cordis` 而不是 git 仓库，不得被当成可 ls-remote 的上游。
-- 只比对门禁核对表中的 HEAD 观测，不得把「已核对基线」当成必须等于 `master`/`main` 的条件（基线允许落后）。
+- 门禁核对表记录的是 HEAD 观测，不得把「已核对基线」当成必须等于 `master`/`main` 的条件（基线允许落后）。
+- 普通 PR 的 `static` 模式不得因实时 HEAD 前进或外部网络不可用而失败。
 - `pnpm test` 不得访问真实上游网络。
 
 ## Requirements *(mandatory)*
 
 - **FR-001**: 新增 `scripts/check-upstream-drift.mjs`，解析 `docs/COMPATIBILITY.md` 门禁核对表。
 - **FR-002**: 对表中每个上游执行匿名 `git ls-remote`，只用公开 HTTPS URL，不使用 GitHub API、Token 或凭据。
-- **FR-003**: 漂移、不可用、契约错误、未核对均非零退出。
-- **FR-004**: 输出必须包含上游名、记录值、真实值（若取得）、漂移说明、观测时间。
+- **FR-003**: 退出语义按 mode 区分：`static` 只对契约错误非零退出；`observe` 将 `drift` 作为观测（退出 0），`unavailable` / 契约错误 / 未核对非零退出；`release` 对 `tag_moved`、`unreachable`、`unavailable`、契约错误、未核对非零退出，单纯 HEAD 前进不失败。
+- **FR-004**: 输出必须包含上游名、记录值、真实值（若取得；`static` 为 `not_queried`）、漂移说明、观测时间；`drift` / `head_advanced` 必须声明 `incompatibility: false`。
 - **FR-005**: 任何计数或距离缺失不得写成 `0`。
-- **FR-006**: 接入 `.github/workflows/ci.yml`，与 `pnpm test`、`check-version.mjs`、`git diff --check` 并列。
+- **FR-006**: 接入 `.github/workflows/ci.yml`：普通 `push`/`pull_request` 只跑 `--mode=static`，与 `pnpm test`、`check-version.mjs`、`git diff --check` 并列；实时观测放独立 `schedule` / `workflow_dispatch` 入口。不得用 `continue-on-error` 代替模式拆分。
 - **FR-007**: 不自动修改 `docs/COMPATIBILITY.md`，不自动升级已接受基线。
-- **FR-008**: 不新增常驻服务、定时任务、Daemon 或后台执行。
+- **FR-008**: 不新增 Hufu 运行时常驻服务、Daemon 或产品级 scheduler。允许 GitHub Actions 的 `schedule` / `workflow_dispatch` 作为观测入口。
 
 ## Success Criteria *(mandatory)*
 

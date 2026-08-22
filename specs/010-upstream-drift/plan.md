@@ -5,7 +5,7 @@
 
 ## Summary
 
-把 `docs/COMPATIBILITY.md` 里记录的上游 HEAD 观测做成一次匿名 `git ls-remote` 门禁。脚本只比对 ref 身份，不克隆上游、不改文档、不升已接受基线。失败关闭；`HUFU_DENY_NETWORK=1` 标「未核对」且不得算通过。版本保持 `0.1.0`。
+把 `docs/COMPATIBILITY.md` 里记录的上游 HEAD 观测做成只读门禁。#41 将门禁拆成 `static` / `observe` / `release`：普通 CI 只做表完整性；观测报告 `drift` 但不视为不兼容；发布完整性对 tag 移动与不可达 fail closed。不克隆上游当授权、不改文档、不升已接受基线。`observe`/`release` 下 `HUFU_DENY_NETWORK=1` 标「未核对」且不得算通过。版本保持 `0.1.0`。
 
 ## Technical Context
 
@@ -37,7 +37,7 @@
 
 - **预期减少的操作者时间**：每次交付前不必手工 `git ls-remote` 并对照长文；假「提交未变」会在 CI 失败而不是在下一份强制读物里再错一天。
 - **成本假设**：每个上游一次匿名 ls-remote，无 API 配额，无 Token；墙钟约数秒。Token 用量不适用，标为不可用而不是 `0`。
-- **验证路径**：`tests/upstream-drift.test.ts` 覆盖匹配、漂移、四种失败与离线未核对；CI 增加同名步骤。不把 CI 次数写成产品用量。
+- **验证路径**：`tests/upstream-drift.test.ts` 覆盖 match、HEAD 前进、tag 移动、不可达、离线与契约错误；普通 CI 跑 `--mode=static`，观测入口独立。不把 CI 次数写成产品用量。
 
 ## Complexity Tracking
 

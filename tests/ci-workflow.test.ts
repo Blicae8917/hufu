@@ -29,8 +29,12 @@ describe("GitHub Actions quality gates", () => {
     assert.match(workflow, /branches:\s*\n(?:[^\n]*\n)*?\s*-\s*main/m);
     assert.match(workflow, /pnpm test/);
     assert.match(workflow, /node scripts\/check-version\.mjs/);
-    assert.match(workflow, /node scripts\/check-upstream-drift\.mjs/);
+    assert.match(workflow, /node scripts\/check-upstream-drift\.mjs --mode=static/);
     assert.match(workflow, /git diff --check/);
+    assert.match(workflow, /workflow_dispatch:/);
+    assert.match(workflow, /schedule:/);
+    assert.match(workflow, /--mode=observe/);
+    assert.doesNotMatch(workflow, /continue-on-error/);
   });
 
   it("stays read-only and does not add secrets or product side effects", () => {

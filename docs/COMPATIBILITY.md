@@ -44,7 +44,10 @@ git rev-list --count 58f545aee1ce00c57b7a4f21b13d78ee0367b3da..origin/main
 ## 门禁核对表
 
 本表是 `scripts/check-upstream-drift.mjs` 的解析输入。只记录公开 git ref 的 **HEAD 观测**，
-不把「已核对基线」改成 HEAD，也不自动升级已接受实现基线。漂移由人复核后改此表。
+不把「已核对基线」改成 HEAD，也不自动升级已接受实现基线。普通 PR / 默认 CI 只做静态表完整性，
+不因实时 HEAD 前进失败。`--mode=observe` 把 `drift` 记为需再观察的观测，不自动推断不兼容。
+`--mode=release` 对不可变 tag 移动、记录 commit 不可达或合同错误 fail closed。
+漂移由人复核后改此表。
 
 | 上游 | 仓库 | ref | 记录 SHA | 观测日期 |
 | --- | --- | --- | --- | --- |

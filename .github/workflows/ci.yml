@@ -5,6 +5,17 @@ on:
     branches:
       - main
   pull_request:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      gate_mode:
+        description: "observe 或 release"
+        type: choice
+        options:
+          - observe
+          - release
+        default: observe
 
 permissions:
   contents: read
@@ -12,6 +23,7 @@ permissions:
 jobs:
   gates:
     name: gates
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -37,11 +49,26 @@ jobs:
       - name: node scripts/check-version.mjs
         run: node scripts/check-version.mjs
 
-      - name: node scripts/check-upstream-drift.mjs
-        run: node scripts/check-upstream-drift.mjs
+      - name: node scripts/check-upstream-drift.mjs --mode=static
+        run: node scripts/check-upstream-drift.mjs --mode=static
 
       - name: git diff --check
         run: |
           git fetch --no-tags origin main
           git diff --check origin/main...HEAD
           git diff --check
+
+  upstream-observe:
+    name: upstream-observe
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.19.0"
+
+      - name: node scripts/check-upstream-drift.mjs --mode=observe
+        run: node scripts/check-upstream-drift.mjs --mode=${{ github.event.inputs.gate_mode || 'observe' }}
