@@ -4,6 +4,10 @@
 
 - 修改行为前，必须阅读 `.specify/memory/constitution.md`、`README.md`、`docs/SPEC.md`、
   `docs/ARCHITECTURE.md` 以及适用的 ADR。
+- 简化验收类任务（GitHub `fix` 标签，或父 Module 已覆盖且不改变行为合同的小型 Bug / 文档修正）
+  只需阅读对应 Issue 本体、父合同、受影响实现与测试，不强制全量预读 Constitution、README、
+  `docs/SPEC.md`、`docs/ARCHITECTURE.md` 与全部 ADR。依据 Constitution VIII「低风险工作不得强制增加……不产生决策价值的上下文」。
+  完整 Module Issue 仍须按上一条预读。
 - 修改 DeepSeek Harness、Cordis、LoopX、RuntimeProvider 或 EngineProvider 兼容边界前，还必须读取
   `docs/COMPATIBILITY.md` 并重新核对相关公开上游状态。
 - 开展功能工作时，必须阅读对应的 GitHub Module Issue 及 `specs/` 下的产物。
