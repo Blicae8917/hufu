@@ -1,11 +1,11 @@
 # 架构说明
 
-状态：候选，待 `0.1.0` 设计 Pull Request 接受
-最后更新：2026-08-16
+状态：产品定位已由 [ADR 0006](adr/0006-upstream-positioning.md) 接受；`0.1.0` 仍未发布
+最后更新：2026-08-23
 当前实现：零 Cordis 依赖的 TypeScript 领域核心、`hufu validate`、本机 `local` JSONL
 账本与有界命令（含 `hufu decide` 零拷贝决策流、`hufu pilot` 效能试点记录）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及
 `packages/hufu-dsh` DeepSeek Profile Module（`@deepseek-ai/cordis` 仅出现在该包）。
-下表「V1 实现」描述目标架构；会商或网页尚未交付。效能试点门禁已交付，不表示网页已实现，也不表示 `0.1.0` 已正式发布。
+下表「V1 实现」描述目标架构；会商或网页不是已接受方向。效能试点门禁已交付，不表示网页已实现，也不表示 `0.1.0` 已正式发布。
 
 ## 架构目标
 
@@ -18,9 +18,10 @@ Hufu 在不夺取事实所有权的前提下，为操作者组合出可信视图
 - [`ADR 0002：分离 Host 集成、CLI、MCP 与执行引擎`](adr/0002-host-cli-mcp-engine-separation.md)，
   已由 ADR 0003 取代；
 - [`ADR 0003：采用 Cordis-first 插件架构与双 Profile`](adr/0003-cordis-first-plugin-architecture.md)；
-- [`ADR 0004：有界关键决策会商`](adr/0004-bounded-decision-council.md)，属于未来插件规划，
-  不进入 `0.1.0` 实现；
-- [`ADR 0005：零拷贝决策传递与语义重基`](adr/0005-zero-copy-decision-transfer.md)。
+- [`ADR 0004：有界关键决策会商`](adr/0004-bounded-decision-council.md)，历史候选记录，
+  ADR 0006 之后不是已接受实现方向；
+- [`ADR 0005：零拷贝决策传递与语义重基`](adr/0005-zero-copy-decision-transfer.md)；
+- [`ADR 0006：Hufu 作为 LoopX 下游的严格项目协调 Provider`](adr/0006-upstream-positioning.md)。
 
 动态上游版本、已核对提交和漂移状态记录在[上游兼容性与同步基线](COMPATIBILITY.md)，
 不写入 Constitution 或把源码核对等同于实现支持。
@@ -31,7 +32,7 @@ Hufu 在不夺取事实所有权的前提下，为操作者组合出可信视图
 | --- | --- | --- | --- |
 | 任务正本 | WorkItem 生命周期和原生任务状态 | `github`、`gitlab` 或 `local` | 执行策略、UI 状态、推导出的授权 |
 | 执行事实 | Run、Session、Workspace、决策传递、Evidence、Receipt、Effect readback、Handoff | Hufu DomainEvent 与入站 Host/Profile Adapter 的有界观测；后续可选 Runtime/Engine | Issue 生命周期、审批状态或 `commander` 授权 |
-| 呈现 | Status 视图、Dashboard、依赖和下一步渲染 | 模型 Tool 与 CLI；loopback Web 仅在效能门禁通过后进入 `0.1.0` | 任何权威任务状态或执行状态 |
+| 呈现 | Status 视图、依赖和下一步渲染 | 模型 Tool 与 CLI；loopback Web 不是已接受方向 | 任何权威任务状态或执行状态 |
 
 三条轴通过类型化合同组合，而不是塞进同一个 Provider 枚举。
 
@@ -43,7 +44,7 @@ Hufu 在不夺取事实所有权的前提下，为操作者组合出可信视图
      +------------------------+------------------------+
      |                        |                        |
    任务正本                 执行事实                  Renderer
- github/gitlab/local    Run/Evidence/Handoff  CLI/条件式 loopback UI
+ github/gitlab/local    Run/Evidence/Handoff  CLI / 未来企业 Renderer
      |                        |                        |
      +--------------------应用视图---------------------+
                               |
@@ -73,8 +74,8 @@ Cordis 包和版本记录在兼容性基线；替换实现必须重新执行合�
                                    |
         +--------------------------+--------------------------+
         |                          |                          |
- Authority Provider      RuntimeProvider（未来）       EngineProvider
- github/gitlab/local    deepseek/codex/claude/...     native/loopx
+ Authority Provider      Runtime（入站 Consumer）       EngineProvider
+ github/gitlab/local    deepseek / CLI / Skill        native / loopx-mechanisms
         |                          |                          |
         +--------------------------+--------------------------+
                                    |
@@ -153,12 +154,13 @@ DeepSeek Profile 可以在 Hufu StorageDomain 后使用已验证的 Host Storage
 
 DeepSeek Profile 优先使用 DeepSeek Harness 原生 Service/Event；Standalone Profile 的 `0.1.0`
 只提供入站 Consumer 和手工信息包路径。创建、继续或投递其他 Host Session 的出站 RuntimeProvider
-必须由后续独立 Module 和授权合同交付。`0.1.0` 可以生成下一步指令并记录消息驱动的执行事实，
+在 ADR 0006 之后不是已接受方向。`0.1.0` 可以生成下一步指令并记录消息驱动的执行事实，
 但不自动启动 Agent，也不提供后台调度。
 
-LoopX 是可选 `engine-loopx` Provider 和机制来源，不是只读 Provider，也不是任务正本。其 Goal、Todo、
-Registry、Scheduler、Quota 或 Policy 只有通过 Hufu Engine Service、独立 Module Issue 和边界测试后
-才可以分阶段采用，且不能取得外部 Issue 生命周期或 `commander` 授权的所有权。
+Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务控制面。已交付的
+`loopx-mechanisms` 须显式选用，不是任务正本。Goal、Todo、Registry、Scheduler、Quota
+属于 LoopX；Hufu 不重复实现它们，也不能让 LoopX 取得外部 Issue 生命周期或 `commander`
+授权的所有权。Hufu↔LoopX 桥须另立 Module，本文不授权实现。
 
 ## Renderer 边界
 
@@ -567,26 +569,26 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
    和 `connect`、`doctor`、`status`、`handoff` 有界 Commands。
 4. M3：本仓库 GitHub Provider 以只读影子模式交付，并以本项目自身验证同一 CurrentView。
 
-发布门之后的已接受方向按独立 Module 依次评估：
+发布门之后已交付、且不阻塞 `0.1.0` 的 Module：
 
 5. 零拷贝决策 Schema、决策增量回放和事件驱动 semantic rebase（#6，已在本 `0.1.0` 系列交付）。
 6. DeepSeek Harness 原生插件路径（#7，已在本 `0.1.0` 系列交付）：隔离 Profile 真装真卸，
    与 Standalone CLI 对同一夹具折叠结构相等的 CurrentView；不修改 Agent Loop。
 7. GitLab Provider 以只读影子模式交付并验证同一 CurrentView（#8，已在本 `0.1.0` 系列交付）。
-8. `engine-loopx` 第一批 typed result、Receipt/readback 和有界恢复合同（#9，已在本 `0.1.0` 系列交付为可选引擎）；
-   再按试点收益决定是否扩大范围。
-9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token（#10，已在本 `0.1.0` 系列交付为记录与扩充门禁）；
-   只有出现可解释净收益且另有明确批准，才实现 loopback Web Console 或更高自治能力，否则暂停扩充。本模块合入不等于网页已交付，也不等于 `0.1.0` 已正式发布。
+8. `loopx-mechanisms` 第一批 typed result、Receipt/readback 和有界恢复合同（#9，已在本 `0.1.0` 系列交付为须显式选用的机制记录口）。
+9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token（#10，已在本 `0.1.0` 系列交付为记录与扩充门禁）。
+   本模块合入不等于网页已交付，也不等于 `0.1.0` 已正式发布。
 
-关键决策会商、多 Host 出站 Runtime 和自动 CLI 扇出不在上述 `0.1.0` 顺序内；它们必须另立
-Module Issue 和 Spec Kit 合同。
+ADR 0006 废止原 M10–M15 自行控制面计划，以及关键决策会商、loopback Web Console 和出站 Runtime
+作为已接受方向。后续仅可设计、尚未授权实现的能力是自建 GitLab AuthorityProvider、
+Hufu↔LoopX Authority/Decision/Evidence 桥，以及通过效能门禁后的企业 Renderer。
 
 私有试点证据留在其所属环境；公开仓只保存脱敏方法、聚合结果和已采纳结论。
 
 ## 与初始实现的关系
 
 版本 `0.0.1` 只实现最初的不可变 `TaskEnvelope` 验证和确定性 CLI。
-本文所述 `0.1.0` Cordis-first 架构是候选规划范围。当前主线已交付 TypeScript 核心、本机账本、
+本文所述 `0.1.0` Cordis-first 架构描述已接受边界。当前主线已交付 TypeScript 核心、本机账本、
 本仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径、LoopX 第一批机制
-作为可选引擎，以及效能试点记录与扩充门禁；这不表示完整 LoopX 控制面已经实现，也不表示已经获得远端进度授权、网页已交付或 `0.1.0` 已正式发布。
+记录口，以及效能试点记录与扩充门禁；这不表示完整 LoopX 控制面已经实现或将被搬入，也不表示已经获得远端进度授权、网页已交付或 `0.1.0` 已正式发布。
 每个 Module 必须通过独立的已接受 Issue、Spec Kit 产物、失败测试、最小实现和可审阅证据交付。

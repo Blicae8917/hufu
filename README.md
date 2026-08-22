@@ -37,15 +37,18 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - 效能试点记录与扩充门禁：`hufu pilot --record` 写入封闭结论与派生度量；`hufu serve` 保持拒绝；缺失墙钟或用量不得写成 `0`；
 - 一套当前有效的 pnpm / Node 门禁。
 
-当前版本**尚未**提供关键决策会商、网页界面或出站 Runtime。
+当前版本**尚未**提供关键决策会商、网页界面或出站 Runtime；ADR 0006 之后它们也不是已接受方向。
 GitHub 正本仅接受本公开仓；GitLab 正本接受可解析的两段 `group/project`，且都不写回议题。
 
-`0.1.0` 的发布门是一个本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库
-GitHub 只读投影。零拷贝决策流与 DeepSeek 原生插件已由后续 Module（GitHub #6 / #7）在同一 `0.1.0`
-系列交付，仍不阻塞发布门。LoopX 第一批机制已由后续 Module（GitHub #9）交付为可选引擎；
-效能试点门禁已由后续 Module（GitHub #10）交付为记录与门禁，**网页仍未实现**，合入不等于 `0.1.0` 已发布。
-完整 LoopX 控制面、关键决策会商、loopback Web Console
-和出站 Runtime 仍是已接受方向，由独立 Module 分别交付。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
+Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务控制面。`0.1.0` 的发布门是一个
+本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库 GitHub 只读投影。
+零拷贝决策流与 DeepSeek 原生插件已由后续 Module（GitHub #6 / #7）在同一 `0.1.0`
+系列交付，仍不阻塞发布门。LoopX 第一批机制已由后续 Module（GitHub #9）交付为须显式选用的
+机制记录口；效能试点门禁已由后续 Module（GitHub #10）交付为记录与门禁，**网页仍未实现**，
+合入不等于 `0.1.0` 已发布。原自行建设的 Goal/Todo/Scheduler/Heartbeat、PM Engine、
+Wave Engine 与完整 Web 控制面已由 [ADR 0006](docs/adr/0006-upstream-positioning.md) 废止。
+后续仅可设计、尚未授权实现的能力是自建 GitLab AuthorityProvider、Hufu↔LoopX 桥，以及
+通过效能门禁后的企业 Renderer。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
 ## 当前基线快速开始
 
@@ -86,6 +89,7 @@ node <repo>/dist/src/hufu/main.js connect --project-root <workdir> --project-id 
 再用 `--result` / `--receipt` 记录类型化结果与核验回执；合同见 `specs/008-loopx-engine/`。
 已交接的工作可用 `hufu pilot --record` 记下效能试点；`status` 投影门禁，`hufu serve` 在本模块拒绝启动网页。
 合同见 `specs/009-pilot-gate/`。首轮基线的脱敏方法、聚合口径与槽位缺口见 [docs/pilot-baseline.md](docs/pilot-baseline.md)。
+ADR 0006 相对该基线的定位效能记录见 [docs/pilot-positioning.md](docs/pilot-positioning.md)。
 `status` 与 `handoff` 只暴露 `decision_id` / 版本 / 摘要，不复制目标或验收正文。`decide` 不联网。
 
 ### DeepSeek 原生插件（隔离 Profile）
@@ -147,8 +151,7 @@ git checkout v0.0.1
 
 当前开发版本是尚未发布的 `0.1.0`；最近的历史发布基线是 `0.0.1`（标签 `v0.0.1`）。
 这是一个早期、合同优先的构建。公共 API 在 `1.0.0` 前可能发生变化。
-当前仓库已提供六个有界命令（`connect` / `doctor` / `status` / `handoff` / `decide` / `pilot`）、本机账本、本公开仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径，以及可选 `loopx-mechanisms` 引擎；`hufu serve` 为已知拒绝命令。尚未实现
-完整 LoopX 控制面、关键决策会商或远端出站 Runtime，默认不启用写回或出站集成。
+当前仓库已提供六个有界命令（`connect` / `doctor` / `status` / `handoff` / `decide` / `pilot`）、本机账本、本公开仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径，以及须显式选用的 `loopx-mechanisms` 机制记录口；`hufu serve` 为已知拒绝命令。ADR 0006 之后不再把完整 LoopX 控制面、关键决策会商或远端出站 Runtime 写成已接受方向，默认不启用写回或出站集成。
 
 ## 参与贡献与安全
 

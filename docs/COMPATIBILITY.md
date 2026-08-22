@@ -1,8 +1,10 @@
 # 上游兼容性与同步基线
 
 状态：DeepSeek 原生插件路径已实现；契约测试声明运行于 `@deepseek-ai/cordis` `4.0.1`。
-LoopX 第一批机制已由 Module #9 按自有合同重写为可选引擎；完整控制面仍未采用，核对本仍为 MIT `0.4.7`。
-最后核对：2026-08-22
+LoopX 第一批机制已由 Module #9 按自有合同重写为须显式选用的机制记录口；完整控制面不采用。
+产品定位已由 [ADR 0006](adr/0006-upstream-positioning.md) 接受：Hufu 是 LoopX 下游的严格项目协调 Provider。
+核对本仍为 MIT `0.4.7`。
+最后核对：2026-08-23
 
 本文件记录 Hufu 每个发布系列实际核对过的公开上游版本。它是动态兼容性记录，不是 Constitution；
 版本出现于此只表示设计或测试基线，不表示 Hufu 已经实现、发布或支持对应集成。
@@ -13,7 +15,7 @@ LoopX 第一批机制已由 Module #9 按自有合同重写为可选引擎；完
 | --- | --- | --- | --- | --- |
 | DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | `@deepseek-ai/dsh` `0.1.0-rc.5` | 已核对基线保持 `47f9438` / rc.5。2026-08-16「提交未变」不成立：当日 `master` 实际停在 `5bb600f`。2026-08-19 观测 HEAD 为 `99f6f02` / `dsh-v0.1.0-rc.7`（超前基线 111 commits / 24 first-parent）。2026-08-22 再核 HEAD 为 `b150a551` / `dsh-v0.1.1-rc.2`（超前基线 854 commits / 101 first-parent）。rc.7、rc.8 与 `0.1.1-rc.2` 都不是已接受实现基线。插件契约测试使用隔离 mount/dispose，不声明浮动 `master` 支持。 |
 | DeepSeek 使用的 Cordis | DeepSeek Harness `vendor/cordis` | 同上 | `@deepseek-ai/cordis` `4.0.1` | 目标插件与生命周期基础；它是 DeepSeek 命名的实现，不等同于对其他 Cordis 项目的兼容承诺。 |
-| LoopX | `huangruiteng/loopx` | `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` | `loopx` `0.4.7` | 已完成机制级核对（MIT）。不是 Hufu 任务正本。2026-08-16 公开 `main` HEAD 为 `8c103df` / `v0.4.8`（Apache-2.0），相对核对本超前 47 个提交。2026-08-19 观测 HEAD 为 `88f96da2` / `v0.4.9`，相对核对本超前 146 个提交，相对 `v0.4.8` 超前 99 个提交。2026-08-22 再核 HEAD 为 `02cb68bb`（`pyproject` `0.5.1`），相对核对本超前 294 个提交。手工记录的 LoopX HEAD 具有当日失效性，上述观测都不是已接受实现基线。#9 第一批机制已按 Hufu 自有合同重写交付，未复制上游源码、未引入 `loopx` 发行包。定位裁决见 #26，不在本文件作出。 |
+| LoopX | `huangruiteng/loopx` | `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` | `loopx` `0.4.7` | 已完成机制级核对（MIT）。不是 Hufu 任务正本。产品定位见 ADR 0006：Hufu 是 LoopX 下游的严格项目协调 Provider，不重复 Goal/Todo/Scheduler/Heartbeat 或完整 Web 控制面。本文件不升级已接受实现基线，也不授权实现 Hufu↔LoopX 桥或 Renderer。2026-08-16 公开 `main` HEAD 为 `8c103df` / `v0.4.8`（Apache-2.0），相对核对本超前 47 个提交。2026-08-19 观测 HEAD 为 `88f96da2` / `v0.4.9`，相对核对本超前 146 个提交，相对 `v0.4.8` 超前 99 个提交。2026-08-22 再核 HEAD 为 `02cb68bb`（`pyproject` `0.5.1`），相对核对本超前 294 个提交。手工记录的 LoopX HEAD 具有当日失效性，上述观测都不是已接受实现基线。#9 第一批机制已按 Hufu 自有合同重写交付，未复制上游源码、未引入 `loopx` 发行包。 |
 
 DeepSeek Harness 当前目标工具链基线为 Node.js `^22.19.0 || >=24.0.0`、pnpm `11.7.0`、
 严格 TypeScript、ESM、Vitest、Oxlint 和 tsdown。Hufu 第一张实现 Module 的 Plan 必须重新核对这些值，
