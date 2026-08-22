@@ -44,8 +44,8 @@ Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务�
 本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库 GitHub 只读投影。
 零拷贝决策流与 DeepSeek 原生插件已由后续 Module（GitHub #6 / #7）在同一 `0.1.0`
 系列交付，仍不阻塞发布门。LoopX 第一批机制已由后续 Module（GitHub #9）交付为须显式选用的
-机制记录口；效能试点门禁已由后续 Module（GitHub #10）交付为记录与门禁，**网页仍未实现**，
-合入不等于 `0.1.0` 已发布。原自行建设的 Goal/Todo/Scheduler/Heartbeat、PM Engine、
+机制记录口；效能试点门禁已由后续 Module（GitHub #10）交付为记录与门禁，**网页仍未实现**。
+原自行建设的 Goal/Todo/Scheduler/Heartbeat、PM Engine、
 Wave Engine 与完整 Web 控制面已由 [ADR 0006](docs/adr/0006-upstream-positioning.md) 废止。
 后续仅可设计、尚未授权实现的能力是自建 GitLab AuthorityProvider、Hufu↔LoopX 桥，以及
 通过效能门禁后的企业 Renderer。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
@@ -149,7 +149,7 @@ git checkout v0.0.1
 
 ## 项目状态
 
-当前开发版本是尚未发布的 `0.1.0`；最近的历史发布基线是 `0.0.1`（标签 `v0.0.1`）。
+当前发布版本是 `0.1.0`（标签 `v0.1.0`）；上一发布基线是 `0.0.1`（标签 `v0.0.1`）。
 这是一个早期、合同优先的构建。公共 API 在 `1.0.0` 前可能发生变化。
 当前仓库已提供六个有界命令（`connect` / `doctor` / `status` / `handoff` / `decide` / `pilot`）、本机账本、本公开仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径，以及须显式选用的 `loopx-mechanisms` 机制记录口；`hufu serve` 为已知拒绝命令。ADR 0006 之后不再把完整 LoopX 控制面、关键决策会商或远端出站 Runtime 写成已接受方向，默认不启用写回或出站集成。
 
