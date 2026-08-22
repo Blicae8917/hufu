@@ -129,4 +129,58 @@ describe("gitlab adapter", () => {
       );
     });
   });
+
+  it("times out a hanging GitLab fetch and keeps the old observation stale", async () => {
+    await withTempDir(async (dir) => {
+      connectWorkspace(dir, {
+        commander: "human:alice",
+        grantScope: "read-only projection and handoff",
+        projectId: "demo",
+        repository: "example-group/example-project",
+        taskAuthority: "gitlab",
+      });
+      const okPort: GitLabPort = {
+        async listIssueProjections() {
+          return {
+            incomplete: false,
+            items: [
+              {
+                external_ref: "gitlab:example-group/example-project#456",
+                native_state: "opened",
+                original_url:
+                  "https://gitlab.com/example-group/example-project/-/issues/456",
+                title: "M6",
+                observed_at: "2026-08-16T12:00:00.000Z",
+              },
+            ],
+            observed_at: "2026-08-16T12:00:00.000Z",
+          };
+        },
+      };
+      await statusWorkspace(dir, { refresh: true, gitlabPort: okPort });
+      const before = readFileSync(gitlabCachePath(dir), "utf8");
+
+      const hanging = createHttpGitLabPort({
+        fetch: () => new Promise(() => {}),
+        timeoutMs: 30,
+      });
+      await assert.rejects(
+        () => statusWorkspace(dir, { refresh: true, gitlabPort: hanging }),
+        (error: unknown) =>
+          error instanceof CommandError &&
+          error.code === "OBSERVATION_UNAVAILABLE" &&
+          /timed out/i.test((error as CommandError).message),
+      );
+      assert.equal(readFileSync(gitlabCachePath(dir), "utf8"), before);
+      const view = await statusWorkspace(dir, {
+        now: new Date("2026-08-18T00:00:00.000Z"),
+      });
+      assert.equal(view.work_item_set.freshness, "stale");
+      assert.equal(view.work_items.length, 1);
+      assert.equal(
+        JSON.stringify(view).includes('"value":0'),
+        false,
+      );
+    });
+  });
 });

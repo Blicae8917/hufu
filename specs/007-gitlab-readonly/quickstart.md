@@ -22,6 +22,9 @@ pnpm --dir <repo> hufu status
 
 此时 `status` 应成功、不上网、工作项为数据不足。
 
+将 `HUFU_DENY_NETWORK=1` 写入环境可禁止真实 `fetch`（测试注入的 Port 不受影响）。
+只读 GET 超时固定为 10 秒（`FETCH_TIMEOUT_MS = 10_000`）。
+
 也接受 `https://gitlab.com/example-group/example-project` 作为 `--repository`。GitHub 网址或自建 Host 必须被拒绝。
 
 ## 显式刷新

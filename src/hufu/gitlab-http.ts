@@ -1,4 +1,5 @@
 import { CommandError, isJsonObject } from "./errors.js";
+import { fetchWithTimeout } from "./fetch-timeout.js";
 import {
   type GitLabIssueProjection,
   type GitLabPort,
@@ -12,7 +13,10 @@ import {
 export interface HttpGitLabPortOptions {
   readonly fetch?: typeof fetch;
   readonly now?: () => Date;
+  readonly timeoutMs?: number;
 }
+
+export const FETCH_TIMEOUT_MS = 10_000;
 
 export function createHttpGitLabPort(
   options: HttpGitLabPortOptions = {},
@@ -34,10 +38,15 @@ export function createHttpGitLabPort(
       const listUrl = `https://gitlab.com/api/v4/projects/${encoded}/issues?state=all&per_page=100`;
       let response: Response;
       try {
-        response = await fetchFn(listUrl, {
-          headers: { Accept: "application/json" },
-          method: "GET",
-        });
+        response = await fetchWithTimeout(
+          () =>
+            fetchFn(listUrl, {
+              headers: { Accept: "application/json" },
+              method: "GET",
+            }),
+          options.timeoutMs ?? FETCH_TIMEOUT_MS,
+          "gitlab read timed out",
+        );
       } catch (error) {
         throw new CommandError(
           "OBSERVATION_UNAVAILABLE",

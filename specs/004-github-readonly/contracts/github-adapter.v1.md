@@ -16,6 +16,7 @@ GitHubPort.listIssueProjections(): Promise<ProjectionListResult>
 - 不发送 `Authorization`
 - 目标仅本公开仓 Issues 列表（及实现所必需的只读查询参数）
 - 非 2xx、超时、无 JSON → 抛出/返回观测不可用，由命令映射退出码 4
+- 超时固定为 `FETCH_TIMEOUT_MS = 10_000`（10 秒），不得依赖环境默认或无限等待
 - 响应体中的 `body` 字段不得传入 CurrentView 构造器
 
 ## 测试锁

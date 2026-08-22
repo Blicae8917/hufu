@@ -112,4 +112,58 @@ describe("github adapter", () => {
       assert.equal(readProjectionCache(dir)?.items[0]?.external_ref, "github:Blicae8917/hufu#4");
     });
   });
+
+  it("times out a hanging GitHub fetch and keeps the old observation stale", async () => {
+    await withTempDir(async (dir) => {
+      connectWorkspace(dir, {
+        commander: "human:alice",
+        grantScope: "read-only projection and handoff",
+        projectId: "hufu",
+        repository: "https://github.com/Blicae8917/hufu",
+        taskAuthority: "github",
+      });
+      const okPort: GitHubPort = {
+        async listIssueProjections() {
+          return {
+            incomplete: false,
+            items: [
+              {
+                external_ref: "github:Blicae8917/hufu#4",
+                native_state: "open",
+                original_url: "https://github.com/Blicae8917/hufu/issues/4",
+                title: "M3",
+                observed_at: "2026-08-15T23:00:00.000Z",
+              },
+            ],
+            observed_at: "2026-08-15T23:00:00.000Z",
+          };
+        },
+      };
+      await statusWorkspace(dir, { refresh: true, githubPort: okPort });
+      const before = readFileSync(cachePath(dir), "utf8");
+
+      const hanging = createHttpGitHubPort({
+        fetch: () => new Promise(() => {}),
+        timeoutMs: 30,
+      });
+      await assert.rejects(
+        () => statusWorkspace(dir, { refresh: true, githubPort: hanging }),
+        (error: unknown) =>
+          error instanceof CommandError &&
+          error.code === "OBSERVATION_UNAVAILABLE" &&
+          /timed out/i.test((error as CommandError).message),
+      );
+      assert.equal(readFileSync(cachePath(dir), "utf8"), before);
+      const view = await statusWorkspace(dir, {
+        now: new Date("2026-08-17T00:00:00.000Z"),
+      });
+      assert.equal(view.work_item_set.freshness, "stale");
+      assert.equal(view.work_items.length, 1);
+      assert.notEqual(view.work_items.length, 0);
+      assert.equal(
+        JSON.stringify(view).includes('"value":0'),
+        false,
+      );
+    });
+  });
 });

@@ -20,6 +20,7 @@ GitLabPort.listIssueProjections(project: GroupProject): Promise<ProjectionListRe
 - 目标为已连接项目的 Issues 列表：`/api/v4/projects/<urlencoded group/project>/issues`（及实现所必需的只读查询参数，如 `state=all`、`per_page`）
 - 议题号使用 `iid`；原始链接使用 `web_url`
 - 非 2xx、超时、无 JSON → 抛出/返回观测不可用，由命令映射退出码 4
+- 超时固定为 `FETCH_TIMEOUT_MS = 10_000`（10 秒），不得依赖环境默认或无限等待
 - 响应体中的 `description` 字段不得传入 CurrentView 构造器或缓存对象
 - 不得把自定义 Host 或 token 写入连接记录
 
