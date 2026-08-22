@@ -64,12 +64,12 @@ pnpm hufu validate examples/task.json
 
 验证成功时会输出紧凑的 JSON 摘要。输入无效时退出码为 `2`，合同错误写入 stderr。
 
-在空的临时工作目录中试用本机账本（把 `<repo>` 换成 Hufu 仓库路径，不要把本机绝对路径写进仓库文档）：
+在空的临时工作目录中试用本机账本。先完成上面的 `pnpm test`（会编译出 `dist/`），再进入目标工作目录，直接调用已构建的 CLI（把 `<repo>` 换成 Hufu 仓库路径，不要把本机绝对路径写进仓库文档）。不要用 `pnpm --dir <repo>`：它会把进程 cwd 改成仓库根，账本会写进源码树。
 
 ```bash
-pnpm --dir <repo> hufu connect --project-id demo --repository https://example.com/demo.git --task-authority local --commander human:alice --grant-scope "local ledger and handoff"
-pnpm --dir <repo> hufu doctor
-pnpm --dir <repo> hufu status
+node <repo>/dist/src/hufu/main.js connect --project-id demo --repository https://example.com/demo.git --task-authority local --commander human:alice --grant-scope "local ledger and handoff"
+node <repo>/dist/src/hufu/main.js doctor
+node <repo>/dist/src/hufu/main.js status
 ```
 
 成功时标准输出是一个 JSON 对象。`connect` 会在该工作目录写下 `.hufu/ledger/events.jsonl`（已 gitignore）。
@@ -98,16 +98,16 @@ dsh plugin --profile hufu-fixture add <repo>/packages/hufu-dsh
 本公开仓 GitHub 正本（连接时不上网；查看默认读缓存）：
 
 ```bash
-pnpm --dir <repo> hufu connect --project-id hufu --repository https://github.com/Blicae8917/hufu --task-authority github --commander human:alice --grant-scope "read-only projection and handoff"
-pnpm --dir <repo> hufu status
-pnpm --dir <repo> hufu status --refresh
+node <repo>/dist/src/hufu/main.js connect --project-id hufu --repository https://github.com/Blicae8917/hufu --task-authority github --commander human:alice --grant-scope "read-only projection and handoff"
+node <repo>/dist/src/hufu/main.js status
+node <repo>/dist/src/hufu/main.js status --refresh
 ```
 
 GitLab 正本（连接时不上网；查看默认读缓存；门禁用夹具，不打真实 GitLab）：
 
 ```bash
-pnpm --dir <repo> hufu connect --project-id demo --repository example-group/example-project --task-authority gitlab --commander human:alice --grant-scope "read-only projection and handoff"
-pnpm --dir <repo> hufu status
+node <repo>/dist/src/hufu/main.js connect --project-id demo --repository example-group/example-project --task-authority gitlab --commander human:alice --grant-scope "read-only projection and handoff"
+node <repo>/dist/src/hufu/main.js status
 ```
 
 `status --refresh` 才会联网。将 `HUFU_DENY_NETWORK=1` 写入环境可禁止真实 `fetch`（测试注入的 Port 不受影响）；被拒绝时映射 `OBSERVATION_UNAVAILABLE`，保留旧观测。GitHub / GitLab 只读 GET 的超时固定为 10 秒（`FETCH_TIMEOUT_MS = 10_000`），超时同样保留旧缓存并将时效标为 `stale`，不得把缺失写成 `0`。
