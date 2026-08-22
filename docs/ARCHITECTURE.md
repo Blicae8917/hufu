@@ -1,11 +1,11 @@
 # 架构说明
 
-状态：产品定位已由 [ADR 0006](adr/0006-upstream-positioning.md) 接受；`0.1.0` 仍未发布
+状态：产品定位已由 [ADR 0006](adr/0006-upstream-positioning.md) 接受；`0.1.0` 已由标签 `v0.1.0` 发布
 最后更新：2026-08-23
 当前实现：零 Cordis 依赖的 TypeScript 领域核心、`hufu validate`、本机 `local` JSONL
 账本与有界命令（含 `hufu decide` 零拷贝决策流、`hufu pilot` 效能试点记录）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及
 `packages/hufu-dsh` DeepSeek Profile Module（`@deepseek-ai/cordis` 仅出现在该包）。
-下表「V1 实现」描述目标架构；会商或网页不是已接受方向。效能试点门禁已交付，不表示网页已实现，也不表示 `0.1.0` 已正式发布。
+下表「V1 实现」描述目标架构；会商或网页不是已接受方向。效能试点门禁已交付，不表示网页已实现。
 
 ## 架构目标
 
@@ -577,7 +577,7 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 7. GitLab Provider 以只读影子模式交付并验证同一 CurrentView（#8，已在本 `0.1.0` 系列交付）。
 8. `loopx-mechanisms` 第一批 typed result、Receipt/readback 和有界恢复合同（#9，已在本 `0.1.0` 系列交付为须显式选用的机制记录口）。
 9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token（#10，已在本 `0.1.0` 系列交付为记录与扩充门禁）。
-   本模块合入不等于网页已交付，也不等于 `0.1.0` 已正式发布。
+   本模块合入不等于网页已交付。
 
 ADR 0006 废止原 M10–M15 自行控制面计划，以及关键决策会商、loopback Web Console 和出站 Runtime
 作为已接受方向。后续仅可设计、尚未授权实现的能力是自建 GitLab AuthorityProvider、
@@ -590,5 +590,5 @@ Hufu↔LoopX Authority/Decision/Evidence 桥，以及通过效能门禁后的企
 版本 `0.0.1` 只实现最初的不可变 `TaskEnvelope` 验证和确定性 CLI。
 本文所述 `0.1.0` Cordis-first 架构描述已接受边界。当前主线已交付 TypeScript 核心、本机账本、
 本仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径、LoopX 第一批机制
-记录口，以及效能试点记录与扩充门禁；这不表示完整 LoopX 控制面已经实现或将被搬入，也不表示已经获得远端进度授权、网页已交付或 `0.1.0` 已正式发布。
+记录口，以及效能试点记录与扩充门禁；这不表示完整 LoopX 控制面已经实现或将被搬入，也不表示已经获得远端进度授权或网页已交付。
 每个 Module 必须通过独立的已接受 Issue、Spec Kit 产物、失败测试、最小实现和可审阅证据交付。

@@ -1,10 +1,10 @@
 # 产品规范
 
-状态：产品定位已由 [ADR 0006](adr/0006-upstream-positioning.md) 接受；`0.1.0` 仍未发布
+状态：产品定位已由 [ADR 0006](adr/0006-upstream-positioning.md) 接受；`0.1.0` 已由标签 `v0.1.0` 发布
 最后更新：2026-08-23
 当前实现：TypeScript 领域核心、`hufu validate`、本机 `local` 账本与有界命令
 （含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及 DeepSeek 原生插件包 `hufu-dsh`。
-会商、网页与出站 Runtime 不是已接受方向。效能试点合同已交付为记录与扩充门禁，不表示网页已实现，也不表示 `0.1.0` 已发布。
+会商、网页与出站 Runtime 不是已接受方向。效能试点合同已交付为记录与扩充门禁，不表示网页已实现。
 
 ## 产品目标
 

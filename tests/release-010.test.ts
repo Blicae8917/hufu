@@ -27,6 +27,18 @@ describe("0.1.0 release documentation (#29)", () => {
     assert.doesNotMatch(readme, /尚未发布的 `0\.1\.0`|尚未发布/);
     assert.doesNotMatch(readme, /合入不等于 `0\.1\.0` 已发布/);
     assert.match(readme, /ADR 0006|LoopX 下游|严格项目协调/);
+
+    const spec = readRepo("docs/SPEC.md");
+    const architecture = readRepo("docs/ARCHITECTURE.md");
+    assert.doesNotMatch(spec, /`0\.1\.0` 仍未发布/);
+    assert.doesNotMatch(spec, /不表示 `0\.1\.0` 已发布/);
+    assert.doesNotMatch(architecture, /`0\.1\.0` 仍未发布/);
+    assert.doesNotMatch(
+      architecture,
+      /不表示 `0\.1\.0` 已正式发布|不等于 `0\.1\.0` 已正式发布|或 `0\.1\.0` 已正式发布/,
+    );
+    assert.match(spec, /ADR 0006/);
+    assert.match(architecture, /ADR 0006/);
   });
 
   it("keeps the release-gate bar as the four-command local-plus-GitHub slice", () => {
