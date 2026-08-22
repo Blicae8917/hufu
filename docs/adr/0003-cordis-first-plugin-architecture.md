@@ -18,8 +18,9 @@ Effect，Profile 与 Bundle 决定组合方式。该模型与 Hufu 需要的 Pro
 独立的兼容性边界和 Standalone 运行路径。
 
 LoopX 已提供长期目标、typed result、Receipt、Effect readback、阶段 Journal、恢复与调度等机制，
-并提供 DeepSeek Harness 连接器。Hufu 希望复用这些机制乃至适用源码，但不能让 LoopX 的 Registry、
-Goal/Todo 或 Scheduler 自动成为 Hufu 的任务正本和授权来源。
+并提供 DeepSeek Harness 连接器。ADR 0006 已把 Hufu 定为 LoopX 下游的严格项目协调 Provider：
+可以沿 Hufu Service 记录已批准的机制，但不能让 LoopX 的 Registry、Goal/Todo 或 Scheduler
+成为 Hufu 的任务正本和授权来源，也不得再把完整控制面写成可分阶段搬入的已接受方向。
 
 ## 决策
 
@@ -70,8 +71,8 @@ Hufu 提供两种组合方式，复用同一领域合同：
   Session 和 Storage 能力；
 - **Standalone Profile**：`0.1.0` 以零 Cordis 依赖的纯 TypeScript 服务核心加 CLI 组装同一组
   Service，让 Codex、Claude、Kimi、Grok Build 等 Host 通过 Skill、Command 或 CLI 入站调用。
-  对每一个非 DeepSeek Host，入站方向是一等公民和长期形态，不是过渡设计；创建、继续或投递
-  Host Session 的出站 RuntimeProvider 是可选的后续独立能力，按 Host 能力分别交付。
+  对每一个非 DeepSeek Host，入站方向是一等公民和长期形态，不是过渡设计。创建、继续或投递
+  Host Session 的出站 RuntimeProvider 在 ADR 0006 之后不是已接受方向，不得因本段文字自行实现。
 
 DeepSeek Harness 是原生 Host Profile，不是 `task_authority`。CLI、MCP、Web 和模型可调用 Tool
 都是 Consumer；它们不得复制领域服务、解析另一 Consumer 的展示文本或拥有独立 CurrentView。
@@ -101,19 +102,24 @@ StorageDomain 或 Ledger；Cordis Event 是插件树内的瞬时通知；DeepSee
 
 ### Runtime、Engine 与 LoopX
 
-未来的 RuntimeProvider 负责 Host Session 的创建、继续、消息投递、观测和终止能力；是否允许执行某项动作仍由
-Hufu 授权合同决定。EngineProvider 负责目标推进、步骤选择、恢复和可选调度，不属于 `task_authority`。
+EngineProvider 负责目标推进、步骤选择、恢复和可选调度，不属于 `task_authority`。
+已交付的 `loopx-mechanisms`（#9）是须显式选用的机制记录口，可以记下 typed result 与 Receipt，
+不是任务正本，也不引入 LoopX 发行包。
 
-LoopX 作为 `engine-loopx` Provider 和机制来源。Hufu 可以分阶段采用其 typed result、TurnEnvelope、
-Receipt、`effect_id`/readback、阶段 Journal、validation timeout、no-progress backoff、benchmark，
-以及未来证明必要的 Goal、Scheduler 或其他模块，但必须满足：
+ADR 0006 之后，Hufu 不再把 LoopX 定位为「可分阶段搬入完整控制面的可选 Engine」。
+Hufu 是 LoopX 下游的严格项目协调 Provider。Goal、Todo、Quota、Scheduler、Heartbeat
+和 Host 执行循环属于 LoopX；Hufu 不重复实现它们。Hufu↔LoopX 的 Authority / Decision /
+Evidence 桥必须另立 Module Issue，本 ADR 不授权实现。
+
+采用任何 LoopX 机制或源码仍必须满足：
 
 - 通过 Hufu Service Definition 接入，不让 LoopX Registry/Goal/Todo 成为第二任务正本；
 - 每次采用都有独立 Module Issue、边界测试、效能假设和可逆关闭路径；
-- 复制或改编源码时遵守 MIT 许可证，保留来源和版权说明并更新 NOTICE；
+- 复制或改编源码时遵守该提交的许可证，保留来源和版权说明并更新 NOTICE；
 - `0.1.0` 不因插件架构而增加后台 Scheduler、Heartbeat、Quota 或自动 Agent 启动。
 
-任何出站 Runtime 的有效权限都是 `commander` 明示授权、Hufu `authorization_scope`、RoleBinding
+出站 RuntimeProvider 在 ADR 0006 之后不是已接受方向。若未来另立 Issue 授权，
+其有效权限仍是 `commander` 明示授权、Hufu `authorization_scope`、RoleBinding
 资源范围、Host 能力和操作系统、沙箱、审批策略的交集。Hufu 不代替 CLI 登录或扩大 Host 权限。
 
 LoopX 现有 DeepSeek Harness Python Adapter 可以作为协议样本、迁移对照和测试 Oracle；
@@ -149,10 +155,9 @@ Service、Event、Storage、Session 和卸载清理行为。上游发生破坏�
 ### 正面影响
 
 - Hufu 与 DeepSeek Harness 使用相同的插件、Service、Event、Effect、Profile 和 Bundle 技术语言。
-- DeepSeek 集成不需要解析 CLI 或复制业务逻辑，Standalone Profile 仍可供其他 Host 入站调用，
-  并为未来受治理的出站 Runtime 保留同一合同。
+- DeepSeek 集成不需要解析 CLI 或复制业务逻辑，Standalone Profile 仍可供其他 Host 入站调用。
 - Runtime、Engine、Provider 和 Renderer 可以独立替换，不改变任务正本。
-- LoopX 可以逐步深入采用，而不会自动成为第二套项目控制面。
+- Hufu 作为 LoopX 下游 Provider 接入已批准机制，而不会把完整控制面搬进本仓库。
 - Hufu 的真实使用可以形成 DeepSeek Harness 生态插件和未来上游贡献证据。
 
 ### 成本与约束
@@ -183,8 +188,8 @@ Service、Event、Storage、Session 和卸载清理行为。上游发生破坏�
 
 ### 一次性搬入完整 LoopX 控制面
 
-不在 `0.1.0` 采用。完整能力可以按 EngineProvider 分阶段评估，但必须先拆清任务正本、授权、持久化和
-调度所有权，并用真实试点证明时间、质量和 Token 的净收益。
+拒绝，并由 ADR 0006 废止为产品方向。不得以「分阶段评估 EngineProvider」为名把 Goal、Todo、
+Scheduler、Heartbeat 或完整 Web 控制面搬入 Hufu。
 
 ## 公开参考
 

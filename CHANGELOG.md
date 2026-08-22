@@ -6,7 +6,8 @@
 
 ### 新增
 
-- 中文产品规范、架构说明、Constitution、ADR 0001–0005 与上游兼容性基线的候选设计正本。
+- 中文产品规范、架构说明、Constitution、ADR 0001–0006 与上游兼容性基线。产品定位已由
+  ADR 0006 接受：Hufu 是 LoopX 下游的严格项目协调 Provider。
 - 零 Cordis 依赖的严格 TypeScript ESM 领域核心骨架，以及与 `0.0.1` 对齐的 `hufu validate`。
 - 本机 `local` JSONL 账本与有界命令 `connect` / `doctor` / `status` / `handoff` / `decide`，
   以及由回放得到的三轴 CurrentView。
@@ -22,6 +23,9 @@
   `hufu serve` 保持拒绝；三轮净收益只打开评估报告，本模块不实现网页。合入不等于 `0.1.0` 已发布。
 - 首轮效能试点基线（#39）：公开仓只保留脱敏方法、聚合口径与三条槽位缺口；结论为
   `DATA_INSUFFICIENT`。原始账本不入库。计数按 1 轮基线 + 3 轮对比，不把本轮当作对比轮。
+- 上游定位裁决（#26 / ADR 0006）：Hufu 收敛为 LoopX 下游的严格项目协调 Provider；
+  废止原 M10–M15 自行控制面计划。相对 #39 基线的效能判断为 `DATA_INSUFFICIENT`，
+  公开仓只保留脱敏记录。本裁决不授权实现 GitLab AuthorityProvider、Hufu↔LoopX 桥或 Renderer。
 - 有界命令显式工作目录合同（#40）：`connect` / `doctor` / `status` / `handoff` / `decide` / `pilot`
   按 `--project-root` → `HUFU_PROJECT_ROOT` → 进程 cwd 解析项目根，并在 stdout 打印 `project_root`。
   未指定时与历史 cwd 落点兼容；不改 `.hufu` 事件格式。
@@ -38,7 +42,8 @@
   只读投影、三轴 CurrentView）。四个发布门命令、本机账本与本仓 GitHub 只读投影已交付；
   零拷贝决策流已由后续 Module #6 在同一版本系列交付；DeepSeek 原生插件路径已由 Module #7 交付；
   GitLab 只读投影已由 Module #8 交付。LoopX 第一批机制已由 Module #9 交付为可选引擎。
-  效能试点记录与扩充门禁已由 Module #10 交付；网页仍未实现。会商仍由后续 Module 交付。
+  效能试点记录与扩充门禁已由 Module #10 交付；网页仍未实现。ADR 0006 废止原 M10–M15
+  自行控制面、会商 Runtime、loopback Web 与出站 Runtime 作为已接受方向。
 
 ## [0.0.1] - 2026-08-13
 

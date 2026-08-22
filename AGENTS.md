@@ -31,8 +31,12 @@
   Project 级跨 Session 状态不得只保存在 Host Session Log。
 - Skill、Command、CLI、MCP 和 Web 都是 Consumer。未来会创建、继续或投递 Host Session 的能力必须
   通过独立 RuntimeProvider、结构化授权和 Host 能力探测接入，不得把 shell 文本包装当作等价能力。
-- LoopX 作为可选 EngineProvider 和机制来源，不是 `task_authority`。采用其机制或源码必须经独立
-  Module Issue、边界测试和效能验收，并遵守许可证与 NOTICE 要求。
+- Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务控制面。LoopX 不是
+  `task_authority`。不得自行实现通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine
+  或完整 Web 控制面。后续能力仅限独立 Module 授权的自建 GitLab AuthorityProvider、
+  Hufu↔LoopX Authority/Decision/Evidence 桥，以及通过效能门禁后的企业 Renderer。
+  采用 LoopX 机制或源码必须经独立 Module Issue、边界测试和效能验收，并遵守许可证与 NOTICE
+  要求。本仓库的 AGENTS 条文不是这些 Module 的实现授权。
 - 实现行为前必须先编写一个会失败的测试。
 - 修改必须最小、可审阅，并直接对应一项已接受任务。
 - 未经明确设计决策和测试，不得增加网络访问、后台服务、凭据、Telemetry 或外部副作用。

@@ -1,10 +1,10 @@
 # 产品规范
 
-状态：候选，待 `0.1.0` 设计 Pull Request 接受
-最后更新：2026-08-16
+状态：产品定位已由 [ADR 0006](adr/0006-upstream-positioning.md) 接受；`0.1.0` 仍未发布
+最后更新：2026-08-23
 当前实现：TypeScript 领域核心、`hufu validate`、本机 `local` 账本与有界命令
 （含 `hufu decide` 零拷贝决策流）、本公开仓 GitHub 只读投影、GitLab 只读投影，以及 DeepSeek 原生插件包 `hufu-dsh`。
-会商与网页尚未实现。效能试点合同已交付为记录与扩充门禁，不表示网页已实现，也不表示 `0.1.0` 已发布。
+会商、网页与出站 Runtime 不是已接受方向。效能试点合同已交付为记录与扩充门禁，不表示网页已实现，也不表示 `0.1.0` 已发布。
 
 ## 产品目标
 
@@ -14,7 +14,7 @@ Hufu 是一个 Cordis-first、供应商中立的 AI Agent 交付协调插件系�
 本公开仓库的第一读者是维护者自身的交付工作流：文档正本默认使用简体中文。只有当出现真实的
 外部可安装插件用户时，才补充英文入口。这是一项已裁决的产品定位，不是文档语言遗漏。
 
-Hufu 可以随已接受的 Engine 和 Runtime 能力逐步提高自治程度，但 `0.1.0` 不是无人值守控制平面；
+Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务控制面。`0.1.0` 不是无人值守控制平面；
 它不会推导授权、静默复制 Provider 状态、后台调度或自动启动 Agent。
 
 Hufu 还要让同一项裁决跨 PM、执行 Leader、Session 换届和不同 Renderer 传递时不再反复改写。
@@ -44,9 +44,8 @@ Hufu 还要让同一项裁决跨 PM、执行 Leader、Session 换届和不同 Re
 4. 理解依赖、阻塞、Evidence、ETA 和下一项已授权动作。
 5. 生成一段可以粘贴到目标 Agent Workspace 的有界指令。
 6. 在 Session 或 Owner 换届后继续工作，而不重建任务或授权。
-7. 对高影响、高不确定性或证据冲突的决策提出有界会商，但仍由 `commander` 裁决。
-8. 把已经裁决的目标、目标态和验收按引用交给执行者，并在开工前发现真实范围缺口。
-9. 在实现活动持续增长却没有可确认 durable Effect 时停止沉没实现，回到最短安全路线。
+7. 把已经裁决的目标、目标态和验收按引用交给执行者，并在开工前发现真实范围缺口。
+8. 在实现活动持续增长却没有可确认 durable Effect 时停止沉没实现，回到最短安全路线。
 
 ## 使用模式与 Host 边界
 
@@ -55,8 +54,8 @@ Hufu 的目标使用模式是 Cordis 插件组合，而不是让每个 Host 分�
 - 在 DeepSeek Harness 中，Hufu 作为原生 `dsh-plugin` 加载，通过公开的 Service、Event、Session、
   Storage 和 Tool 边界工作；
 - 在 Codex、Claude、Kimi、Grok Build 等 Host 中，入站方向（Host 通过 Skill、Command 或 CLI
-  调用 Hufu Service）是一等公民和长期形态，不是过渡设计；创建、继续和投递 Host Session 的
-  出站 RuntimeProvider 是可选的后续独立能力，按 Host 能力分别裁决；
+  调用 Hufu Service）是一等公民和长期形态，不是过渡设计。创建、继续和投递 Host Session 的
+  出站 RuntimeProvider 在 ADR 0006 之后不是已接受方向，不得因本段文字自行实现；
 - Host Skill、模型 Tool、CLI、MCP 和 Web 是不同 Consumer，共享同一 CurrentView 和有界 Command，
   不得互相解析展示文本或复制业务状态。
 
@@ -77,10 +76,13 @@ Host 实际能力以及操作系统、沙箱和审批策略的交集。任何 Ad
 | `gitlab` | GitLab Issue | 提供带原始链接和 freshness 的只读 Projection。 |
 | `local` | Hufu append-only Ledger | 拥有并回放本地 WorkItem 生命周期。 |
 
-LoopX 不是任务正本。它作为可选 `engine-loopx` Provider 和机制来源，可以分阶段提供 Goal 推进、
-typed result、Receipt、Effect readback、恢复和未来调度能力。每批采用都必须通过 Hufu Engine Service、
-独立 Module Issue、许可证归属和效能验收，不能让 LoopX Registry、Goal/Todo 或 Scheduler 自动取得
-外部 Issue 生命周期及人类授权的所有权。
+LoopX 不是任务正本。Hufu 是 LoopX 下游的严格项目协调 Provider：LoopX 拥有 Goal、Todo、Quota、
+Scheduler、Heartbeat、长任务恢复和 Host 执行循环；Hufu 拥有 TaskAuthority 适配、canonical
+Decision 引用、Role/SessionBinding、逐槽三轴 CurrentView、Evidence、Receipt、Effect readback
+和企业项目 Renderer 合同。已交付的 `loopx-mechanisms`（#9）仍须显式选用，只记录类型化结果与回执，
+不得把 LoopX Registry、Goal/Todo 或 Scheduler 映射为任务正本或授权。
+不得自行实现通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine 或完整 Web 控制面。
+Hufu↔LoopX 桥接须另立 Module，本规范不授权现在实现。
 
 UI 同样不是任务正本。它只是权威事实、观测事实和派生事实的 Renderer。
 
@@ -93,11 +95,16 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
 - **发布门（`0.1.0` 必须交付）**：本机可用的只读影子纵切——`connect`、`doctor`、`status`、
   `handoff` 四个有界命令；`local` 与本仓库 GitHub 只读投影两种任务正本按交付顺序先后进入；
   CurrentView 能区分 `fact_class`、`availability` 和 `freshness` 三轴。
-- **后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）**：零拷贝决策流已由 GitHub Module Issue #6
+- **后续已交付 Module（不阻塞 `0.1.0` 发布）**：零拷贝决策流已由 GitHub Module Issue #6
   在 `0.1.0` 系列交付（Envelope、ACK、三类 Delta、semantic rebase 护栏）。DeepSeek 与 Standalone
   双 Profile 夹具对等及插件真装真卸已由 #7 交付。GitLab 只读投影已由 #8 交付。LoopX 第一批机制已由 #9
-  交付为可选引擎（须显式选用，不是任务正本）。效能试点记录与扩充门禁已由 #10 交付；网页仍未实现，须另一次明确批准。其余仍待独立 Module：关键决策会商、loopback Web Console、出站 Runtime。
-  每项由独立 Module Issue 与 Spec Kit 合同交付并各自验收。
+  交付为须显式选用的机制记录口（不是任务正本）。效能试点记录与扩充门禁已由 #10 交付。
+- **ADR 0006 之后仅可设计、尚未授权实现的能力**：自建 GitLab AuthorityProvider、
+  Hufu↔LoopX 的 Authority / Decision / Evidence 桥、通过效能门禁后的企业项目 Renderer。
+  本规范不授权现在实现它们。原自行建设的 M10–M15（通用 Goal/Todo/Scheduler/Heartbeat、
+  PM Engine、Wave Engine、完整 Web 控制面）以及关键决策会商、loopback Web Console、
+  出站 Runtime 不再作为已接受方向。
+  上述三类若开工，须另立独立 Module Issue 与 Spec Kit 合同并各自验收。
 
 发布门若触碰决策记录，至多要求“一份裁决只完整保存一次，`status` 与 `handoff` 只传引用”。
 完整决策状态机已由后续 Module #6 交付，仍不阻塞 `0.1.0` 发布门。
@@ -224,12 +231,14 @@ semantic rebase 保留已经发生的 Effect 和全部 Evidence，停止旧 Enve
 
 ### Tool、命令与工作台
 
-Hufu 对不同 Consumer 暴露同一组有界操作语义：`connect`、`doctor`、`status`、`handoff`，
-以及通过效能门禁后才进入实现的 `serve`。DeepSeek Profile 把它们贡献为模型 Tool 或 Host Command；
-Standalone Profile 可以提供等价 CLI。具体包名和安装命令由第一张实现 Module 的 Plan 在验证
-DeepSeek Harness 插件发布方式后确定，本产品规范不提前承诺尚未验证的安装命令。
+Hufu 对不同 Consumer 暴露同一组有界操作语义：`connect`、`doctor`、`status`、`handoff`。
+`hufu serve` 保持拒绝。ADR 0006 废止完整 Web 控制面；企业项目 Renderer 只有通过效能门禁
+并另立 Module 后才能评估，本规范不授权现在实现。DeepSeek Profile 把已交付命令贡献为模型
+Tool 或 Host Command；Standalone Profile 可以提供等价 CLI。具体包名和安装命令由第一张
+实现 Module 的 Plan 在验证 DeepSeek Harness 插件发布方式后确定，本产品规范不提前承诺
+尚未验证的安装命令。
 
-CLI 纵切和代表性试点通过效能门禁后，第一版工作台才进入实现。工作台仅监听 loopback，首屏显示：
+若未来企业 Renderer 经独立 Issue 进入实现，首屏仍只显示：
 
 - Project、任务正本和 freshness；
 - Milestone 和 WorkItem；
@@ -266,7 +275,8 @@ Ledger 因果或 digest 冲突、不支持的 Schema 版本、观测不可用或
   后使用其 JSON Storage Provider。两者必须对同一版本化夹具生成规范化结构相等的 CurrentView；
   Host 无法观测的字段保持 `unavailable`，不以序列化字节相同冒充语义相同。
 - Project 级跨 Session 状态不能只存在 Host Session Log；Session Log 只保存可重建的执行事实和投影。
-- 工作台使用服务端渲染 HTML，最多辅以少量 Vanilla JavaScript；Listener 默认绑定 `127.0.0.1`。
+- ADR 0006 之后不把 loopback 工作台或完整 Web 控制面写成已接受方向。若未来企业 Renderer
+  经独立 Issue 进入实现，Listener 仍必须默认绑定 `127.0.0.1`。
 - `0.1.0` 不引入数据库、Message Queue、Daemon、Scheduler、Heartbeat、Quota Service、
   多主机 Coordinator 或自动后台运行。
 
@@ -344,9 +354,11 @@ GitHub Milestone 和 Issue 拥有进度；`specs/` 拥有功能合同；仓库�
    和 `connect`、`doctor`、`status`、`handoff` 四个有界命令。
 4. M3：增加本仓库 GitHub 只读 Projection，并以本项目自身为代表性项目验证同一 CurrentView。
 
-发布门之后的已接受方向按独立 Module 依次评估：零拷贝决策流（#6，已在本系列交付）与事件驱动 semantic rebase、
-DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7，已交付）、GitLab 只读 Projection（#8，已交付）、
-`engine-loopx` 第一批 typed result 与 Receipt/readback（#9，已交付为可选引擎）、代表性效能试点记录与扩充门禁（#10，已交付；网页仍未实现）。
+发布门之后已交付、且不阻塞 `0.1.0` 的 Module：零拷贝决策流（#6）与事件驱动 semantic rebase、
+DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7）、GitLab 只读 Projection（#8）、
+`loopx-mechanisms` 第一批 typed result 与 Receipt/readback（#9，须显式选用）、代表性效能试点记录与扩充门禁（#10）。
+ADR 0006 废止原 M10–M15 自行控制面计划。后续仅可设计、尚未授权实现的能力见上文与
+[ADR 0006](adr/0006-upstream-positioning.md)。
 
 除设计正本收敛外，每一实现阶段必须有独立 Module Issue 和 Spec Kit 功能合同。外部试点的内部项目名、
 路径、Issue 内容和用量明细不得进入公开仓；公开材料只能保留脱敏方法和聚合结果。
@@ -367,7 +379,7 @@ DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7，�
 - 每种 fail closed 情形返回稳定的机器可读错误码和约定退出码。
 - Provider Adapter 测试证明没有发生 Issue 写回操作。
 
-### 后续 Module 验收（已接受方向，不阻塞 `0.1.0` 发布）
+### 后续已交付 Module 验收（不阻塞 `0.1.0` 发布）
 
 - 同一裁决只有一份初始 Packet 正文；Envelope、ACK、Handoff、Session 换届和 Renderer 只保存引用、
   digest 或增量，不能形成第二份可编辑决策正文。
@@ -382,12 +394,11 @@ DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7，�
 - DeepSeek 插件卸载后，其注册的 Tool、Event Listener 和其他运行时 Effect 被可靠清理；
   已持久化事实不被删除，只能通过新的 append-only 事件取消、撤回或取代。
 - 可选引擎必须显式选用；TypedResult 与 Receipt 不得成为任务正本或授权；无 complete 读回不得把效果写成已发生、确认不存在或 `0`。
-- 若 Web Console 通过效能门禁进入实现，则两类环境都能以前台方式完成 loopback serve 验证，
-  且 Dashboard 拒绝非 loopback 绑定。
+- 网页不是已接受方向；`hufu serve` 保持拒绝。连续三轮代表性对比不能证明净收益时，
+  停止扩充 Runtime、Web 或其他控制面。
 - 每次试点能够区分任务总墙钟、Hufu 编排耗时、零效果尝试、协调唤醒、返工和可取得的
   Provider 原生 Token；无法取得的用量明确显示 `unavailable`。
 - 授权、安全、结果质量和 Evidence 完整性不得因降低时间或 Token 而退化。
-- 连续三轮代表性试点没有可解释的净收益时，停止增加 MCP、Web、Runner 或其他控制面并复盘。
 
 ### 效能试点协议
 
@@ -411,42 +422,14 @@ DeepSeek Profile 原生插件与双 Profile 夹具对等及卸载清理（#7，�
 
 ## 未来方向
 
-未来版本可以评估 MCP Consumer、更丰富的 Provider Projection、更多 RuntimeProvider、
-更完整的 LoopX Engine、EffectReadback、可选 Policy Pack、更强的 Receipt 类型、后台自治和替代 Renderer。
-游戏化界面只能作为 Renderer 研究，不得改变核心合同或状态所有权。
+ADR 0006 之后，后续能力只围绕三类、且都尚未授权实现：自建 GitLab AuthorityProvider、
+Hufu↔LoopX 的 Authority / Decision / Evidence 桥、通过效能门禁后的企业项目 Renderer。
+原 M10–M15 自行控制面、关键决策会商 Runtime、loopback Web Console 与出站 Runtime
+不再作为已接受方向。[ADR 0004](adr/0004-bounded-decision-council.md) 保留为历史候选记录，
+不构成开工授权。游戏化界面只能作为 Renderer 研究，不得改变核心合同或状态所有权。
 
-### 关键决策会商
-
-当一个已授权动作被高影响、高不确定性、证据冲突、不可逆风险或重复失败阻塞时，项目 `advisor`
-可以提出“关键决策会商”，由 `commander` 决定是否召开：
-
-- **参谋会**：从当前 Host 可用的角色目录中选择少量互补视角，进行彼此隔离的独立研究；
-- **专家研讨会**：在参谋会基础上增加至少两个可区分 Runtime 的复核；模型身份无法确认时，
-  必须标记 `unknown`，不得宣称独立多模型验证。
-
-结果名称必须反映实际覆盖：多个角色但没有已验证模型差异时是“多视角会商”；多个 Runtime 但模型
-独立性未知时是“多 Runtime 复核”；只有至少两个模型身份和独立性均满足合同才是“已验证多模型复核”；
-多角色与已验证多模型同时满足时才是“双轴会商”。
-
-角色视角与模型运行器是两条正交轴。临时 `CouncilSeat` 不是 Hufu 角色，也不会成为 `advisor`、
-`project_lead`、`mission_lead`、`owner` 或 `auditor`。原始角色卡是不可信数据，只有经过字段白名单、
-摘要与 digest 固定并由用户随计划确认的 `ResearchLens` 才能进入会商模板；工具、网络、写入、角色绑定
-和权限文字一律丢弃。默认采用 3–5 个稀疏席位，不运行完整“角色数 × 模型数”组合；
-第一轮互不可见，必要时最多进行一轮只围绕争议主张的质询。最终报告必须列出共识、实质分歧、
-最强反对意见、反例、未知项、失败或超时分支和建议路线，不通过多数票决定事实。
-
-每场会商只能在绑定计划摘要的一次性授权内运行，授权明确 Runtime、模型或身份、数据分类与引用范围、
-工具和网络策略、只读或副作用范围、调用次数、墙钟、Token 或费用上限、有效期及输出保留策略。
-有效权限仍是该授权与 Host、账号、操作系统、沙箱和审批边界的交集。会商结果分类为派生建议，
-不修改 GitHub/GitLab Issue，不产生执行授权，不自动启动业务执行 Session，也不构成正式验收。
-
-该能力先以“生成有界问题包、由用户手工启动参与 Session、导入结构化意见”的影子模式试点；
-只有相对单参谋基线改善决策墙钟、有效独立发现、后续返工或关键缺陷，才按 Host 分别实现自动调用。
-其跨领域决策见[ADR 0004](adr/0004-bounded-decision-council.md)，具体合同和阈值必须进入未来独立
-Module Issue 与 Spec Kit 功能合同，不属于 `0.1.0`。
-
-每个方向都需要独立的已接受 Module Issue、Spec Kit 合同、架构检查，以及能够减少操作者工作量
-或执行风险的证据。
+上述三类若进入实现，必须另有已接受 Module Issue、Spec Kit 合同、架构检查，以及能够减少
+操作者工作量或执行风险的证据。本规范不因列出它们而授权现在实现。
 
 ## V1 明确不做
 
@@ -459,6 +442,8 @@ Module Issue 与 Spec Kit 功能合同，不属于 `0.1.0`。
 - 让 `ROUTE_ACK` 成为审批流，或用范围缺口理由自动产生授权。
 - 用后台 Heartbeat、Scheduler 或周期唤醒检测 semantic drift，或由重基自动删除、回滚既有产物与 Effect。
 - 把 LoopX、Agent Runtime 或 UI 视为 `task_authority`。
+- 自行实现通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine 或完整 Web 控制面。
+- 把关键决策会商、loopback Web Console 或出站 Runtime 当作 ADR 0006 之后的已接受方向。
 - 把 MCP 作为必需运行路径，或为每个 Host 复制一套业务逻辑。
 - Fork 或修改 DeepSeek Harness Agent Loop 来实现 Hufu 产品行为。
 - 分布式 exactly-once 保证。
