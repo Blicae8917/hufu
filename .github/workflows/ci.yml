@@ -37,6 +37,9 @@ jobs:
       - name: node scripts/check-version.mjs
         run: node scripts/check-version.mjs
 
+      - name: node scripts/check-upstream-drift.mjs
+        run: node scripts/check-upstream-drift.mjs
+
       - name: git diff --check
         run: |
           git fetch --no-tags origin main
