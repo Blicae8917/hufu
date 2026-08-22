@@ -22,6 +22,9 @@ pnpm --dir <repo> hufu status
 
 此时 `status` 应成功、不上网、工作项为数据不足。
 
+将 `HUFU_DENY_NETWORK=1` 写入环境可禁止真实 `fetch`（测试注入的 Port 不受影响）。
+被拒绝或超时时映射 `OBSERVATION_UNAVAILABLE`，保留旧观测；只读 GET 超时固定为 10 秒（`FETCH_TIMEOUT_MS = 10_000`），不得依赖环境默认，也不得把缺失写成 `0`。
+
 ## 显式刷新
 
 实现完成后：

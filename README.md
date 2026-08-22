@@ -110,6 +110,8 @@ pnpm --dir <repo> hufu connect --project-id demo --repository example-group/exam
 pnpm --dir <repo> hufu status
 ```
 
+`status --refresh` 才会联网。将 `HUFU_DENY_NETWORK=1` 写入环境可禁止真实 `fetch`（测试注入的 Port 不受影响）；被拒绝时映射 `OBSERVATION_UNAVAILABLE`，保留旧观测。GitHub / GitLab 只读 GET 的超时固定为 10 秒（`FETCH_TIMEOUT_MS = 10_000`），超时同样保留旧缓存并将时效标为 `stale`，不得把缺失写成 `0`。
+
 ## 历史 0.0.1
 
 最初公开发布的 Python 基线已冻结为标签 `v0.0.1`。需要核对或复现当时验证时，检出该标签，
@@ -139,7 +141,7 @@ git checkout v0.0.1
 
 当前开发版本是尚未发布的 `0.1.0`；最近的历史发布基线是 `0.0.1`（标签 `v0.0.1`）。
 这是一个早期、合同优先的构建。公共 API 在 `1.0.0` 前可能发生变化。
-当前仓库已提供五个有界命令、本机账本、本公开仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径，以及可选 `loopx-mechanisms` 引擎；尚未实现
+当前仓库已提供六个有界命令（`connect` / `doctor` / `status` / `handoff` / `decide` / `pilot`）、本机账本、本公开仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径，以及可选 `loopx-mechanisms` 引擎；`hufu serve` 为已知拒绝命令。尚未实现
 完整 LoopX 控制面、关键决策会商或远端出站 Runtime，默认不启用写回或出站集成。
 
 ## 参与贡献与安全

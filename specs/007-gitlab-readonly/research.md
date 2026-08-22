@@ -32,7 +32,7 @@
 
 ## 6. 失败与时效
 
-- **Decision**: 网络错误、非 2xx、无 JSON、配额耗尽 → 刷新命令失败（退出码 4，`OBSERVATION_UNAVAILABLE`），保留旧缓存；随后无刷新的 `status` 仍可成功，工作项时效为 `stale` 或 `unavailable`（无缓存则为数据不足）。`observed_at` 早于 `stale_after_hours`（默认 24）→ `stale`。GitLab 未给的数字字段不得写 `0`。
+- **Decision**: 网络错误、非 2xx、无 JSON、配额耗尽、以及超过固定 `FETCH_TIMEOUT_MS = 10_000`（10 秒）的挂起连接 → 刷新命令失败（退出码 4，`OBSERVATION_UNAVAILABLE`），保留旧缓存；随后无刷新的 `status` 仍可成功，工作项时效为 `stale` 或 `unavailable`（无缓存则为数据不足）。`observed_at` 早于 `stale_after_hours`（默认 24）→ `stale`。GitLab 未给的数字字段不得写 `0`。超时不得依赖环境默认或无限等待。
 - **Rationale**: SPEC 失败保留旧观测；Constitution IV。
 - **Alternatives considered**: 失败清空缓存（会像「没有议题」）；失败仍报 `fresh`（伪造时效）。
 

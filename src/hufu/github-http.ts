@@ -1,14 +1,18 @@
 import { CommandError, isJsonObject } from "./errors.js";
+import { fetchWithTimeout } from "./fetch-timeout.js";
 import { type GitHubPort, type ProjectionListResult } from "./github-port.js";
-import { canonicalExternalRef } from "./github-ref.js";
+import { CANONICAL_OWNER, CANONICAL_REPO, canonicalExternalRef } from "./github-ref.js";
 
 export interface HttpGitHubPortOptions {
   readonly fetch?: typeof fetch;
   readonly now?: () => Date;
+  readonly timeoutMs?: number;
 }
 
+export const FETCH_TIMEOUT_MS = 10_000;
+
 const LIST_URL =
-  "https://api.github.com/repos/Blicae8917/hufu/issues?state=all&per_page=100";
+  `https://api.github.com/repos/${CANONICAL_OWNER}/${CANONICAL_REPO}/issues?state=all&per_page=100`;
 
 export function createHttpGitHubPort(
   options: HttpGitHubPortOptions = {},
@@ -27,10 +31,15 @@ export function createHttpGitHubPort(
       }
       let response: Response;
       try {
-        response = await fetchFn(LIST_URL, {
-          headers: { Accept: "application/vnd.github+json" },
-          method: "GET",
-        });
+        response = await fetchWithTimeout(
+          () =>
+            fetchFn(LIST_URL, {
+              headers: { Accept: "application/vnd.github+json" },
+              method: "GET",
+            }),
+          options.timeoutMs ?? FETCH_TIMEOUT_MS,
+          "github read timed out",
+        );
       } catch (error) {
         throw new CommandError(
           "OBSERVATION_UNAVAILABLE",
