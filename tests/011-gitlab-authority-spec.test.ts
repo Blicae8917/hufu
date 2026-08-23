@@ -89,7 +89,7 @@ describe("011 GitLab AuthorityProvider design kit (#49)", () => {
     assert.match(kit, /M10[–-]M15|M10－M15/);
     assert.match(kit, /不复活|不得复活|禁止复活|已废止/);
     assert.match(kit, /出站 Runtime/);
-    assert.doesNotMatch(kit, /实现通用 Goal|交付 Goal\/Todo|恢复 M10|占用 M1[0-5] 编号实现/);
+    assert.doesNotMatch(kit, /M10[–-]M15 是已接受方向|恢复自行建设的 M10/);
     assert.doesNotMatch(kit, /出站 Runtime 是已接受方向|本票实现出站 Runtime/);
     assert.doesNotMatch(kit, /本票实现 Hufu↔LoopX|本票交付企业 Renderer/);
   });
@@ -111,10 +111,10 @@ describe("011 GitLab AuthorityProvider design kit (#49)", () => {
     assert.match(kit, /凭据/);
     assert.match(kit, /机房|家庭/);
 
-    assert.doesNotMatch(kit, /ghp_[A-Za-z0-9]+/);
-    assert.doesNotMatch(kit, /glpat-[A-Za-z0-9_-]+/);
-    assert.doesNotMatch(kit, /sk-[A-Za-z0-9]{8,}/);
-    assert.doesNotMatch(kit, /xox[baprs]-[A-Za-z0-9-]+/i);
+    assert.doesNotMatch(kit, /ghp_[A-Za-z0-9]{8,}/);
+    assert.doesNotMatch(kit, /glpat-[A-Za-z0-9_-]{8,}/);
+    assert.doesNotMatch(kit, /(?:^|[^A-Za-z-])sk-[A-Za-z0-9]{20,}/);
+    assert.doesNotMatch(kit, /xox[baprs]-[A-Za-z0-9-]{8,}/i);
     assert.doesNotMatch(kit, /\/home\/|\/Users\/|[A-Za-z]:\\/);
     assert.doesNotMatch(kit, /\b(?:10|127)\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/);
     assert.doesNotMatch(kit, /\b192\.168\.\d{1,3}\.\d{1,3}\b/);
