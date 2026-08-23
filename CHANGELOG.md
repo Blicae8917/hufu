@@ -2,6 +2,12 @@
 
 本文件记录项目中所有值得关注的变更。
 
+## [Unreleased]
+
+### 新增
+
+- 自建 GitLab AuthorityProvider 设计合同（#49 / `specs/011-gitlab-authority`）：仅设计，不授权 Adapter 实现；Constitution 写回禁令不因本 Kit 修订。
+
 ## [0.1.0] - 2026-08-23
 
 ### 新增
