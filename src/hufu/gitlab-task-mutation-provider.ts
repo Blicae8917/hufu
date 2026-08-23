@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { digestPayload } from "./digest.js";
+import { materializeDecision } from "./decision-state.js";
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError, isJsonObject } from "./errors.js";
 import { fetchWithTimeout } from "./fetch-timeout.js";
@@ -8,6 +9,7 @@ import { assertCommanderAllowlist } from "./gitlab-authority.js";
 import { createHttpGitLabInstancePort } from "./gitlab-instance-http.js";
 import { writeGitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
 import {
+  canonicalGitLabInstanceExternalRef,
   parseGitLabInstanceIdentity,
   parseGitLabInstanceOrigin,
   parseGitLabInstanceProjectPath,
@@ -51,7 +53,8 @@ export interface MutationTarget {
 }
 
 export interface MutationKindPayload {
-  readonly acceptance_evidence_complete?: boolean;
+  readonly acceptance_evidence_refs?: readonly string[];
+  readonly acceptance_matrix_ref?: string;
   readonly assignee?: string;
   readonly assignee_id?: number;
   readonly comment_body?: string;
@@ -129,22 +132,38 @@ export interface MutationDigestInput {
   readonly task_ref: string;
 }
 
+export interface ProductionExecuteGrantRef {
+  readonly grant_id: string;
+  readonly revision: number;
+}
+
+export interface MutationWriteAllowance extends MutationTarget {
+  readonly acceptance_evidence_refs?: readonly string[];
+  readonly acceptance_matrix_ref?: string;
+  readonly assignee?: string;
+  readonly assignee_id?: number;
+  readonly comment_body?: string;
+  readonly managed_label?: string;
+  readonly mutation_kind: ManagedMutationKind;
+}
+
 export interface CreateGitLabTaskMutationProviderOptions {
   readonly fetch?: typeof fetch;
   readonly identity: GitLabInstanceIdentity;
   readonly now?: () => Date;
+  readonly productionExecuteGrant?: ProductionExecuteGrantRef;
   readonly readAllowlist?: readonly string[];
   readonly secretProvider: SecretProvider;
   readonly timeoutMs?: number;
   readonly transportSecurityExceptionRef?: string;
   readonly workspaceRoot: string;
-  readonly writeAllowlist: readonly string[];
+  readonly writeAllowlist: readonly (MutationWriteAllowance | string)[];
 }
 
 interface ObservedIssue {
   readonly assignee?: string;
   readonly iid: number;
-  readonly labels: readonly string[];
+  readonly labels?: readonly string[];
   readonly state: string;
   readonly updated_at?: string;
   readonly web_url: string;
@@ -196,17 +215,16 @@ export function createGitLabTaskMutationProvider(
   }
 
   function preview(intent: TaskMutationIntent): MutationPlan {
-    return validateIntent(intent, identity, options);
+    const plan = validateIntent(intent, identity, options);
+    const events = readyEvents(options.workspaceRoot);
+    const grant = currentLedgerGrant(events);
+    assertLedgerBindings(events, plan, grant);
+    assertCloseEvidenceBindings(events, plan);
+    return plan;
   }
 
   async function execute(plan: MutationPlan): Promise<MutationReceipt> {
-    const validated = validateIntent(planToIntent(plan), identity, options);
-    if (options.fetch === undefined) {
-      throw new CommandError(
-        "GRANT_SCOPE_EXCEEDED",
-        "live GitLab execute is not granted",
-      );
-    }
+    const validated = validateIntent(planToIntent(plan), identity, options, false);
     const events = readyEvents(options.workspaceRoot);
     const existingReceipt = findReceipt(events, validated.effect_id);
     if (existingReceipt !== undefined) {
@@ -228,36 +246,170 @@ export function createGitLabTaskMutationProvider(
         "effect_id collides with a different mutation digest",
       );
     }
-
     const recovering = prepared !== undefined;
-    const issue = await getIssue(validated, identity, options, timeoutMs, token());
-    if (!recovering) {
-      assertRevisionMatch(issue, validated.expected_source_revision);
+    if (options.fetch === undefined) {
+      throw new CommandError(
+        "GRANT_SCOPE_EXCEEDED",
+        "live GitLab readback and execute transport is not available",
+      );
     }
-    const notes = await maybeGetNotes(
-      validated,
-      identity,
-      options,
-      timeoutMs,
-      token(),
-    );
-    const alreadyAtTarget = matchesTarget(validated, issue, notes);
-    if (validated.mutation_kind === "close_issue" && !alreadyAtTarget) {
-      if (issue.state.trim() === "") {
-        throw new CommandError(
-          "DATA_INSUFFICIENT",
-          "close_issue requires a reliable issue state readback",
-        );
+    let decisionVersion = 0;
+
+    async function finalize(input: {
+      readonly alreadyAtTarget: boolean;
+      readonly managedStatusLabels: readonly string[];
+      readonly writePerformed: boolean;
+    }): Promise<MutationReceipt> {
+      const readback = await observeReadback(
+        validated,
+        identity,
+        options,
+        timeoutMs,
+        token(),
+        input.managedStatusLabels,
+      );
+      const projection = await refreshProjection(identity, options);
+      const projectionMatches = projectionShowsTarget(
+        validated,
+        projection,
+        input.managedStatusLabels,
+      );
+      const outcome = declareOutcome({
+        alreadyAtTarget: input.alreadyAtTarget,
+        kind: validated.mutation_kind,
+        projectionMatches,
+        readback,
+        recovering,
+        writePerformed: input.writePerformed,
+      });
+      persistEffectAndReceipt(options.workspaceRoot, validated, decisionVersion, {
+        outcome,
+        readback,
+        writePerformed: input.writePerformed,
+      });
+      return {
+        canonical_payload_digest: validated.canonical_payload_digest,
+        effect_id: validated.effect_id,
+        idempotent_replay: false,
+        mutation_kind: validated.mutation_kind,
+        outcome,
+        write_performed: input.writePerformed,
+      };
+    }
+
+    let issue: ObservedIssue | undefined;
+    let alreadyAtTarget = false;
+    let managedStatusLabels: readonly string[] = [];
+
+    if (recovering) {
+      assertPreparedProductionGrant(events, validated.effect_id, validated);
+      decisionVersion = preparedDecisionVersion(
+        events,
+        validated.effect_id,
+        validated,
+      );
+      managedStatusLabels = preparedManagedStatusLabels(
+        events,
+        validated.effect_id,
+        validated,
+      );
+      issue = await getIssue(validated, identity, options, timeoutMs, token());
+      const notes = await maybeGetNotes(
+        validated,
+        identity,
+        options,
+        timeoutMs,
+        token(),
+      );
+      alreadyAtTarget = matchesTarget(
+        validated,
+        issue,
+        notes,
+        managedStatusLabels,
+      );
+      if (alreadyAtTarget) {
+        return finalize({
+          alreadyAtTarget,
+          managedStatusLabels,
+          writePerformed: false,
+        });
       }
     }
-    if (prepared === undefined) {
-      persistPrepared(options.workspaceRoot, validated);
+
+    const productionGrant = options.productionExecuteGrant;
+    if (productionGrant === undefined) {
+      throw new CommandError(
+        "GRANT_SCOPE_EXCEEDED",
+        "production GitLab execute requires an explicit current grant",
+      );
+    }
+    assertProductionExecuteGrant(events, productionGrant, validated);
+    assertLedgerBindings(events, validated, productionGrant);
+    if (!recovering) {
+      decisionVersion = currentDecisionVersion(events, validated);
+    }
+    assertCloseEvidenceBindings(events, validated);
+    const currentManagedStatusLabels = assertWriteContract(validated, options);
+
+    if (recovering) {
+      if (issue === undefined) {
+        throw new CommandError("DATA_INSUFFICIENT", "prepared readback is unavailable");
+      }
+      if (!sameStringSet(managedStatusLabels, currentManagedStatusLabels)) {
+        throw new CommandError(
+          "GRANT_SCOPE_EXCEEDED",
+          "managed status label scope changed before prepared recovery",
+        );
+      }
+      assertRecoveryRevisionMatch(issue, validated.expected_source_revision);
+    } else {
+      managedStatusLabels = currentManagedStatusLabels;
+      issue = await getIssue(validated, identity, options, timeoutMs, token());
+      const notes = await maybeGetNotes(
+        validated,
+        identity,
+        options,
+        timeoutMs,
+        token(),
+      );
+      alreadyAtTarget = matchesTarget(
+        validated,
+        issue,
+        notes,
+        managedStatusLabels,
+      );
+      assertRevisionMatch(issue, validated.expected_source_revision);
+      persistPrepared(
+        options.workspaceRoot,
+        validated,
+        productionGrant,
+        decisionVersion,
+        managedStatusLabels,
+      );
+    }
+
+    if (issue === undefined) {
+      throw new CommandError("DATA_INSUFFICIENT", "mutation issue readback is unavailable");
+    }
+    if (validated.mutation_kind === "close_issue" && issue.state.trim() === "") {
+      throw new CommandError(
+        "DATA_INSUFFICIENT",
+        "close_issue requires a reliable issue state readback",
+      );
     }
 
     let writePerformed = false;
     if (!alreadyAtTarget) {
       try {
-        await performWrite(validated, identity, options, timeoutMs, token());
+        await performWrite(
+          validated,
+          issue,
+          managedStatusLabels,
+          identity,
+          options,
+          timeoutMs,
+          token(),
+        );
         writePerformed = true;
       } catch (error) {
         if (error instanceof CommandError) {
@@ -269,31 +421,7 @@ export function createGitLabTaskMutationProvider(
         );
       }
     }
-
-    const readback = await observeReadback(validated, identity, options, timeoutMs, token());
-    const projection = await refreshProjection(identity, options);
-    const projectionMatches = projectionShowsTarget(validated, projection);
-    const outcome = declareOutcome({
-      alreadyAtTarget,
-      kind: validated.mutation_kind,
-      projectionMatches,
-      readback,
-      recovering,
-      writePerformed,
-    });
-    persistEffectAndReceipt(options.workspaceRoot, validated, {
-      outcome,
-      readback,
-      writePerformed,
-    });
-    return {
-      canonical_payload_digest: validated.canonical_payload_digest,
-      effect_id: validated.effect_id,
-      idempotent_replay: false,
-      mutation_kind: validated.mutation_kind,
-      outcome,
-      write_performed: writePerformed,
-    };
+    return finalize({ alreadyAtTarget, managedStatusLabels, writePerformed });
   }
 
   async function readback(receipt: MutationReceipt): Promise<MutationReadback> {
@@ -314,12 +442,18 @@ export function createGitLabTaskMutationProvider(
       };
     }
     try {
+      const managedStatusLabels = preparedManagedStatusLabels(
+        events,
+        receipt.effect_id,
+        prepared,
+      );
       const observed = await observeReadback(
         prepared,
         identity,
         options,
         timeoutMs,
         token(),
+        managedStatusLabels,
       );
       return {
         availability: observed.availability,
@@ -358,6 +492,7 @@ function validateIntent(
   intent: TaskMutationIntent,
   identity: GitLabInstanceIdentity,
   options: CreateGitLabTaskMutationProviderOptions,
+  enforceWriteContract = true,
 ): MutationPlan {
   for (const field of BINDING_FIELDS) {
     const value = intent[field];
@@ -373,15 +508,6 @@ function validateIntent(
   }
   const target = parseTarget(intent.target, identity);
   const payload = kindPayload(intent.mutation_kind, intent);
-  if (
-    intent.mutation_kind === "close_issue" &&
-    payload.acceptance_evidence_complete !== true
-  ) {
-    throw new CommandError(
-      "CONTRACT_INVALID",
-      "close_issue requires complete acceptance evidence",
-    );
-  }
   const digest = mutationPayloadDigest({
     actor_binding: intent.actor_binding,
     authority_scope_ref: intent.authority_scope_ref,
@@ -401,9 +527,7 @@ function validateIntent(
       "canonical_payload_digest does not match the mutation payload",
     );
   }
-  assertCommanderAllowlist(target.instance_origin, options.writeAllowlist);
-  assertWriteTransport(target.instance_origin, options.transportSecurityExceptionRef);
-  return {
+  const plan: MutationPlan = {
     actor_binding: intent.actor_binding,
     authority_scope_ref: intent.authority_scope_ref,
     canonical_payload_digest: digest,
@@ -418,6 +542,27 @@ function validateIntent(
     task_ref: intent.task_ref,
     ...payload,
   };
+  assertCommanderAllowlist(target.instance_origin, options.readAllowlist ?? []);
+  if (enforceWriteContract) {
+    assertWriteContract(plan, options);
+  }
+  return plan;
+}
+
+function assertWriteContract(
+  plan: MutationPlan,
+  options: CreateGitLabTaskMutationProviderOptions,
+): readonly string[] {
+  assertCommanderAllowlist(
+    plan.target.instance_origin,
+    writeAllowlistOrigins(options.writeAllowlist),
+  );
+  assertWriteTransport(
+    plan.target.instance_origin,
+    options.transportSecurityExceptionRef,
+  );
+  assertExactWriteAllowance(plan, options.writeAllowlist);
+  return managedStatusLabelsFor(plan, options.writeAllowlist);
 }
 
 function planToIntent(plan: MutationPlan): TaskMutationIntent {
@@ -480,7 +625,33 @@ function kindPayload(
     return { assignee, assignee_id };
   }
   if (kind === "close_issue") {
-    return { acceptance_evidence_complete: intent.acceptance_evidence_complete === true };
+    const acceptance_matrix_ref = requiredText(
+      intent.acceptance_matrix_ref,
+      "acceptance_matrix_ref",
+    );
+    if (!Array.isArray(intent.acceptance_evidence_refs)) {
+      throw new CommandError(
+        "CONTRACT_INVALID",
+        "acceptance_evidence_refs must be a non-empty string list",
+      );
+    }
+    const acceptance_evidence_refs = [
+      ...new Set(
+        intent.acceptance_evidence_refs.map((value, index) =>
+          requiredText(value, `acceptance_evidence_refs[${String(index)}]`),
+        ),
+      ),
+    ];
+    if (
+      acceptance_evidence_refs.length === 0 ||
+      !acceptance_evidence_refs.includes(acceptance_matrix_ref)
+    ) {
+      throw new CommandError(
+        "CONTRACT_INVALID",
+        "close_issue requires an acceptance matrix EvidenceRef",
+      );
+    }
+    return { acceptance_evidence_refs, acceptance_matrix_ref };
   }
   return {};
 }
@@ -519,6 +690,115 @@ function assertWriteTransport(
   );
 }
 
+function writeAllowlistOrigins(
+  allowlist: readonly (MutationWriteAllowance | string)[],
+): readonly string[] {
+  return allowlist.map((entry) =>
+    typeof entry === "string" ? entry : entry.instance_origin,
+  );
+}
+
+function assertExactWriteAllowance(
+  plan: MutationPlan,
+  allowlist: readonly (MutationWriteAllowance | string)[],
+): void {
+  const allowed = allowlist.some((entry) => allowanceMatchesPlan(entry, plan));
+  if (!allowed) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "mutation is not in the exact production write allowlist",
+    );
+  }
+}
+
+function allowanceMatchesPlan(entry: unknown, plan: MutationPlan): boolean {
+  if (!isJsonObject(entry)) {
+    return false;
+  }
+  try {
+    if (
+      parseGitLabInstanceOrigin(String(entry["instance_origin"] ?? "")) !==
+        plan.target.instance_origin ||
+      parseGitLabInstanceProjectPath(String(entry["project_path"] ?? "")) !==
+        plan.target.project_path ||
+      entry["iid"] !== plan.target.iid ||
+      entry["mutation_kind"] !== plan.mutation_kind
+    ) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  if (plan.mutation_kind === "append_comment") {
+    return entry["comment_body"] === plan.payload.comment_body;
+  }
+  if (plan.mutation_kind === "transition_managed_status_label") {
+    return entry["managed_label"] === plan.payload.managed_label;
+  }
+  if (plan.mutation_kind === "set_assignee") {
+    return (
+      entry["assignee"] === plan.payload.assignee &&
+      entry["assignee_id"] === plan.payload.assignee_id
+    );
+  }
+  if (plan.mutation_kind === "close_issue") {
+    return (
+      entry["acceptance_matrix_ref"] === plan.payload.acceptance_matrix_ref &&
+      stringListsEqual(
+        entry["acceptance_evidence_refs"],
+        plan.payload.acceptance_evidence_refs,
+      )
+    );
+  }
+  return true;
+}
+
+function stringListsEqual(left: unknown, right: readonly string[] | undefined): boolean {
+  return (
+    Array.isArray(left) &&
+    right !== undefined &&
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
+}
+
+function sameStringSet(left: readonly string[], right: readonly string[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value) => right.includes(value))
+  );
+}
+
+function managedStatusLabelsFor(
+  plan: MutationPlan,
+  allowlist: readonly (MutationWriteAllowance | string)[],
+): readonly string[] {
+  if (plan.mutation_kind !== "transition_managed_status_label") {
+    return [];
+  }
+  const labels = new Set<string>();
+  for (const entry of allowlist) {
+    if (
+      typeof entry !== "string" &&
+      parseGitLabInstanceOrigin(entry.instance_origin) === plan.target.instance_origin &&
+      parseGitLabInstanceProjectPath(entry.project_path) === plan.target.project_path &&
+      entry.iid === plan.target.iid &&
+      entry.mutation_kind === "transition_managed_status_label" &&
+      typeof entry.managed_label === "string" &&
+      entry.managed_label.trim() !== ""
+    ) {
+      labels.add(entry.managed_label.trim());
+    }
+  }
+  if (labels.size !== 6) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "managed status transition requires an owner-local set of exactly six labels",
+    );
+  }
+  return [...labels];
+}
+
 function readyEvents(workspaceRoot: string): readonly EventEnvelope[] {
   const snapshot = readLedger(workspaceRoot);
   if (snapshot.status === "missing") {
@@ -531,6 +811,202 @@ function readyEvents(workspaceRoot: string): readonly EventEnvelope[] {
     );
   }
   return snapshot.events;
+}
+
+function assertProductionExecuteGrant(
+  events: readonly EventEnvelope[],
+  grant: ProductionExecuteGrantRef,
+  plan: MutationPlan,
+): void {
+  const event = currentLedgerGrantEvent(events);
+  const current = currentLedgerGrant(events);
+  if (current.grant_id !== grant.grant_id || current.revision !== grant.revision) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "production execute grant does not match the current Ledger grant revision",
+    );
+  }
+  if (!grantEventAllowsMutation(event, plan)) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "current Ledger grant does not authorize the exact GitLab mutation",
+    );
+  }
+}
+
+function grantEventAllowsMutation(
+  event: EventEnvelope,
+  plan: MutationPlan,
+): boolean {
+  const scope = event.payload["scope"];
+  const allowances = isJsonObject(scope) ? scope["mutation_allowances"] : undefined;
+  return (
+    isJsonObject(scope) &&
+    scope["action"] === "mutate" &&
+    scope["resource"] === "gitlab_issue" &&
+    Array.isArray(allowances) &&
+    allowances.some((entry) => allowanceMatchesPlan(entry, plan))
+  );
+}
+
+function currentLedgerGrant(
+  events: readonly EventEnvelope[],
+): ProductionExecuteGrantRef {
+  const current = currentLedgerGrantEvent(events);
+  return {
+    grant_id: String(current.payload["grant_id"]),
+    revision: Number(current.payload["revision"]),
+  };
+}
+
+function currentLedgerGrantEvent(events: readonly EventEnvelope[]): EventEnvelope {
+  const grants = events.filter(
+    (event) => event.event_type === "hufu/authorization_grant.issued",
+  );
+  const current = grants[grants.length - 1];
+  if (
+    current === undefined ||
+    typeof current.payload["grant_id"] !== "string" ||
+    typeof current.payload["revision"] !== "number" ||
+    !Number.isInteger(current.payload["revision"]) ||
+    current.payload["revision"] < 1
+  ) {
+    throw new CommandError("DATA_INSUFFICIENT", "current Ledger grant is unavailable");
+  }
+  return current;
+}
+
+function assertLedgerBindings(
+  events: readonly EventEnvelope[],
+  plan: MutationPlan,
+  grant: ProductionExecuteGrantRef,
+): void {
+  if (plan.authority_scope_ref !== grant.grant_id) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "authority_scope_ref does not match the production execute grant",
+    );
+  }
+  const decision = materializeDecision(events, plan.decision_ref);
+  if (decision === undefined || decision.conflict) {
+    throw new CommandError("DATA_INSUFFICIENT", "decision_ref is not present in Ledger");
+  }
+  const authorityRef = decision.semantic["authority_scope_ref"];
+  const authoritativeState = decision.semantic["authoritative_state"];
+  if (
+    !isJsonObject(authorityRef) ||
+    authorityRef["grant_id"] !== grant.grant_id ||
+    authorityRef["revision"] !== grant.revision ||
+    !isJsonObject(authoritativeState) ||
+    typeof authoritativeState["task_ref"] !== "string"
+  ) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "decision_ref is not bound to the current grant and task",
+    );
+  }
+  const envelopes = events.filter(
+    (event) =>
+      event.event_type === "hufu/decision.envelope_attached" &&
+      event.payload["decision_id"] === plan.decision_ref,
+  );
+  const envelope = envelopes[envelopes.length - 1];
+  const workItems = envelope?.payload["work_item_ids"];
+  if (
+    envelope === undefined ||
+    envelope.payload["envelope_id"] !== plan.execution_envelope_ref ||
+    envelope.payload["version"] !== decision.version ||
+    envelope.payload["content_digest"] !== decision.content_digest ||
+    !Array.isArray(workItems) ||
+    !workItems.includes(plan.task_ref) ||
+    !workItems.includes(authoritativeState["task_ref"])
+  ) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "execution_envelope_ref is not the current envelope for the task",
+    );
+  }
+  if (envelope.payload["executor_principal_id"] !== plan.actor_binding) {
+    throw new CommandError(
+      "ROLE_NOT_ACTIVE",
+      "actor_binding is not the current envelope executor",
+    );
+  }
+  const expectedTaskRef = canonicalGitLabInstanceExternalRef(
+    new URL(plan.target.instance_origin).hostname.toLowerCase(),
+    plan.target.project_path,
+    plan.target.iid,
+  );
+  if (plan.task_ref !== expectedTaskRef) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "task_ref does not match the exact mutation target",
+    );
+  }
+}
+
+function currentDecisionVersion(
+  events: readonly EventEnvelope[],
+  plan: MutationPlan,
+): number {
+  const decision = materializeDecision(events, plan.decision_ref);
+  if (decision === undefined || decision.conflict) {
+    throw new CommandError("DATA_INSUFFICIENT", "current decision version is unavailable");
+  }
+  return decision.version;
+}
+
+function assertCloseEvidenceBindings(
+  events: readonly EventEnvelope[],
+  plan: MutationPlan,
+): void {
+  if (plan.mutation_kind !== "close_issue") {
+    return;
+  }
+  const requested = plan.payload.acceptance_evidence_refs ?? [];
+  const matrixRef = plan.payload.acceptance_matrix_ref;
+  const known = new Set<string>();
+  const decision = materializeDecision(events, plan.decision_ref);
+  if (decision === undefined || decision.conflict) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "close_issue requires the current decision version",
+    );
+  }
+  const facts = decision?.semantic["verified_facts"];
+  if (Array.isArray(facts)) {
+    for (const fact of facts) {
+      if (isJsonObject(fact) && typeof fact["evidence_ref"] === "string") {
+        known.add(fact["evidence_ref"]);
+      }
+    }
+  }
+  for (const event of events) {
+    if (
+      event.event_type === "hufu/decision.effect_delta" &&
+      event.payload["decision_id"] === plan.decision_ref &&
+      event.payload["envelope_id"] === plan.execution_envelope_ref &&
+      event.payload["version"] === decision.version &&
+      Array.isArray(event.payload["evidence_refs"])
+    ) {
+      for (const ref of event.payload["evidence_refs"]) {
+        if (typeof ref === "string" && ref.trim() !== "") {
+          known.add(ref.trim());
+        }
+      }
+    }
+  }
+  if (
+    typeof matrixRef !== "string" ||
+    !known.has(matrixRef) ||
+    requested.length === 0 ||
+    requested.some((ref) => !known.has(ref))
+  ) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "close_issue EvidenceRefs are not bound to the current decision acceptance matrix",
+    );
+  }
 }
 
 function findPrepared(
@@ -583,6 +1059,99 @@ function findPrepared(
   };
 }
 
+function assertPreparedProductionGrant(
+  events: readonly EventEnvelope[],
+  effectId: string,
+  plan: MutationPlan,
+): void {
+  const prepared = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/mutation.prepared" &&
+        event.payload["effect_id"] === effectId,
+    );
+  const ref = prepared?.payload["production_execute_grant_ref"];
+  const historicalGrant = isJsonObject(ref)
+    ? events.find(
+        (event) =>
+          event.event_type === "hufu/authorization_grant.issued" &&
+          event.payload["grant_id"] === ref["grant_id"] &&
+          event.payload["revision"] === ref["revision"],
+      )
+    : undefined;
+  if (
+    !isJsonObject(ref) ||
+    ref["grant_id"] !== plan.authority_scope_ref ||
+    typeof ref["revision"] !== "number" ||
+    historicalGrant === undefined ||
+    !grantEventAllowsMutation(historicalGrant, plan)
+  ) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "prepared mutation is not bound to an auditable production execute grant",
+    );
+  }
+}
+
+function preparedManagedStatusLabels(
+  events: readonly EventEnvelope[],
+  effectId: string,
+  plan: MutationPlan,
+): readonly string[] {
+  if (plan.mutation_kind !== "transition_managed_status_label") {
+    return [];
+  }
+  const prepared = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/mutation.prepared" &&
+        event.payload["effect_id"] === effectId,
+    );
+  const labels = prepared?.payload["managed_status_labels"];
+  if (
+    !Array.isArray(labels) ||
+    labels.length !== 6 ||
+    labels.some((label) => typeof label !== "string" || label.trim() === "") ||
+    new Set(labels).size !== 6
+  ) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "prepared label mutation is missing its exact six-label scope",
+    );
+  }
+  return labels as string[];
+}
+
+function preparedDecisionVersion(
+  events: readonly EventEnvelope[],
+  effectId: string,
+  plan: MutationPlan,
+): number {
+  const prepared = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/mutation.prepared" &&
+        event.payload["effect_id"] === effectId,
+    );
+  const version = prepared?.payload["decision_version"];
+  if (typeof version !== "number" || !Number.isInteger(version) || version < 1) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "prepared mutation is missing its decision version",
+    );
+  }
+  if (prepared?.payload["decision_ref"] !== plan.decision_ref) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "prepared mutation decision binding is inconsistent",
+    );
+  }
+  return version;
+}
+
 function findReceipt(
   events: readonly EventEnvelope[],
   effectId: string,
@@ -617,7 +1186,13 @@ function findReceipt(
   };
 }
 
-function persistPrepared(workspaceRoot: string, plan: MutationPlan): void {
+function persistPrepared(
+  workspaceRoot: string,
+  plan: MutationPlan,
+  productionGrant: ProductionExecuteGrantRef,
+  decisionVersion: number,
+  managedStatusLabels: readonly string[],
+): void {
   appendEvents(workspaceRoot, [
     {
       actor_binding_ref: plan.actor_binding,
@@ -628,12 +1203,15 @@ function persistPrepared(workspaceRoot: string, plan: MutationPlan): void {
         authority_scope_ref: plan.authority_scope_ref,
         canonical_payload_digest: plan.canonical_payload_digest,
         decision_ref: plan.decision_ref,
+        decision_version: decisionVersion,
         effect_id: plan.effect_id,
         execution_envelope_ref: plan.execution_envelope_ref,
         expected_source_revision: plan.expected_source_revision,
         mutation_idempotency_key: plan.idempotency_key,
         mutation_kind: plan.mutation_kind,
         mutation_payload: { ...plan.payload },
+        managed_status_labels: [...managedStatusLabels],
+        production_execute_grant_ref: { ...productionGrant },
         target: { ...plan.target },
         task_ref: plan.task_ref,
       },
@@ -644,6 +1222,7 @@ function persistPrepared(workspaceRoot: string, plan: MutationPlan): void {
 function persistEffectAndReceipt(
   workspaceRoot: string,
   plan: MutationPlan,
+  decisionVersion: number,
   result: {
     readonly outcome: MutationOutcome;
     readonly readback: MutationReadback;
@@ -667,7 +1246,7 @@ function persistEffectAndReceipt(
         observation_id: observationId,
         observed_result: result.writePerformed ? "applied" : "noop",
         readback_status: result.readback.availability,
-        version: 1,
+        version: decisionVersion,
       },
     },
     {
@@ -755,6 +1334,7 @@ async function observeReadback(
   options: CreateGitLabTaskMutationProviderOptions,
   timeoutMs: number,
   credential: string,
+  managedStatusLabels: readonly string[],
 ): Promise<MutationReadback> {
   try {
     const issue = await getIssue(plan, identity, options, timeoutMs, credential);
@@ -762,7 +1342,7 @@ async function observeReadback(
     return {
       availability: "available",
       effect_id: plan.effect_id,
-      matches_target: matchesTarget(plan, issue, notes),
+      matches_target: matchesTarget(plan, issue, notes, managedStatusLabels),
     };
   } catch (error) {
     if (error instanceof CommandError) {
@@ -787,12 +1367,14 @@ async function observeReadback(
 
 async function performWrite(
   plan: MutationPlan,
+  issue: ObservedIssue,
+  managedStatusLabels: readonly string[],
   identity: GitLabInstanceIdentity,
   options: CreateGitLabTaskMutationProviderOptions,
   timeoutMs: number,
   credential: string,
 ): Promise<void> {
-  const request = writeRequest(plan, identity);
+  const request = writeRequest(plan, issue, managedStatusLabels, identity);
   await authorizedRequest({
     body: request.body,
     credential,
@@ -806,6 +1388,8 @@ async function performWrite(
 
 function writeRequest(
   plan: MutationPlan,
+  issue: ObservedIssue,
+  managedStatusLabels: readonly string[],
   identity: GitLabInstanceIdentity,
 ): { readonly body: Record<string, unknown>; readonly method: "POST" | "PUT"; readonly url: string } {
   if (plan.mutation_kind === "append_comment") {
@@ -817,8 +1401,21 @@ function writeRequest(
     };
   }
   if (plan.mutation_kind === "transition_managed_status_label") {
+    const managedLabel = String(plan.payload.managed_label);
+    if (issue.labels === undefined) {
+      throw new CommandError(
+        "DATA_INSUFFICIENT",
+        "managed label mutation requires a complete current labels list",
+      );
+    }
+    const removeLabels = issue.labels.filter(
+      (label) => managedStatusLabels.includes(label) && label !== managedLabel,
+    );
     return {
-      body: { add_labels: plan.payload.managed_label },
+      body: {
+        add_labels: managedLabel,
+        ...(removeLabels.length === 0 ? {} : { remove_labels: removeLabels.join(",") }),
+      },
       method: "PUT",
       url: issueUrl(identity, plan.target.iid),
     };
@@ -848,13 +1445,26 @@ function matchesTarget(
   plan: MutationPlan,
   issue: ObservedIssue,
   notes: readonly { readonly body: string }[],
+  managedStatusLabels: readonly string[],
 ): boolean {
   if (plan.mutation_kind === "append_comment") {
     const marker = commentEffectMarker(plan.effect_id, plan.canonical_payload_digest);
     return notes.some((note) => note.body.includes(marker));
   }
   if (plan.mutation_kind === "transition_managed_status_label") {
-    return issue.labels.includes(String(plan.payload.managed_label));
+    const managedLabel = String(plan.payload.managed_label);
+    if (issue.labels === undefined) {
+      throw new CommandError(
+        "DATA_INSUFFICIENT",
+        "managed label readback requires a complete labels list",
+      );
+    }
+    return (
+      issue.labels.includes(managedLabel) &&
+      !issue.labels.some(
+        (label) => managedStatusLabels.includes(label) && label !== managedLabel,
+      )
+    );
   }
   if (plan.mutation_kind === "set_assignee") {
     return issue.assignee === plan.payload.assignee;
@@ -871,6 +1481,16 @@ function assertRevisionMatch(issue: ObservedIssue, expected: string): void {
     throw new CommandError(
       "CONTRACT_INVALID",
       "issue source revision does not match expected_source_revision",
+    );
+  }
+}
+
+function assertRecoveryRevisionMatch(issue: ObservedIssue, expected: string): void {
+  const actual = issue.updated_at;
+  if (actual === undefined || actual !== expected) {
+    throw new CommandError(
+      "LEDGER_CAUSALITY_CONFLICT",
+      "prepared mutation source revision changed before recovery",
     );
   }
 }
@@ -934,7 +1554,7 @@ async function refreshProjection(
       items: listed.items.map((item) => ({
         assignee: item.assignee,
         iid: Number(item.external_ref.split("#")[1] ?? "0"),
-        labels: item.labels ?? [],
+        ...(item.labels === undefined ? {} : { labels: item.labels }),
         state: item.native_state,
         updated_at: item.updated_at ?? item.source_revision,
         web_url: item.original_url,
@@ -954,6 +1574,7 @@ async function refreshProjection(
 function projectionShowsTarget(
   plan: MutationPlan,
   projection: { readonly incomplete: boolean; readonly items: readonly ObservedIssue[] },
+  managedStatusLabels: readonly string[],
 ): boolean {
   if (plan.mutation_kind === "append_comment") {
     return true;
@@ -965,7 +1586,7 @@ function projectionShowsTarget(
   if (item === undefined) {
     return false;
   }
-  return matchesTarget(plan, item, []);
+  return matchesTarget(plan, item, [], managedStatusLabels);
 }
 
 function issueUrl(identity: GitLabInstanceIdentity, iid: number): string {
@@ -1225,7 +1846,10 @@ function pathnameAllowed(
 
 function readLabels(value: unknown): readonly string[] {
   if (!Array.isArray(value)) {
-    return [];
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "gitlab issue labels are unavailable",
+    );
   }
   return value.flatMap((item) => {
     if (typeof item === "string" && item.trim() !== "") {

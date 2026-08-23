@@ -67,6 +67,10 @@ function legalEnvelopeRef(): Record<string, unknown> {
   };
 }
 
+function legalSessionBindingRef(): Record<string, unknown> {
+  return { binding_id: "bind-example", generation: 1 };
+}
+
 function assertCode(fn: () => unknown, code: string): void {
   assert.throws(fn, (error: unknown) => {
     if (!(error instanceof CommandError)) {
@@ -125,7 +129,10 @@ describe("LoopX bridge surface (#58)", () => {
     ]);
     assert.equal(decision.execution_envelope_ref?.envelope_id, "env-example");
     assert.equal(evidence.typed_result_ref?.result_id, "tr-example");
-    const turn = prepareOutboundTurn(legalEnvelopeRef());
+    const turn = prepareOutboundTurn(
+      legalEnvelopeRef(),
+      legalSessionBindingRef(),
+    );
     assert.equal(turn.turn_kind, "run_once");
     assert.equal(turn.max_invocations, 1);
     assert.equal(turn.envelope_ref.envelope_id, "env-example");
@@ -202,6 +209,8 @@ describe("LoopX bridge surface (#58)", () => {
       }
       const fromEvents = projectBridgeSnapshot(ledger.events);
       const fromView = projectBridgeSnapshot(statusView(dir));
+      assert.equal(fromEvents.session_binding_ref, undefined);
+      assert.equal(fromView.session_binding_ref, undefined);
       for (const snapshot of [fromEvents, fromView]) {
         const text = JSON.stringify(snapshot);
         assert.match(snapshot.content_digest, /^sha256:[0-9a-f]{64}$/);
@@ -299,8 +308,14 @@ describe("LoopX bridge surface (#58)", () => {
   });
 
   it("prepares one run-once bounded Turn and does not start a scheduler", () => {
-    const first = prepareOutboundTurn(legalEnvelopeRef());
-    const second = prepareOutboundTurn(legalEnvelopeRef());
+    const first = prepareOutboundTurn(
+      legalEnvelopeRef(),
+      legalSessionBindingRef(),
+    );
+    const second = prepareOutboundTurn(
+      legalEnvelopeRef(),
+      legalSessionBindingRef(),
+    );
     assert.equal(first.turn_kind, "run_once");
     assert.equal(first.max_invocations, 1);
     assert.equal(second.max_invocations, 1);
@@ -310,7 +325,7 @@ describe("LoopX bridge surface (#58)", () => {
         prepareOutboundTurn({
           ...legalEnvelopeRef(),
           scheduler: { every: "1s" },
-        }),
+        }, legalSessionBindingRef()),
       "BRIDGE_CONTROL_PLANE_REJECTED",
     );
     assertCode(
@@ -319,7 +334,7 @@ describe("LoopX bridge surface (#58)", () => {
           ...legalEnvelopeRef(),
           executor_principal_id: "human:alice",
           work_item_ids: ["wi-1"],
-        }),
+        }, legalSessionBindingRef()),
       "BRIDGE_AUTHORITY_REJECTED",
     );
     assert.equal("schedule" in bridgePort, false);

@@ -98,3 +98,34 @@ tests/
 ## Complexity Tracking
 
 > 无违规。本 PR 不增加运行时表面积。把失败 Adapter 测试留在 `tasks.md` 而不是本 PR，是为了遵守「本票不是实现授权」且保持 CI 绿色。
+
+## #68 实现增量（2026-08-23）
+
+Issue #68 在既有三端引用桥之上增加一个窄 RunOnce Consumer。兼容基线固定为 LoopX
+`v0.5.2` / `423035f402e2f1703f076c3cfe60c14c5803433f`。新增编译单元仅为
+`src/hufu/loopx-run-once.ts`；无新增依赖、网络、真实 Host、CLI、持久事件类型或后台进程。
+
+公开接口顺序为：
+
+```text
+BridgeActivationReceipt
+  + opaque authority_ref
+  -> independent AuthorityResolver(current Hufu Ledger/status)
+  -> Plan(ExecutionEnvelopeRef, SessionBindingRef)
+  -> pre-readback
+  -> durable attempt CAS(prepared)
+  -> one bounded RunOncePort.execute
+  -> independent TypedResult Validator
+  -> effect readback + Validator Receipt + final Receipt
+  -> next_allowed
+```
+
+显式 wrapper 路径属于部署侧 Provider 配置；Hufu 只绑定 `runtime_locator_ref`。Constitution
+复检通过：GitLab / GitHub 仍是任务正本；LoopX 控制面不复制；无 Scheduler/while-loop；
+缺失读回使用 `DATA_INSUFFICIENT`；失败/超时与重启不盲重试。
+
+Activation Receipt 不再影响领域 Plan 的 `execution_allowed`；只有独立 AuthorityResolver 从 Hufu
+current Ledger/status 签发 fresh receipt，且 Consumer 核验 current grant/Decision/Envelope/task/
+SessionBinding 与实际注入 Port、耐久 attempt store、独立 Validator/readback 一致后才能置 `true`。
+执行前再 resolve 一次；裸 AuthorityCrossing 不再进入 Consumer options。
+首次调用前的 `prepared` attempt 是耐久停止线：效果未知时后续只 readback，不二次 execute。

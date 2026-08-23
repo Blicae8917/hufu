@@ -21,6 +21,7 @@ import {
 import { type GitLabPort } from "../src/hufu/gitlab-port.js";
 import {
   createGitLabTaskMutationProvider,
+  MANAGED_MUTATION_KINDS,
   mutationPayloadDigest,
   PRODUCTION_EXECUTE_GRANTED,
   type GitLabTaskMutationProvider,
@@ -29,10 +30,11 @@ import {
   type MutationPlan,
   type MutationReceipt,
   type MutationTarget,
+  type MutationWriteAllowance,
   type TaskMutationIntent,
 } from "../src/hufu/gitlab-task-mutation-provider.js";
 import { type SecretProvider } from "../src/hufu/secret-provider.js";
-import { readLedger } from "../src/hufu/storage.js";
+import { appendEvents, readLedger } from "../src/hufu/storage.js";
 import { statusWorkspace } from "../src/hufu/status.js";
 import { VERSION } from "../src/hufu/version.js";
 import { basePacket } from "./decision-harness.js";
@@ -44,6 +46,14 @@ export const PILOT_PROJECT = "example/parent";
 export const PILOT_REVISION = "2026-08-23T10:00:00Z";
 export const PILOT_CREDENTIAL = "glpat-EXAMPLE0001token";
 export const PILOT_EXCEPTION_REF = "test-transport-exception-ref";
+const PILOT_MANAGED_LABELS = [
+  "status::triage",
+  "status::needs-info",
+  "status::ready",
+  "status::doing",
+  "status::review",
+  "status::wontfix",
+] as const;
 
 export const PILOT_PARENT = {
   iid: 1,
@@ -252,6 +262,26 @@ async function createPublicSafePilotWorld(
     instanceOrigin: origin,
     projectPath: project,
   });
+  const writeAllowlist = pilotWriteAllowlist(origin, project, issues);
+  const productionGrantRevision = connected.grant_revision + 1;
+  appendEvents(workspaceRoot, [
+    {
+      actor_binding_ref: "human:alice",
+      event_type: "hufu/authorization_grant.issued",
+      idempotency_key: `hufu/authorization_grant.issued:example-parent:${String(productionGrantRevision)}`,
+      payload: {
+        grant_id: connected.grant_id,
+        issuer_id: "human:alice",
+        revision: productionGrantRevision,
+        scope: {
+          action: "mutate",
+          mutation_allowances: writeAllowlist,
+          resource: "gitlab_issue",
+        },
+        scope_text: "public-safe structured GitLab mutation execute grant",
+      },
+    },
+  ]);
   const gitlab = createPilotFakeGitLab(origin, project, options);
   const injectFetch = options.injectFetch !== false;
   const exceptionRef =
@@ -262,12 +292,17 @@ async function createPublicSafePilotWorld(
   const provider = createGitLabTaskMutationProvider({
     ...(injectFetch ? { fetch: gitlab.fetch } : {}),
     identity,
+    productionExecuteGrant: {
+      grant_id: connected.grant_id,
+      revision: productionGrantRevision,
+    },
+    readAllowlist: [origin],
     secretProvider,
     ...(exceptionRef === undefined
       ? {}
       : { transportSecurityExceptionRef: exceptionRef }),
     workspaceRoot,
-    writeAllowlist: [origin],
+    writeAllowlist,
   });
   const gitlabPort = createPilotProjectionPort(origin, project, gitlab);
   await statusWorkspace(workspaceRoot, {
@@ -280,8 +315,14 @@ async function createPublicSafePilotWorld(
     project,
     PILOT_PARENT.iid,
   );
-  const packetInput = basePacket(connected.grant_id, connected.grant_revision);
+  const packetInput = basePacket(connected.grant_id, productionGrantRevision);
   (packetInput["authoritative_state"] as Record<string, unknown>)["task_ref"] = parentRef;
+  packetInput["verified_facts"] = [
+    {
+      evidence_ref: "evidence:acceptance-matrix",
+      proposition: "the public-safe pilot acceptance matrix passed",
+    },
+  ];
   const packet = decideWorkspace(workspaceRoot, {
     actor: "human:alice",
     kind: "packet",
@@ -295,7 +336,9 @@ async function createPublicSafePilotWorld(
       decision_id: packet["decision_id"],
       executor_principal_id: "human:alice",
       version: packet["version"],
-      work_item_ids: [parentRef],
+      work_item_ids: issues.map((issue) =>
+        canonicalGitLabInstanceExternalRef(identity.instance_host, project, issue.iid),
+      ),
     },
   });
   const host = createNativeHostRuntimeProvider({
@@ -548,7 +591,10 @@ function kindPayload(kind: ManagedMutationKind, iid: number): MutationKindPayloa
     return { assignee: "example-owner", assignee_id: 7 };
   }
   if (kind === "close_issue") {
-    return { acceptance_evidence_complete: true };
+    return {
+      acceptance_evidence_refs: ["evidence:acceptance-matrix"],
+      acceptance_matrix_ref: "evidence:acceptance-matrix",
+    };
   }
   return {};
 }
@@ -558,7 +604,8 @@ function payloadOverrides(extras: Record<string, unknown>): MutationKindPayload 
   const fromPayload = isRecord(payload) ? payload : {};
   const merged: Record<string, unknown> = { ...fromPayload };
   for (const key of [
-    "acceptance_evidence_complete",
+    "acceptance_evidence_refs",
+    "acceptance_matrix_ref",
     "assignee",
     "assignee_id",
     "comment_body",
@@ -569,6 +616,45 @@ function payloadOverrides(extras: Record<string, unknown>): MutationKindPayload 
     }
   }
   return merged;
+}
+
+function pilotWriteAllowlist(
+  origin: string,
+  project: string,
+  issues: readonly PilotIssueSpec[],
+): readonly MutationWriteAllowance[] {
+  return issues.flatMap((issue) =>
+    MANAGED_MUTATION_KINDS.flatMap((mutation_kind) => {
+      const base = {
+        iid: issue.iid,
+        instance_origin: origin,
+        mutation_kind,
+        project_path: project,
+      };
+      if (mutation_kind === "transition_managed_status_label") {
+        return PILOT_MANAGED_LABELS.map((managed_label) => ({
+          ...base,
+          managed_label,
+        }));
+      }
+      if (mutation_kind === "set_assignee") {
+        return [{ ...base, assignee: "example-owner", assignee_id: 7 }];
+      }
+      if (mutation_kind === "append_comment") {
+        return [{ ...base, comment_body: `example comment for #${String(issue.iid)}` }];
+      }
+      if (mutation_kind === "close_issue") {
+        return [
+          {
+            ...base,
+            acceptance_evidence_refs: ["evidence:acceptance-matrix"],
+            acceptance_matrix_ref: "evidence:acceptance-matrix",
+          },
+        ];
+      }
+      return [base];
+    }),
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

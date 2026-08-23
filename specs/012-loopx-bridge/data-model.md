@@ -123,3 +123,44 @@ MUST NOT：
 | `BRIDGE_CONTROL_PLANE_REJECTED` | Goal / Todo / Scheduler / Heartbeat / 配额等控制面字段 |
 | `BRIDGE_008_PROMOTION_REJECTED` | 把 `loopx-mechanisms` 当作 `task_authority` 或本桥启用令 |
 | `DATA_INSUFFICIENT` | 缺失读回、墙钟或用量；不得写成 `0` |
+
+## #68 RunOnce 运行增量
+
+### BridgeActivationReceipt
+
+| 字段 | 约束 |
+| --- | --- |
+| `receipt_id` | 稳定能力回执身份 |
+| `adapter_id` / `adapter_version` | 注入式 RunOncePort 身份 |
+| `validator_id` | 必须与 `adapter_id` 不同 |
+| `loopx_release` / `loopx_commit` | 固定 `v0.5.2` / `423035f402e2f1703f076c3cfe60c14c5803433f` |
+| `capabilities` | `turn_plan` / `run_once` / `readback` / `durable_attempt_journal` / `independent_typed_result_validator` 全为 `true` |
+| `runtime_locator_ref` | Provider 自有 wrapper 配置的不透明引用；不是路径正文 |
+| `qualification` | 仅 `qualified` |
+| `observed_at` | UTC ISO-8601 毫秒 |
+| `capability_digest` | 上述规范化声明的摘要 |
+
+### BoundedTurnRequest
+
+包含 opaque `authority_ref`、真实 `ExecutionEnvelopeRef`、真实 `SessionBindingRef`、固定基线、activation receipt ref、
+`runtime_locator_ref`、稳定 `turn_key`、`turn_kind=run_once`、`max_invocations=1` 和
+`execution_allowed`。缺少执行能力时 `execution_allowed=false`，但 Plan 仍可读。
+
+### AuthorityValidationReceipt
+
+独立 AuthorityResolver 按 opaque `authority_ref` 从 Hufu current Ledger/status 读回后签发。回执必须
+绑定 resolver id、current `authority_scope_ref` / grant revision、task ref、source revision、
+DecisionRef、ExecutionEnvelopeRef、SessionBindingRef generation、freshness、observed_at 与 validation digest。
+调用方裸传的 AuthorityCrossing 不构成该回执；执行前再次 resolve 的回执必须与 Plan 完全一致。
+
+### RunOnce 完整读回
+
+只有 `readback_status=complete`，并同时存在同一 Turn 的 `TypedResultRef`、`EffectRef`、
+独立 Validator 的 `validation_receipt_ref` 与最终 `ReceiptRef`，才可物化
+`next_allowed=true`。`not_found` 只允许首次执行；`prepared` / `unavailable` 不允许重试或续 Turn。
+
+### DurableAttemptRecord
+
+首次 execute 前，注入式 attempt store 必须以 `turn_key` 做 CAS，耐久产生唯一
+`{ attempt_id, status=prepared, durable=true }`。`created=true` 才允许本次单次调用；既有
+`prepared` / `attempted` 记录表示效果未知，只允许 readback 或 typed stop，不允许自动再次 execute。

@@ -27,9 +27,12 @@
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
 - [x] Feature meets measurable outcomes defined in Success Criteria
+- [x] #66 production grant、exact refs/allowlist、六状态、EvidenceRef 与恢复 revision 均有失败测试
+- [x] 只读 scope、scope target/kind/payload 缺口、labels unavailable、旧 envelope evidence 与 successor-grant recovery 均有回归测试
+- [x] 真实项目 `write_back_enabled=false` 且无 production grant 时仍只到 preview
 - [x] No implementation details leak into specification
 
 ## Notes
 
-- 端口方法名属于合同形状，不是本波运行时实现。
-- 无 [NEEDS CLARIFICATION]。实现授权在 #57 / ADR 0007；本波不交付 Adapter。
+- 端口方法名属于合同形状；#57 已实现库级 Provider，#66 只收紧 production binding。
+- 无 [NEEDS CLARIFICATION]。本分支不交付真实网络 Adapter 或生产执行授权。

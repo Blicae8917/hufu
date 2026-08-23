@@ -117,3 +117,24 @@
 - 不要把缺失观测写成 `0`
 - 不要关闭 #50 或改写 #5
 - 不要把 #9 `loopx-mechanisms` 升格为任务正本
+
+---
+
+## Phase 7: #68 LoopX v0.5.2 RunOnce Consumer 实现增量
+
+- [x] T019 在 `tests/loopx-run-once.test.ts` 先写红灯：无显式 qualified activation receipt 时桥保持关闭。
+- [x] T020 实现 `BridgeActivationReceipt` 严格校验并钉住 v0.5.2 commit。
+- [x] T021 先写红灯并修改 `prepareOutboundTurn`：绑定真实 `ExecutionEnvelopeRef` + `SessionBindingRef`，稳定 turn key，默认只 Plan。
+- [x] T022 先写红灯并新增窄 `loopx-run-once.ts`：无 RunOncePort 时执行失败关闭。
+- [x] T023 用 public-safe fake port 覆盖一次成功 run-once；独立 Validator、Effect readback、Receipt 全部完成后才允许 next。
+- [x] T024 覆盖失败与超时：执行不确定后只 readback，不盲重试，不重复调用 Port。
+- [x] T025 覆盖伪造 TypedResult 与伪造 / stale Plan，在调用 Port 前失败关闭。
+- [x] T026 删除 CurrentView 将 project_lead RoleBinding 伪造成 `generation=1` SessionBinding 的路径。
+- [x] T027 覆盖重复 Turn、重启恢复和 post-execution readback 仍 prepared 的停止线。
+- [x] T028 更新 `contracts/run-once.v1.md`、本 kit 与定向测试；保持无 LoopX 依赖、无 vendor、无 Scheduler / while-loop。
+- [x] T029 回归复现超时后效果 `not_found` 导致第二次 execute；先得到红灯。
+- [x] T030 增加注入式耐久 attempt store：首次执行前 CAS `prepared`，既有 attempt 禁止二次 execute。
+- [x] T031 将 `execution_allowed` 收紧为现行 Authority/grant + Envelope + SessionBinding + 实际 Port/attempt store/独立 Validator/readback 全部齐备。
+- [x] T032 同步 `docs/COMPATIBILITY.md` 至 exact LoopX v0.5.2 / `423035f…` 基线并补回归。
+- [x] T033 拒绝裸 fresh AuthorityCrossing；增加独立 AuthorityResolver 与 opaque authority ref。
+- [x] T034 覆盖 stale grant revision、错 Envelope/Session 与 Resolver unavailable，均在 runtime effect 前失败关闭。
