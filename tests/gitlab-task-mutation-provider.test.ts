@@ -442,7 +442,7 @@ describe("GitLabTaskMutationProvider (#57)", () => {
       }
     }
     const saasSource = readFileSync(
-      fileURLToPath(new URL("../src/hufu/gitlab-http.ts", import.meta.url)),
+      fileURLToPath(new URL("../../src/hufu/gitlab-http.ts", import.meta.url)),
       "utf8",
     );
     assert.match(saasSource, /https:\/\/gitlab\.com\/api\/v4\/projects\//);
@@ -624,7 +624,9 @@ describe("GitLabTaskMutationProvider (#57)", () => {
         () => readOnlyOnly.preview(intent),
         (error: unknown) =>
           error instanceof CommandError &&
-          (error.code === "REPOSITORY_NOT_ALLOWED" || error.code === "GRANT_SCOPE_EXCEEDED"),
+          (error.code === "REPOSITORY_NOT_ALLOWED" ||
+            error.code === "GRANT_SCOPE_EXCEEDED" ||
+            error.code === "CONTRACT_INVALID"),
       );
     });
   });

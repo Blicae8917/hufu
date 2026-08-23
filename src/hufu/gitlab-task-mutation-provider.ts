@@ -559,7 +559,9 @@ function findPrepared(
   ) {
     throw new CommandError("DATA_INSUFFICIENT", "mutation prepared event is malformed");
   }
-  const kindPayloadValue = isJsonObject(payload["payload"]) ? payload["payload"] : {};
+  const kindPayloadValue = isJsonObject(payload["mutation_payload"])
+    ? payload["mutation_payload"]
+    : {};
   return {
     actor_binding: String(payload["actor_binding"] ?? ""),
     authority_scope_ref: String(payload["authority_scope_ref"] ?? ""),
@@ -568,7 +570,7 @@ function findPrepared(
     effect_id: payload["effect_id"],
     execution_envelope_ref: String(payload["execution_envelope_ref"] ?? ""),
     expected_source_revision: String(payload["expected_source_revision"] ?? ""),
-    idempotency_key: String(payload["idempotency_key"] ?? ""),
+    idempotency_key: String(payload["mutation_idempotency_key"] ?? ""),
     mutation_kind: kind,
     payload: kindPayloadValue,
     target: {
@@ -629,9 +631,9 @@ function persistPrepared(workspaceRoot: string, plan: MutationPlan): void {
         effect_id: plan.effect_id,
         execution_envelope_ref: plan.execution_envelope_ref,
         expected_source_revision: plan.expected_source_revision,
-        idempotency_key: plan.idempotency_key,
+        mutation_idempotency_key: plan.idempotency_key,
         mutation_kind: plan.mutation_kind,
-        payload: { ...plan.payload },
+        mutation_payload: { ...plan.payload },
         target: { ...plan.target },
         task_ref: plan.task_ref,
       },
