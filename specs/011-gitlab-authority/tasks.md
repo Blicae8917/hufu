@@ -25,10 +25,10 @@
 
 **Purpose**: 任何 Adapter / CLI / `src/` 改动之前，先有会失败的测试。
 
-- [ ] T001 [P] 在 `tests/gitlab-authority-adapter.test.ts` 写失败测试：007 的 `parseGitLabProject` / `parseGitLabExternalRef` 对示例自建来源 `https://gitlab.example.com/example-group/example-project`（示例）与 `gitlab-instance:gitlab.example.com/example-group/example-project#456`（示例）仍失败关闭；端口对象仍无写方法
-- [ ] T002 [P] 在 `tests/gitlab-authority-identity.test.ts` 写失败测试：显式 `self_hosted` + 允许清单内的示例来源才能声明正本；`gitlab.com` 冒充自建、缺允许清单、git remote 推断均失败关闭
-- [ ] T003 [P] 在 `tests/gitlab-authority-nowrite.test.ts` 写失败测试：正本声明成立后 `write_back_enabled` 仍为 false；create/update/close/comment/merge 路径不存在；Constitution 未修订时写回 grant 失败关闭
-- [ ] T004 [P] 扩展 `tests/gitlab-ref.test.ts` 与 `tests/gitlab-adapter.test.ts` 的失败断言：本实现不得让 007 解析器开始接受自建 Host 或 `gitlab-instance:`（证明不扩大 007）
+- [x] T001 [P] 在 `tests/gitlab-authority-adapter.test.ts` 写失败测试：007 的 `parseGitLabProject` / `parseGitLabExternalRef` 对示例自建来源 `https://gitlab.example.com/example-group/example-project`（示例）与 `gitlab-instance:gitlab.example.com/example-group/example-project#456`（示例）仍失败关闭；端口对象仍无写方法
+- [x] T002 [P] 在 `tests/gitlab-authority-identity.test.ts` 写失败测试：显式 `self_hosted` + 允许清单内的示例来源才能声明正本；`gitlab.com` 冒充自建、缺允许清单、git remote 推断均失败关闭
+- [x] T003 [P] 在 `tests/gitlab-authority-nowrite.test.ts` 写失败测试：正本声明成立后 `write_back_enabled` 仍为 false；create/update/close/comment/merge 路径不存在；Constitution 未修订时写回 grant 失败关闭
+- [x] T004 [P] 扩展 `tests/gitlab-ref.test.ts` 与 `tests/gitlab-adapter.test.ts` 的失败断言：本实现不得让 007 解析器开始接受自建 Host 或 `gitlab-instance:`（证明不扩大 007）
 
 **Checkpoint**: 未来实现 PR 在这些测试失败后，才能写生产代码。本设计 PR 停在此处之前。
 
@@ -36,8 +36,8 @@
 
 ## Phase 2: Foundational（未来实现，被 T001–T004 阻断）
 
-- [ ] T005 新增 `src/hufu/gitlab-instance-ref.ts`：只解析 `gitlab-instance:` 与显式自建来源；**不得**修改 `src/hufu/gitlab-ref.ts` 去接受自建 Host
-- [ ] T006 保持 `src/hufu/gitlab-port.ts` 只读；不得增加写方法。凭据不得进入连接记录或 HTTP 默认头
+- [x] T005 新增 `src/hufu/gitlab-instance-ref.ts`：只解析 `gitlab-instance:` 与显式自建来源；**不得**修改 `src/hufu/gitlab-ref.ts` 去接受自建 Host
+- [x] T006 保持 `src/hufu/gitlab-port.ts` 只读；不得增加写方法。凭据不得进入连接记录或 HTTP 默认头
 
 **Checkpoint**: 007 既有测试仍绿；自建解析与 007 解析分文件
 
@@ -49,8 +49,8 @@
 
 **Independent Test**: 007 夹具行为不变；自建声明不打开写方法
 
-- [ ] T007 [P] [US1] 扩展 `tests/gitlab-authority-adapter.test.ts`：007 list 合同保持；Authority 路径即使存在也无写调用
-- [ ] T008 [US1] 若增加声明记录，只写 `instance_kind` / 示例安全字段到本机连接，不写凭据，不改 007 缓存文件名
+- [x] T007 [P] [US1] 扩展 `tests/gitlab-authority-adapter.test.ts`：007 list 合同保持；Authority 路径即使存在也无写调用
+- [x] T008 [US1] 若增加声明记录，只写 `instance_kind` / 示例安全字段到本机连接，不写凭据，不改 007 缓存文件名
 
 ---
 
@@ -60,8 +60,8 @@
 
 **Independent Test**: 四项缺一即失败关闭；SaaS 不可写
 
-- [ ] T009 [P] [US2] 扩展 `tests/gitlab-authority-identity.test.ts`：示例来源 + 允许清单成功声明后仍不联网、不写回
-- [ ] T010 [US2] 连接路径拒绝 `gitlab.com` 可写、拒绝 remote 推断；成功路径默认 `read_projection`
+- [x] T009 [P] [US2] 扩展 `tests/gitlab-authority-identity.test.ts`：示例来源 + 允许清单成功声明后仍不联网、不写回
+- [x] T010 [US2] 连接路径拒绝 `gitlab.com` 可写、拒绝 remote 推断；成功路径默认 `read_projection`
 
 ---
 
@@ -71,15 +71,15 @@
 
 **Independent Test**: 无新控制面子命令；`hufu serve` 仍拒绝
 
-- [ ] T011 [P] [US3] 在 `tests/gitlab-authority-nowrite.test.ts` 或现有 CLI 测试中断言：本实现不增加 `serve` 成功路径、不增加会商 / 出站 Runtime / Goal 命令
-- [ ] T012 [US3] 不实现写回；若有人打开写回，须先有维护者批准的 Constitution 修订（本任务在闸门关闭时保持拒绝）
+- [x] T011 [P] [US3] 在 `tests/gitlab-authority-nowrite.test.ts` 或现有 CLI 测试中断言：本实现不增加 `serve` 成功路径、不增加会商 / 出站 Runtime / Goal 命令
+- [x] T012 [US3] 不实现写回；若有人打开写回，须先有维护者批准的 Constitution 修订（本任务在闸门关闭时保持拒绝）
 
 ---
 
 ## Phase 6: Polish（未来实现 PR）
 
-- [ ] T013 [P] 仅在实现票且行为已变时更新 `CHANGELOG.md` Unreleased；版本保持 `0.1.0`；不编辑 #5，不关闭 #49 以外由实现票自己决定的流程
-- [ ] T014 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check` 并分别记录
+- [x] T013 [P] 仅在实现票且行为已变时更新 `CHANGELOG.md` Unreleased；版本保持 `0.1.0`；不编辑 #5，不关闭 #49 以外由实现票自己决定的流程
+- [x] T014 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check` 并分别记录
 
 ## Dependencies
 

@@ -1,6 +1,7 @@
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
 import { type GitLabProjectionCache } from "./gitlab-cache.js";
+import { type GitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
 import { type ProjectionCache } from "./projection-cache.js";
 import {
   currentAck,
@@ -50,6 +51,11 @@ export interface WorkItemView {
   readonly native_state?: FactSlot<string>;
   readonly objective: string;
   readonly original_url?: string;
+  readonly labels?: readonly string[];
+  readonly assignee?: string;
+  readonly milestone?: string;
+  readonly updated_at?: string;
+  readonly source_revision?: string;
   readonly owner: FactSlot<{ binding_id: string; principal_id: string }>;
   readonly observed_at?: FactSlot<string>;
   readonly work_item_id: string;
@@ -130,11 +136,15 @@ export interface CurrentView {
   readonly view_schema_version: 1;
   readonly work_item_set: FactSlot<{ count: number; incomplete: boolean }>;
   readonly work_items: readonly WorkItemView[];
+  readonly instance_kind?: FactSlot<"self_hosted">;
+  readonly instance_origin?: FactSlot<string>;
+  readonly write_back_enabled?: FactSlot<false>;
 }
 
 export interface ProjectViewOptions {
   readonly cache?: ProjectionCache;
-  readonly gitlabCache?: GitLabProjectionCache;
+  readonly gitlabCache?: GitLabProjectionCache | GitLabInstanceProjectionCache;
+  readonly gitlabInstanceCache?: GitLabInstanceProjectionCache;
   readonly now?: Date;
 }
 
@@ -183,7 +193,7 @@ export function projectCurrentView(
     taskAuthority === "github"
       ? options.cache
       : taskAuthority === "gitlab"
-        ? options.gitlabCache
+        ? (options.gitlabInstanceCache ?? options.gitlabCache)
         : undefined;
   const workItems =
     taskAuthority === "github" || taskAuthority === "gitlab"
@@ -234,6 +244,28 @@ export function projectCurrentView(
       "available",
       "not_applicable",
     ),
+    ...(connected.payload["instance_kind"] === "self_hosted"
+      ? {
+          instance_kind: slot(
+            "self_hosted" as const,
+            "authoritative",
+            "available",
+            "not_applicable",
+          ),
+          instance_origin: slot(
+            String(connected.payload["instance_origin"]),
+            "authoritative",
+            "available",
+            "not_applicable",
+          ),
+          write_back_enabled: slot(
+            false as const,
+            "authoritative",
+            "available",
+            "not_applicable",
+          ),
+        }
+      : {}),
     view_schema_version: 1,
     work_item_set: workItemSet,
     work_items: workItems,
@@ -495,6 +527,19 @@ function projectedWorkItems(
       native_state: slot(item.native_state, "observed", "available", freshness),
       objective: item.title,
       original_url: item.original_url,
+      ...("labels" in item && item.labels !== undefined ? { labels: item.labels } : {}),
+      ...("assignee" in item && item.assignee !== undefined
+        ? { assignee: item.assignee }
+        : {}),
+      ...("milestone" in item && item.milestone !== undefined
+        ? { milestone: item.milestone }
+        : {}),
+      ...("updated_at" in item && item.updated_at !== undefined
+        ? { updated_at: item.updated_at }
+        : {}),
+      ...("source_revision" in item && item.source_revision !== undefined
+        ? { source_revision: item.source_revision }
+        : {}),
       owner: missing("authoritative", "data_insufficient"),
       observed_at: slot(cache.observed_at, "observed", "available", freshness),
       work_item_id: item.external_ref,

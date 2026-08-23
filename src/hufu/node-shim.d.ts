@@ -21,6 +21,14 @@ declare var URL: {
 
 interface URL {
   readonly href: string;
+  readonly protocol: string;
+  readonly hostname: string;
+  readonly host: string;
+  readonly port: string;
+  readonly pathname: string;
+  readonly username: string;
+  readonly password: string;
+  readonly origin: string;
 }
 
 interface ImportMeta {
@@ -40,7 +48,11 @@ interface Response {
 
 declare function fetch(
   input: string,
-  init?: { method?: string; headers?: Record<string, string> },
+  init?: {
+    method?: string;
+    headers?: Record<string, string>;
+    redirect?: "follow" | "error" | "manual";
+  },
 ): Promise<Response>;
 
 declare module "node:assert/strict" {

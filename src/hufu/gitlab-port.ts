@@ -5,6 +5,10 @@ export interface GitLabIssueProjection {
   readonly title: string;
   readonly observed_at: string;
   readonly source_revision?: string;
+  readonly labels?: readonly string[];
+  readonly assignee?: string;
+  readonly milestone?: string;
+  readonly updated_at?: string;
 }
 
 export interface GitLabProjectionListResult {

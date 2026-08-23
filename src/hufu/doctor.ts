@@ -1,4 +1,11 @@
 import { CommandError } from "./errors.js";
+import { connectedInstanceIdentity } from "./gitlab-authority.js";
+import { readGitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
+import {
+  createEnvSecretProvider,
+  isCredentialAvailable,
+  type SecretProvider,
+} from "./secret-provider.js";
 import {
   lockPresent,
   readLedger,
@@ -11,11 +18,17 @@ export interface DoctorResult {
   readonly lock_present: false;
   readonly project_id: string;
   readonly task_authority: "local" | "github" | "gitlab";
+  readonly instance_kind?: "self_hosted";
+  readonly instance_origin?: string;
+  readonly write_back_enabled?: false;
+  readonly credential_available?: boolean;
+  readonly cache_status?: "present" | "missing" | "unreadable";
+  readonly findings?: readonly string[];
 }
 
 export function doctorWorkspace(
   workspaceRoot: string,
-  options: { repairTruncatedTail?: boolean } = {},
+  options: { repairTruncatedTail?: boolean; secretProvider?: SecretProvider } = {},
 ): DoctorResult {
   if (lockPresent(workspaceRoot)) {
     throw new CommandError(
@@ -76,11 +89,45 @@ export function doctorWorkspace(
     );
   }
 
-  return {
+  const result: DoctorResult = {
     event_count: snapshot.events.length,
     healthy: true,
     lock_present: false,
     project_id: String(connected.payload["project_id"]),
     task_authority: taskAuthority,
+  };
+  const identity = connectedInstanceIdentity(connected.payload);
+  if (identity === undefined) {
+    return result;
+  }
+  const secretProvider = options.secretProvider ?? createEnvSecretProvider();
+  const credentialAvailable = isCredentialAvailable(secretProvider);
+  let cacheStatus: "present" | "missing" | "unreadable" = "missing";
+  try {
+    cacheStatus =
+      readGitLabInstanceProjectionCache(workspaceRoot) === undefined
+        ? "missing"
+        : "present";
+  } catch {
+    cacheStatus = "unreadable";
+  }
+  const findings: string[] = [];
+  if (!credentialAvailable) {
+    findings.push("host-injected credential is unavailable");
+  }
+  if (cacheStatus === "missing") {
+    findings.push("instance projection cache is missing");
+  }
+  if (cacheStatus === "unreadable") {
+    findings.push("instance projection cache is unreadable");
+  }
+  return {
+    ...result,
+    instance_kind: "self_hosted",
+    instance_origin: identity.instance_origin,
+    write_back_enabled: false,
+    credential_available: credentialAvailable,
+    cache_status: cacheStatus,
+    findings,
   };
 }

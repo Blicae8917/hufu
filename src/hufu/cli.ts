@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 
 import { connectWorkspace } from "./connect.js";
+import { type GitLabAuthorityIdentitySource } from "./gitlab-authority.js";
+import { createEnvSecretProvider } from "./secret-provider.js";
 import { validateTask } from "./contracts.js";
 import { decideWorkspace, type DecideKind } from "./decide.js";
 import { doctorWorkspace } from "./doctor.js";
@@ -132,7 +134,21 @@ function runConnect(args: ParsedArgs): unknown {
     "project-lead",
     "grant-expires",
     "project-root",
+    "instance-kind",
+    "instance-origin",
+    "allowed-instance-origin",
+    "identity-source",
   ]);
+  const identitySource = options["identity-source"];
+  if (
+    identitySource !== undefined &&
+    identitySource !== "explicit" &&
+    identitySource !== "git_remote" &&
+    identitySource !== "issue_body" &&
+    identitySource !== "model"
+  ) {
+    throw new CommandError("CONTRACT_INVALID", "identity-source is not supported");
+  }
   return withResolvedRoot(args, (projectRoot) =>
     connectWorkspace(projectRoot, {
       commander: requireOption(options, "commander"),
@@ -142,6 +158,17 @@ function runConnect(args: ParsedArgs): unknown {
       projectLead: options["project-lead"],
       repository: requireOption(options, "repository"),
       taskAuthority: requireOption(options, "task-authority"),
+      instanceKind: options["instance-kind"],
+      instanceOrigin: options["instance-origin"],
+      allowedInstanceOrigins:
+        options["allowed-instance-origin"] === undefined
+          ? undefined
+          : options["allowed-instance-origin"]
+              .split(",")
+              .map((item) => item.trim())
+              .filter((item) => item.length > 0),
+      identitySource: identitySource as GitLabAuthorityIdentitySource | undefined,
+      secretProvider: createEnvSecretProvider(),
     }),
   );
 }
@@ -153,6 +180,7 @@ function runDoctor(args: ParsedArgs): unknown {
   return withResolvedRoot(args, (projectRoot) =>
     doctorWorkspace(projectRoot, {
       repairTruncatedTail: args.switches.has("repair-truncated-tail"),
+      secretProvider: createEnvSecretProvider(),
     }),
   );
 }
@@ -166,7 +194,10 @@ async function runStatus(args: ParsedArgs): Promise<unknown> {
   );
   rejectUnknownSwitches(args.switches, refresh ? [...REFRESH_FLAGS] : []);
   return withResolvedRoot(args, (projectRoot) =>
-    statusWorkspace(projectRoot, { refresh }),
+    statusWorkspace(projectRoot, {
+      refresh,
+      secretProvider: createEnvSecretProvider(),
+    }),
   );
 }
 

@@ -2,11 +2,18 @@ import { CommandError } from "./errors.js";
 import { createHttpGitHubPort } from "./github-http.js";
 import { type GitHubPort } from "./github-port.js";
 import { CANONICAL_REPOSITORY } from "./github-ref.js";
+import { connectedInstanceIdentity } from "./gitlab-authority.js";
+import { type GitLabInstanceIdentity } from "./gitlab-instance-ref.js";
 import {
   readGitLabProjectionCache,
   writeGitLabProjectionCache,
 } from "./gitlab-cache.js";
 import { createHttpGitLabPort } from "./gitlab-http.js";
+import {
+  readGitLabInstanceProjectionCache,
+  writeGitLabInstanceProjectionCache,
+} from "./gitlab-instance-cache.js";
+import { createHttpGitLabInstancePort } from "./gitlab-instance-http.js";
 import { type GitLabPort } from "./gitlab-port.js";
 import { parseGitLabProject } from "./gitlab-ref.js";
 import {
@@ -14,6 +21,7 @@ import {
   writeProjectionCache,
 } from "./projection-cache.js";
 import { type CurrentView, projectCurrentView } from "./projector.js";
+import { createEnvSecretProvider, type SecretProvider } from "./secret-provider.js";
 import { lockPresent } from "./storage.js";
 import { requireReadyEvents } from "./work-item.js";
 
@@ -21,6 +29,7 @@ export interface StatusOptions {
   readonly refresh?: boolean;
   readonly githubPort?: GitHubPort;
   readonly gitlabPort?: GitLabPort;
+  readonly secretProvider?: SecretProvider;
   readonly now?: Date;
 }
 
@@ -43,11 +52,21 @@ export async function statusWorkspace(
     if (taskAuthority === "github") {
       await refreshGithub(workspaceRoot, options.githubPort);
     } else if (taskAuthority === "gitlab") {
-      await refreshGitlab(
-        workspaceRoot,
-        String(connected?.payload["repository"] ?? ""),
-        options.gitlabPort,
-      );
+      const identity = connectedInstanceIdentity(connected?.payload ?? {});
+      if (identity !== undefined) {
+        await refreshGitlabInstance(
+          workspaceRoot,
+          identity,
+          options.gitlabPort,
+          options.secretProvider,
+        );
+      } else {
+        await refreshGitlab(
+          workspaceRoot,
+          String(connected?.payload["repository"] ?? ""),
+          options.gitlabPort,
+        );
+      }
     } else {
       throw new CommandError(
         "CONTRACT_INVALID",
@@ -58,8 +77,14 @@ export async function statusWorkspace(
   return projectCurrentView(events, {
     cache: taskAuthority === "github" ? readProjectionCache(workspaceRoot) : undefined,
     gitlabCache:
-      taskAuthority === "gitlab"
+      taskAuthority === "gitlab" &&
+      connectedInstanceIdentity(connected?.payload ?? {}) === undefined
         ? readGitLabProjectionCache(workspaceRoot)
+        : undefined,
+    gitlabInstanceCache:
+      taskAuthority === "gitlab" &&
+      connectedInstanceIdentity(connected?.payload ?? {}) !== undefined
+        ? readGitLabInstanceProjectionCache(workspaceRoot)
         : undefined,
     now: options.now,
   });
@@ -115,6 +140,41 @@ async function refreshGitlab(
     throw new CommandError(
       "OBSERVATION_UNAVAILABLE",
       `gitlab refresh failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+async function refreshGitlabInstance(
+  workspaceRoot: string,
+  identity: GitLabInstanceIdentity,
+  gitlabPort: GitLabPort | undefined,
+  secretProvider: SecretProvider | undefined,
+): Promise<void> {
+  const port =
+    gitlabPort ??
+    createHttpGitLabInstancePort({
+      identity,
+      secretProvider: secretProvider ?? createEnvSecretProvider(),
+    });
+  try {
+    const listed = await port.listIssueProjections(identity.project_path);
+    writeGitLabInstanceProjectionCache(workspaceRoot, {
+      cache_schema_version: 1,
+      incomplete: listed.incomplete,
+      items: listed.items,
+      observed_at: listed.observed_at,
+      repository: identity.project_path,
+      instance_origin: identity.instance_origin,
+      instance_kind: "self_hosted",
+      task_authority: "gitlab",
+    });
+  } catch (error) {
+    if (error instanceof CommandError) {
+      throw error;
+    }
+    throw new CommandError(
+      "OBSERVATION_UNAVAILABLE",
+      `gitlab instance refresh failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }

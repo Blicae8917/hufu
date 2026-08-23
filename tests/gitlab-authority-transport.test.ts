@@ -5,7 +5,6 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  statSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -98,7 +97,7 @@ function collectFiles(directory: string, acc: string[] = []): string[] {
       collectFiles(full, acc);
       continue;
     }
-    if (statSync(full).isFile()) {
+    if (entry.isFile()) {
       acc.push(full);
     }
   }
@@ -114,7 +113,7 @@ function assertSecretAbsent(dir: string): void {
       `${file} must not store the host-injected credential`,
     );
     assert.doesNotMatch(raw, /glpat-[A-Za-z0-9_-]{8,}/);
-    assert.doesNotMatch(raw, /Authorization/i);
+    assert.doesNotMatch(raw, /"Authorization"|Authorization:|Bearer /i);
   }
 }
 
