@@ -371,6 +371,26 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       assert.match(ledger, /message:example/);
       assert.match(ledger, /prompt_digest/);
       assert.throws(
+        () => consumer.prepareSend(
+          started.binding.ref,
+          { message_ref: "message:example" },
+          true,
+          "send-example-1",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "DATA_INSUFFICIENT",
+      );
+      assert.throws(
+        () => build().prepareSend(
+          started.binding.ref,
+          { message_ref: "message:example" },
+          true,
+          "send-example-1",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "DATA_INSUFFICIENT",
+      );
+      assert.throws(
         () => build().recoverPrepared(send.ref),
         (error: unknown) =>
           error instanceof Error && "code" in error && error.code === "DATA_INSUFFICIENT",
@@ -519,8 +539,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         },
         "start-handoff-1",
       );
-      assert.deepEqual(
-        consumer.prepareStart(
+      const duplicateBeforeHost = consumer.prepareStart(
           { content_digest: CONTENT_DIGEST, envelope_id: "envelope:handoff" },
           "project_lead",
           {
@@ -530,9 +549,8 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
             workspace_ref: "workspace:example",
           },
           "start-handoff-1",
-        ),
-        firstPrepared,
       );
+      assert.equal(duplicateBeforeHost.call.tool, "list_threads");
       assert.throws(
         () => consumer.prepareStart(
           { content_digest: CONTENT_DIGEST, envelope_id: "envelope:handoff" },
@@ -552,13 +570,14 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         availability: "available",
         host_id: "host:example",
         idle: true,
+        matched_title: String(firstPrepared.call.input["title"]),
         thread_id: "thread:first",
       });
       if (first.status === "unavailable") {
         throw new Error("start unexpectedly unavailable");
       }
-      assert.deepEqual(
-        consumer.prepareStart(
+      assert.throws(
+        () => consumer.prepareStart(
           { content_digest: CONTENT_DIGEST, envelope_id: "envelope:handoff" },
           "project_lead",
           {
@@ -569,7 +588,8 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
           },
           "start-handoff-1",
         ),
-        firstPrepared,
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "CONTRACT_INVALID",
       );
       assert.throws(
         () => consumer.prepareStart(
@@ -769,7 +789,8 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         workspaceResolver: workspaceResolver(),
         workspaceRoot,
       });
-      const prepared = build().prepareStart(
+      const originalConsumer = build();
+      const prepared = originalConsumer.prepareStart(
         { content_digest: CONTENT_DIGEST, envelope_id: "envelope:crash" },
         "owner",
         {
@@ -783,7 +804,29 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       const correlationTitle = String(prepared.call.input["title"]);
 
       // The Host created the thread, then the process died before completeStart.
-      const recovered = build().recoverPrepared(prepared.ref);
+      const sameProcessDuplicate = originalConsumer.prepareStart(
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:crash" },
+        "owner",
+        {
+          authority_ref: "grant:example",
+          channel: "codex-app",
+          work_item_ref: "work-item:crash",
+          workspace_ref: "workspace:example",
+        },
+        "start-crash-1",
+      );
+      assert.equal(sameProcessDuplicate.call.tool, "list_threads");
+      const recovered = build().prepareStart(
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:crash" },
+        "owner",
+        {
+          authority_ref: "grant:example",
+          channel: "codex-app",
+          work_item_ref: "work-item:crash",
+          workspace_ref: "workspace:example",
+        },
+        "start-crash-1",
+      );
       assert.equal(recovered.call.tool, "list_threads");
       assert.notEqual(recovered.call.tool, "create_thread");
       assert.deepEqual(recovered.call.input, { limit: 100 });
@@ -804,6 +847,82 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         "utf8",
       );
       assert.match(ledger, /recovery_prepared/);
+    });
+  });
+
+  it("rejects an old idle readback after a newer send made the binding active", async () => {
+    await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:causal", "work-item:causal");
+      const consumer = createCodexAppConsumerV2({
+        actorBindingRef: "binding:example-owner",
+        messageResolver: { resolve: () => PRIVATE_PROMPT },
+        now: () => new Date(FIXED_NOW),
+        workspaceResolver: workspaceResolver(),
+        workspaceRoot,
+      });
+      const start = consumer.prepareStart(
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:causal" },
+        "owner",
+        {
+          authority_ref: "grant:example",
+          channel: "codex-app",
+          work_item_ref: "work-item:causal",
+          workspace_ref: "workspace:example",
+        },
+        "start-causal-1",
+      );
+      const started = consumer.completeStart(start.ref, {
+        availability: "available",
+        cursor: "cursor:idle",
+        host_id: "host:causal",
+        idle: true,
+        thread_id: "thread:causal",
+      });
+      if (started.status === "unavailable") {
+        throw new Error("start unexpectedly unavailable");
+      }
+      const oldReadback = consumer.prepareReadback(
+        started.binding.ref,
+        "readback-causal-old",
+      );
+      const send = consumer.prepareSend(
+        started.binding.ref,
+        { message_ref: "message:causal" },
+        true,
+        "send-causal-1",
+      );
+      const sent = consumer.completeSend(send.ref, {
+        availability: "available",
+        cursor: "cursor:active",
+        delivered: true,
+        host_id: "host:causal",
+        idle: false,
+        turn_ref: "turn:active",
+      });
+      assert.equal(sent.binding?.idle, false);
+      assert.throws(
+        () => consumer.completeReadback(oldReadback.ref, {
+          availability: "available",
+          cursor: "cursor:idle-old",
+          host_id: "host:causal",
+          idle: true,
+          thread_id: "thread:causal",
+        }),
+        (error: unknown) =>
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "LEDGER_CAUSALITY_CONFLICT",
+      );
+      assert.throws(
+        () => consumer.prepareSend(
+          started.binding.ref,
+          { message_ref: "message:causal" },
+          false,
+          "send-causal-2",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "SESSION_TURN_BUSY",
+      );
     });
   });
 });

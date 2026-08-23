@@ -26,7 +26,9 @@
   freshness；observation issuer还必须exact绑定由当前项目负责人签发的active Host ProviderBinding。
   同时核验当前grant/envelope/RoleBinding/work-item/project；调用方全true布尔或任意actor同形事件不构成
   能力证据。非幂等prepared的恢复只允许operation-specific readback：start走correlation/list_threads，
-  send无effect marker时DATA_INSUFFICIENT，绝不重放create/send。
+  send无effect marker时DATA_INSUFFICIENT，绝不重放create/send；同idempotency二次prepare同样进入该
+  路径。binding-based action在prepare时冻结Ledger revision、observed_at与cursor，complete只接受同一
+  因果前沿，防止旧idle readback覆盖更新的active Turn。
 - **Rationale**: Codex创建/投递是外部Effect；单纯内存binding会在崩溃后产生双Session或假投递。
 - **Alternatives considered**: Consumer内部直接调用真实Codex工具（拒绝，CI不可复现且混淆Host能力）；
   保存prompt或raw transcript以便重放（拒绝，复制不可信正文）。

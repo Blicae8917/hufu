@@ -107,6 +107,12 @@ Claude / DeepSeek Harness / Codex 不是等价运行时。Codex App 可声明原
 - **FR-019**: 任何无completion的非幂等prepared均不得恢复为原Host call。start只能恢复为基于唯一
   correlation title的`list_threads` readback；send在没有可验证effect marker时必须
   `DATA_INSUFFICIENT`并人工收口。只读wait/readback/release才可安全重放。
+- **FR-020**: 同一idempotency key再次调用`prepareStart`/`prepareSend`时，只有首次CAS真正创建
+  prepared的调用可以返回`create_thread`/`send_message_to_thread`；发现既有prepared必须进入FR-019
+  recovery，进程内重入与重启恢复语义相同。
+- **FR-021**: 每个基于SessionBinding的prepared必须冻结Ledger binding revision、`observed_at`与cursor。
+  complete时若current binding已被send或其他状态变更推进，旧readback只能拒绝或记历史，禁止覆盖
+  current idle/turn/cursor。
 
 ## Key Entities
 

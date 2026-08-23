@@ -950,7 +950,11 @@ export function createCodexAppConsumerV2(
   }
 
   function binding(ref: CodexAppSessionBindingRef): CodexAppSessionBinding {
-    return resolveCurrentRuntimeBinding(events(), ref);
+    return bindingSnapshot(ref).binding;
+  }
+
+  function bindingSnapshot(ref: CodexAppSessionBindingRef): RuntimeBindingSnapshot {
+    return resolveCurrentRuntimeBindingSnapshot(events(), ref);
   }
 
   function persistPrepared(
@@ -974,6 +978,7 @@ export function createCodexAppConsumerV2(
       runtime_event_kind: "action_prepared",
       runtime_request: request,
     };
+    let created = false;
     mutateLedger(workspaceRoot, (current, append) => {
       const previous = findRuntimePrepared(current, operationId);
       if (previous !== undefined) {
@@ -993,11 +998,13 @@ export function createCodexAppConsumerV2(
           payload,
         },
       ]);
+      created = true;
     });
-    return {
+    const prepared = {
       call,
       ref: preparedRefFromPayload(payload),
     };
+    return created ? prepared : recoverPreparedAction(prepared.ref);
   }
 
   function hydratePrepared(payload: Record<string, unknown>): CodexAppPreparedAction {
@@ -1024,6 +1031,78 @@ export function createCodexAppConsumerV2(
       },
       ref: base.ref,
     };
+  }
+
+  function recoverPreparedAction(prepared: CodexAppPreparedRef): CodexAppPreparedAction {
+    const ref: CodexAppPreparedRef = {
+      operation_id: requiredText(prepared.operation_id, "operation_id"),
+      packet_digest: requiredText(prepared.packet_digest, "packet_digest"),
+    };
+    const current = events();
+    const payload = findRuntimePrepared(current, ref.operation_id);
+    if (payload === undefined || payload["canonical_payload_digest"] !== ref.packet_digest) {
+      throw new CommandError("DATA_INSUFFICIENT", "prepared Host action does not exist");
+    }
+    if (findRuntimeReceipt(current, ref.operation_id) !== undefined) {
+      throw new CommandError(
+        "CONTRACT_INVALID",
+        "completed Host action cannot be recovered for another call",
+      );
+    }
+    const request = requiredRecord(payload["runtime_request"], "runtime_request");
+    if (request["operation_kind"] === "send") {
+      throw new CommandError(
+        "DATA_INSUFFICIENT",
+        "send recovery requires a verifiable Host effect marker or manual closeout",
+      );
+    }
+    if (request["operation_kind"] !== "start") {
+      return hydratePrepared(payload);
+    }
+    const correlationTitle = requiredText(
+      String(request["correlation_title"] ?? ""),
+      "correlation_title",
+    );
+    const recoveryCall: CodexAppHostToolCall = {
+      input: { limit: 100 },
+      tool: "list_threads",
+    };
+    const recoveryId = `codex-app:recovery:${ref.operation_id}`;
+    const recoveryRequest = {
+      call: recoveryCall,
+      correlation_title: correlationTitle,
+      operation_kind: "start_correlation_readback",
+      original_operation_id: ref.operation_id,
+      original_packet_digest: ref.packet_digest,
+    };
+    const recoveryDigest = digestPayload(recoveryRequest);
+    mutateLedger(workspaceRoot, (latest, append) => {
+      const prior = findRuntimeRecovery(latest, ref.operation_id);
+      if (prior !== undefined) {
+        if (prior["canonical_payload_digest"] !== recoveryDigest) {
+          throw new CommandError(
+            "LEDGER_DIGEST_CONFLICT",
+            "start recovery collides with another correlation readback",
+          );
+        }
+        return;
+      }
+      append([{
+        actor_binding_ref: actorBindingRef,
+        event_type: "hufu/mutation.prepared",
+        idempotency_key: `hufu/mutation.prepared:${recoveryId}`,
+        payload: {
+          canonical_payload_digest: recoveryDigest,
+          contract: CODEX_APP_CONSUMER_V2_CONTRACT,
+          effect_id: recoveryId,
+          mutation_kind: "codex_host.start_correlation_readback",
+          original_operation_id: ref.operation_id,
+          runtime_event_kind: "recovery_prepared",
+          runtime_request: recoveryRequest,
+        },
+      }]);
+    });
+    return { call: recoveryCall, ref };
   }
 
   function prepareStart(
@@ -1084,6 +1163,7 @@ export function createCodexAppConsumerV2(
     };
 
     let preparedPayload: Record<string, unknown> | undefined;
+    let preparedCreated = false;
     mutateLedger(workspaceRoot, (current, append) => {
       assertStartAuthority(current, {
         actor_binding_ref: actorBindingRef,
@@ -1179,12 +1259,14 @@ export function createCodexAppConsumerV2(
         },
       ]);
       preparedPayload = payload;
+      preparedCreated = true;
     });
 
     if (preparedPayload === undefined) {
       throw new CommandError("DATA_INSUFFICIENT", "prepared start was not recorded");
     }
-    return preparedActionFromPayload(preparedPayload);
+    const prepared = preparedActionFromPayload(preparedPayload);
+    return preparedCreated ? prepared : recoverPreparedAction(prepared.ref);
   }
 
   function completeStart(
@@ -1303,7 +1385,8 @@ export function createCodexAppConsumerV2(
     bindingRef: CodexAppSessionBindingRef,
     idempotencyKey: string,
   ): CodexAppPreparedAction {
-    const current = binding(bindingRef);
+    const snapshot = bindingSnapshot(bindingRef);
+    const current = snapshot.binding;
     if (current.state === "released" || current.state === "handed_off") {
       throw new CommandError("SESSION_GENERATION_STALE", "inactive binding cannot be observed");
     }
@@ -1324,6 +1407,7 @@ export function createCodexAppConsumerV2(
       call,
       {
         binding_ref: current.ref,
+        ...bindingFrontierFields(snapshot),
         ...(pending
           ? {
               client_thread_ref: requiredText(
@@ -1363,7 +1447,7 @@ export function createCodexAppConsumerV2(
       }
       const request = requiredRecord(preparedPayload["runtime_request"], "runtime_request");
       const bindingRef = requiredBindingRef(request["binding_ref"], "binding_ref");
-      const observed = resolveCurrentRuntimeBinding(current, bindingRef);
+      const observed = assertExpectedBindingFrontier(current, bindingRef, request);
       if (result.availability === "unavailable") {
         const payload = runtimeReceiptPayload(
           operationId,
@@ -1451,7 +1535,8 @@ export function createCodexAppConsumerV2(
     expectedIdle: boolean,
     idempotencyKey: string,
   ): CodexAppPreparedAction {
-    const current = binding(bindingRef);
+    const snapshot = bindingSnapshot(bindingRef);
+    const current = snapshot.binding;
     if (current.state !== "ready" || current.host_thread_ref === undefined) {
       throw new CommandError("DATA_INSUFFICIENT", "send requires a ready session binding");
     }
@@ -1487,6 +1572,7 @@ export function createCodexAppConsumerV2(
       call,
       {
         binding_ref: current.ref,
+        ...bindingFrontierFields(snapshot),
         expected_idle: expectedIdle,
         message_ref: ref.message_ref,
         prompt_digest: promptDigest,
@@ -1517,7 +1603,7 @@ export function createCodexAppConsumerV2(
       }
       const request = requiredRecord(preparedPayload["runtime_request"], "runtime_request");
       const bindingRef = requiredBindingRef(request["binding_ref"], "binding_ref");
-      const sent = resolveCurrentRuntimeBinding(current, bindingRef);
+      const sent = assertExpectedBindingFrontier(current, bindingRef, request);
       if (
         result.availability === "unavailable" ||
         result.delivered !== true
@@ -1576,7 +1662,8 @@ export function createCodexAppConsumerV2(
     boundedTimeout: WaitBounds,
     idempotencyKey: string,
   ): CodexAppPreparedAction {
-    const current = binding(bindingRef);
+    const snapshot = bindingSnapshot(bindingRef);
+    const current = snapshot.binding;
     if (current.state !== "ready" || current.host_thread_ref === undefined) {
       throw new CommandError("DATA_INSUFFICIENT", "wait requires a ready session binding");
     }
@@ -1605,6 +1692,7 @@ export function createCodexAppConsumerV2(
       {
         after_cursor: cursor,
         binding_ref: current.ref,
+        ...bindingFrontierFields(snapshot),
         timeout_ms: timeoutMs,
       },
     );
@@ -1632,7 +1720,7 @@ export function createCodexAppConsumerV2(
       }
       const request = requiredRecord(preparedPayload["runtime_request"], "runtime_request");
       const bindingRef = requiredBindingRef(request["binding_ref"], "binding_ref");
-      const waited = resolveCurrentRuntimeBinding(current, bindingRef);
+      const waited = assertExpectedBindingFrontier(current, bindingRef, request);
       if (result.availability === "unavailable") {
         const payload = runtimeReceiptPayload(
           operationId,
@@ -1767,7 +1855,8 @@ export function createCodexAppConsumerV2(
     requireIdle: boolean,
     idempotencyKey: string,
   ): CodexAppPreparedAction {
-    const current = binding(bindingRef);
+    const snapshot = bindingSnapshot(bindingRef);
+    const current = snapshot.binding;
     if (current.state !== "ready" || current.host_thread_ref === undefined) {
       throw new CommandError("DATA_INSUFFICIENT", "release requires a ready binding");
     }
@@ -1783,7 +1872,11 @@ export function createCodexAppConsumerV2(
       `codex-app:release:${actionIdempotencyKey}`,
       "release",
       call,
-      { binding_ref: current.ref, require_idle: requireIdle },
+      {
+        binding_ref: current.ref,
+        ...bindingFrontierFields(snapshot),
+        require_idle: requireIdle,
+      },
     );
   }
 
@@ -1809,7 +1902,7 @@ export function createCodexAppConsumerV2(
       }
       const request = requiredRecord(preparedPayload["runtime_request"], "runtime_request");
       const bindingRef = requiredBindingRef(request["binding_ref"], "binding_ref");
-      const releasing = resolveCurrentRuntimeBinding(current, bindingRef);
+      const releasing = assertExpectedBindingFrontier(current, bindingRef, request);
       if (result.availability === "unavailable") {
         const payload = runtimeReceiptPayload(
           operationId,
@@ -1889,75 +1982,7 @@ export function createCodexAppConsumerV2(
     prepareSend,
     prepareWait,
     recoverPrepared(prepared) {
-      const ref: CodexAppPreparedRef = {
-        operation_id: requiredText(prepared.operation_id, "operation_id"),
-        packet_digest: requiredText(prepared.packet_digest, "packet_digest"),
-      };
-      const current = events();
-      const payload = findRuntimePrepared(current, ref.operation_id);
-      if (payload === undefined || payload["canonical_payload_digest"] !== ref.packet_digest) {
-        throw new CommandError("DATA_INSUFFICIENT", "prepared Host action does not exist");
-      }
-      if (findRuntimeReceipt(current, ref.operation_id) !== undefined) {
-        throw new CommandError(
-          "CONTRACT_INVALID",
-          "completed Host action cannot be recovered for another call",
-        );
-      }
-      const request = requiredRecord(payload["runtime_request"], "runtime_request");
-      if (request["operation_kind"] === "send") {
-        throw new CommandError(
-          "DATA_INSUFFICIENT",
-          "send recovery requires a verifiable Host effect marker or manual closeout",
-        );
-      }
-      if (request["operation_kind"] === "start") {
-        const correlationTitle = requiredText(
-          String(request["correlation_title"] ?? ""),
-          "correlation_title",
-        );
-        const recoveryCall: CodexAppHostToolCall = {
-          input: { limit: 100 },
-          tool: "list_threads",
-        };
-        const recoveryId = `codex-app:recovery:${ref.operation_id}`;
-        const recoveryRequest = {
-          call: recoveryCall,
-          correlation_title: correlationTitle,
-          operation_kind: "start_correlation_readback",
-          original_operation_id: ref.operation_id,
-          original_packet_digest: ref.packet_digest,
-        };
-        const recoveryDigest = digestPayload(recoveryRequest);
-        mutateLedger(workspaceRoot, (latest, append) => {
-          const prior = findRuntimeRecovery(latest, ref.operation_id);
-          if (prior !== undefined) {
-            if (prior["canonical_payload_digest"] !== recoveryDigest) {
-              throw new CommandError(
-                "LEDGER_DIGEST_CONFLICT",
-                "start recovery collides with another correlation readback",
-              );
-            }
-            return;
-          }
-          append([{
-            actor_binding_ref: actorBindingRef,
-            event_type: "hufu/mutation.prepared",
-            idempotency_key: `hufu/mutation.prepared:${recoveryId}`,
-            payload: {
-              canonical_payload_digest: recoveryDigest,
-              contract: CODEX_APP_CONSUMER_V2_CONTRACT,
-              effect_id: recoveryId,
-              mutation_kind: "codex_host.start_correlation_readback",
-              original_operation_id: ref.operation_id,
-              runtime_event_kind: "recovery_prepared",
-              runtime_request: recoveryRequest,
-            },
-          }]);
-        });
-        return { call: recoveryCall, ref };
-      }
-      return hydratePrepared(payload);
+      return recoverPreparedAction(prepared);
     },
     recordLogicalHandoff,
   };
@@ -2010,8 +2035,13 @@ function findRuntimeRecovery(
     )?.payload;
 }
 
-function runtimeBindings(events: readonly EventEnvelope[]): CodexAppSessionBinding[] {
-  const bindings: CodexAppSessionBinding[] = [];
+interface RuntimeBindingSnapshot {
+  readonly binding: CodexAppSessionBinding;
+  readonly ledger_seq: number;
+}
+
+function runtimeBindingSnapshots(events: readonly EventEnvelope[]): RuntimeBindingSnapshot[] {
+  const snapshots: RuntimeBindingSnapshot[] = [];
   for (const event of events) {
     if (
       event.event_type !== "hufu/mutation.receipt" ||
@@ -2021,10 +2051,17 @@ function runtimeBindings(events: readonly EventEnvelope[]): CodexAppSessionBindi
     }
     const binding = asRecord(event.payload["runtime_result"])?.["binding"];
     if (binding !== undefined) {
-      bindings.push(parseRuntimeBinding(binding));
+      snapshots.push({
+        binding: parseRuntimeBinding(binding),
+        ledger_seq: event.ledger_seq,
+      });
     }
   }
-  return bindings;
+  return snapshots;
+}
+
+function runtimeBindings(events: readonly EventEnvelope[]): CodexAppSessionBinding[] {
+  return runtimeBindingSnapshots(events).map((snapshot) => snapshot.binding);
 }
 
 function latestBindingForSlot(
@@ -2041,27 +2078,73 @@ function resolveCurrentRuntimeBinding(
   events: readonly EventEnvelope[],
   ref: CodexAppSessionBindingRef,
 ): CodexAppSessionBinding {
+  return resolveCurrentRuntimeBindingSnapshot(events, ref).binding;
+}
+
+function resolveCurrentRuntimeBindingSnapshot(
+  events: readonly EventEnvelope[],
+  ref: CodexAppSessionBindingRef,
+): RuntimeBindingSnapshot {
   const validated = validBindingRef(ref);
-  const bindings = runtimeBindings(events);
-  const exact = bindings
+  const snapshots = runtimeBindingSnapshots(events);
+  const exact = snapshots
     .filter(
       (candidate) =>
-        candidate.binding_id === validated.binding_id &&
-        candidate.generation === validated.generation,
+        candidate.binding.binding_id === validated.binding_id &&
+        candidate.binding.generation === validated.generation,
     )
     .at(-1);
   if (exact === undefined) {
     throw new CommandError("CONTRACT_INVALID", "session binding is unknown");
   }
-  const current = latestBindingForSlot(bindings, bindingSlotDigest(exact));
+  const current = snapshots
+    .filter(
+      (candidate) =>
+        bindingSlotDigest(candidate.binding) === bindingSlotDigest(exact.binding),
+    )
+    .sort(
+      (left, right) =>
+        left.binding.generation - right.binding.generation ||
+        left.ledger_seq - right.ledger_seq,
+    )
+    .at(-1);
   if (
     current === undefined ||
-    current.binding_id !== exact.binding_id ||
-    current.generation !== exact.generation
+    current.binding.binding_id !== exact.binding.binding_id ||
+    current.binding.generation !== exact.binding.generation
   ) {
     throw new CommandError("SESSION_GENERATION_STALE", "session binding generation is not current");
   }
   return exact;
+}
+
+function bindingFrontierFields(
+  snapshot: RuntimeBindingSnapshot,
+): Record<string, unknown> {
+  return {
+    expected_binding_cursor: snapshot.binding.cursor ?? null,
+    expected_binding_observed_at: snapshot.binding.observed_at,
+    expected_binding_revision: snapshot.ledger_seq,
+  };
+}
+
+function assertExpectedBindingFrontier(
+  events: readonly EventEnvelope[],
+  ref: CodexAppSessionBindingRef,
+  request: Record<string, unknown>,
+): CodexAppSessionBinding {
+  const current = resolveCurrentRuntimeBindingSnapshot(events, ref);
+  if (
+    request["expected_binding_revision"] !== current.ledger_seq ||
+    request["expected_binding_observed_at"] !== current.binding.observed_at ||
+    request["expected_binding_cursor"] !== (current.binding.cursor ?? null)
+  ) {
+    throw new CommandError(
+      "LEDGER_CAUSALITY_CONFLICT",
+      "Host result is older than the current SessionBinding frontier",
+    );
+  }
+  return current.binding;
 }
 
 function bindingSlotDigest(binding: CodexAppSessionBinding): string {
