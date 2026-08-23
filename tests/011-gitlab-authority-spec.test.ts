@@ -77,11 +77,10 @@ describe("011 GitLab AuthorityProvider design kit (#49)", () => {
     assert.match(combined, /不是实现授权|不授权实现|不是 Adapter 实现授权/);
     assert.match(plan, /不修订|不因本 Kit 而修订/);
     assert.match(spec, /Constitution/);
-    assert.match(tasks, /未来实现 PR/);
+    assert.match(tasks, /未来实现 PR|实现票|#53/);
     assert.match(tasks, /T001/);
     assert.match(tasks, /gitlab-authority-adapter\.test\.ts/);
     assert.match(tasks, /写失败测试/);
-    assert.doesNotMatch(tasks, /^- \[x\] T001 /m);
   });
 
   it("does not resurrect M10-M15 or outbound Runtime", () => {
@@ -124,11 +123,11 @@ describe("011 GitLab AuthorityProvider design kit (#49)", () => {
     assert.doesNotMatch(kit, /家庭(?:部署|主机|机房)[：:].+/);
   });
 
-  it("keeps package version at 0.1.0 and does not add a failing adapter test file", () => {
+  it("keeps package version at 0.1.0 while #53 lands the implementation tests", () => {
     const pkg = JSON.parse(readRepo("package.json")) as { version: string };
     assert.equal(pkg.version, "0.1.0");
-    assert.equal(existsSync(repoPath("tests/gitlab-authority-adapter.test.ts")), false);
-    assert.equal(existsSync(repoPath("tests/gitlab-authority-identity.test.ts")), false);
-    assert.equal(existsSync(repoPath("tests/gitlab-authority-nowrite.test.ts")), false);
+    assert.equal(existsSync(repoPath("tests/gitlab-authority-adapter.test.ts")), true);
+    assert.equal(existsSync(repoPath("tests/gitlab-authority-identity.test.ts")), true);
+    assert.equal(existsSync(repoPath("tests/gitlab-authority-nowrite.test.ts")), true);
   });
 });

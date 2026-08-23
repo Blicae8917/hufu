@@ -183,4 +183,20 @@ describe("gitlab adapter", () => {
       );
     });
   });
+
+  it("does not let the 007 HTTP adapter accept a self-hosted host (#53 / T004)", async () => {
+    const port = createHttpGitLabPort({
+      fetch: async () => {
+        throw new Error("007 adapter must not fetch a self-hosted host");
+      },
+    });
+    await assert.rejects(
+      () =>
+        port.listIssueProjections(
+          "https://gitlab.example.com/example-group/example-project",
+        ),
+      (error: unknown) =>
+        error instanceof CommandError && error.code === "REPOSITORY_NOT_ALLOWED",
+    );
+  });
 });
