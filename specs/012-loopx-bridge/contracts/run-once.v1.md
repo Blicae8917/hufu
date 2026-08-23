@@ -19,20 +19,25 @@
 RunOncePort 配置中解析，不写入公开仓、桥快照或裁决正文。已有 `engine_id=loopx-mechanisms`
 不构成激活回执。
 
-Activation Receipt 只证明能力事实，不产生执行授权。它必须与现行 `AuthorityCrossing`
-（含当前 `authority_scope_ref` / grant revision、原生 task ref 与 freshness）、当前 Envelope、
-真实 SessionBinding，以及实际注入的 RunOncePort、耐久 attempt store、独立 Validator / readback
+Activation Receipt 只证明能力事实，不产生执行授权。调用方只能提供 opaque `authority_ref`；
+独立 AuthorityResolver 必须从 Hufu current Ledger/status 读回现行 grant revision、原生 task ref、
+Decision/Envelope 与 SessionBinding generation，并签发 fresh validation receipt。该回执再与实际注入的
+RunOncePort、耐久 attempt store、独立 Validator / readback
 共同满足，`execution_allowed` 才能为 `true`；缺少任一项必须为 `false`。
 
 ## Plan
 
-`prepareOutboundTurn` 必须同时绑定现行 `AuthorityCrossing`、真实 `ExecutionEnvelopeRef` 与真实
+`prepareOutboundTurn` 只绑定 opaque `authority_ref`、真实 `ExecutionEnvelopeRef` 与真实
 `SessionBindingRef { binding_id, generation }`。不得把 RoleBinding、project_lead 或固定
 `generation=1` 伪装成 SessionBinding。Turn 只能是一次 bounded `run-once`：
 `max_invocations=1`，稳定 `turn_key` 对固定基线、Envelope 与 SessionBinding 计算。
 
-没有现行 Authority、激活回执、耐久 attempt store，或缺少注入的 RunOncePort / 独立 Validator / readback 时仍可生成只读 Plan，但
+没有 AuthorityResolver 的 fresh validation receipt、激活回执、耐久 attempt store，或缺少注入的 RunOncePort / 独立 Validator / readback 时仍可生成只读 Plan，但
 `execution_allowed=false`；不得静默回退到 shell、Codex CLI、真实 Host 或默认执行。
+
+执行前必须让同一 Resolver 再读 current Ledger/status。grant revision、Decision/Envelope、task、
+SessionBinding generation 或 validation digest 任一变化，都使既有 Plan 失效，且必须在任何 runtime
+readback、attempt prepare 或 execute 之前停车。裸 `AuthorityCrossing` 即使自报 `fresh` 也不得接受。
 
 ## Execute 与恢复
 

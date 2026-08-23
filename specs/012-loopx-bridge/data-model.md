@@ -142,9 +142,16 @@ MUST NOT：
 
 ### BoundedTurnRequest
 
-包含现行 `AuthorityCrossing`（含 `authority_scope_ref` / grant revision）、真实 `ExecutionEnvelopeRef`、真实 `SessionBindingRef`、固定基线、activation receipt ref、
+包含 opaque `authority_ref`、真实 `ExecutionEnvelopeRef`、真实 `SessionBindingRef`、固定基线、activation receipt ref、
 `runtime_locator_ref`、稳定 `turn_key`、`turn_kind=run_once`、`max_invocations=1` 和
 `execution_allowed`。缺少执行能力时 `execution_allowed=false`，但 Plan 仍可读。
+
+### AuthorityValidationReceipt
+
+独立 AuthorityResolver 按 opaque `authority_ref` 从 Hufu current Ledger/status 读回后签发。回执必须
+绑定 resolver id、current `authority_scope_ref` / grant revision、task ref、source revision、
+DecisionRef、ExecutionEnvelopeRef、SessionBindingRef generation、freshness、observed_at 与 validation digest。
+调用方裸传的 AuthorityCrossing 不构成该回执；执行前再次 resolve 的回执必须与 Plan 完全一致。
 
 ### RunOnce 完整读回
 

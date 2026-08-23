@@ -109,7 +109,8 @@ Issue #68 在既有三端引用桥之上增加一个窄 RunOnce Consumer。兼�
 
 ```text
 BridgeActivationReceipt
-  + current Authority/grant
+  + opaque authority_ref
+  -> independent AuthorityResolver(current Hufu Ledger/status)
   -> Plan(ExecutionEnvelopeRef, SessionBindingRef)
   -> pre-readback
   -> durable attempt CAS(prepared)
@@ -123,6 +124,8 @@ BridgeActivationReceipt
 复检通过：GitLab / GitHub 仍是任务正本；LoopX 控制面不复制；无 Scheduler/while-loop；
 缺失读回使用 `DATA_INSUFFICIENT`；失败/超时与重启不盲重试。
 
-Activation Receipt 不再影响领域 Plan 的 `execution_allowed`；只有 Consumer 在核验现行 Authority、
-实际注入 Port、耐久 attempt store、独立 Validator/readback 与 SessionBinding 一致后才能置 `true`。
+Activation Receipt 不再影响领域 Plan 的 `execution_allowed`；只有独立 AuthorityResolver 从 Hufu
+current Ledger/status 签发 fresh receipt，且 Consumer 核验 current grant/Decision/Envelope/task/
+SessionBinding 与实际注入 Port、耐久 attempt store、独立 Validator/readback 一致后才能置 `true`。
+执行前再 resolve 一次；裸 AuthorityCrossing 不再进入 Consumer options。
 首次调用前的 `prepared` attempt 是耐久停止线：效果未知时后续只 readback，不二次 execute。

@@ -1,14 +1,17 @@
-import { CommandError } from "./errors.js";
+import { CommandError, isJsonObject } from "./errors.js";
 import { digestPayload } from "./digest.js";
 import {
-  assertAuthorityCrossing,
   assertBridgeActivationReceipt,
   prepareOutboundTurn,
-  type AuthorityCrossing,
+  type AuthorityScopeRef,
   type BoundedTurnRequest,
   type BridgeActivationReceipt,
+  type DecisionRef,
   type EffectRef,
+  type ExecutionEnvelopeRef,
   type ReceiptRef,
+  type RunOnceAuthorityRef,
+  type SessionBindingRef,
   type TypedResultRef,
 } from "./loopx-bridge.js";
 
@@ -67,6 +70,29 @@ export interface LoopXRunOncePort {
   readback(turnKey: string): Promise<LoopXRunOnceReadback>;
 }
 
+export type LoopXRunOnceAuthorityRef = RunOnceAuthorityRef;
+
+export interface LoopXRunOnceAuthorityValidationReceipt {
+  readonly accepted: true;
+  readonly authority_ref: RunOnceAuthorityRef;
+  readonly authority_scope_ref: AuthorityScopeRef;
+  readonly decision_ref: DecisionRef;
+  readonly envelope_ref: ExecutionEnvelopeRef;
+  readonly freshness: "fresh";
+  readonly observed_at: string;
+  readonly receipt_id: string;
+  readonly resolver_id: string;
+  readonly session_binding_ref: SessionBindingRef;
+  readonly source_revision: string;
+  readonly task_ref: string;
+  readonly validation_digest: string;
+}
+
+export interface LoopXRunOnceAuthorityResolverPort {
+  readonly resolver_id: string;
+  resolve(plan: BoundedTurnRequest): Promise<unknown>;
+}
+
 export type LoopXRunOnceAttemptRecord =
   | {
       readonly status: "not_found";
@@ -117,13 +143,14 @@ export interface LoopXRunOnceConsumer {
   plan(
     envelopeRef: unknown,
     sessionBindingRef: unknown,
-  ): BoundedTurnRequest;
+  ): Promise<BoundedTurnRequest>;
 }
 
 export interface LoopXRunOnceConsumerOptions {
   readonly activation_receipt?: BridgeActivationReceipt;
   readonly attempt_store?: LoopXRunOnceAttemptStore;
-  readonly authority?: AuthorityCrossing;
+  readonly authority_ref?: RunOnceAuthorityRef;
+  readonly authority_resolver?: LoopXRunOnceAuthorityResolverPort;
   readonly port?: LoopXRunOncePort;
   readonly validator?: LoopXTypedResultValidatorPort;
 }
@@ -135,43 +162,45 @@ export function createLoopXRunOnceConsumer(
     options.activation_receipt === undefined
       ? undefined
       : assertBridgeActivationReceipt(options.activation_receipt);
-  const authority =
-    options.authority === undefined
-      ? undefined
-      : assertAuthorityCrossing(options.authority);
   const dependenciesQualified =
     activation !== undefined &&
-    authority !== undefined &&
-    authorityIsCurrent(authority) &&
+    options.authority_ref !== undefined &&
+    options.authority_resolver !== undefined &&
     options.attempt_store !== undefined &&
     options.port !== undefined &&
     options.validator !== undefined &&
     options.port.adapter_id === activation.adapter_id &&
     options.port.runtime_locator_ref === activation.runtime_locator_ref &&
-    options.validator.validator_id === activation.validator_id;
+    options.validator.validator_id === activation.validator_id &&
+    options.authority_resolver.resolver_id.trim() !== "" &&
+    options.authority_resolver.resolver_id !== activation.adapter_id &&
+    options.authority_resolver.resolver_id !== activation.validator_id;
   return {
-    plan(envelopeRef, sessionBindingRef) {
-      const plan = prepareOutboundTurn(
+    async plan(envelopeRef, sessionBindingRef) {
+      const draft = prepareOutboundTurn(
         envelopeRef,
         sessionBindingRef,
         activation,
-        authority,
+        options.authority_ref,
       );
-      const session = plan.session_binding_ref;
-      const authoritySession = authority?.session_binding_ref;
-      const executionAllowed =
-        dependenciesQualified &&
-        authoritySession !== undefined &&
-        authoritySession.binding_id === session.binding_id &&
-        authoritySession.generation === session.generation;
-      return { ...plan, execution_allowed: executionAllowed };
+      if (!dependenciesQualified || options.authority_resolver === undefined) {
+        return draft;
+      }
+      const validation = await tryResolveAuthority(
+        options.authority_resolver,
+        draft,
+      );
+      return validation === undefined
+        ? draft
+        : planWithAuthorityValidation(draft, validation);
     },
 
     async execute(plan) {
       if (
         !plan.execution_allowed ||
         activation === undefined ||
-        authority === undefined ||
+        options.authority_ref === undefined ||
+        options.authority_resolver === undefined ||
         options.attempt_store === undefined ||
         options.port === undefined ||
         options.validator === undefined
@@ -191,15 +220,22 @@ export function createLoopXRunOnceConsumer(
         plan.envelope_ref,
         plan.session_binding_ref,
         activation,
-        authority,
+        options.authority_ref,
+      );
+      const currentAuthority = await resolveAuthorityRequired(
+        options.authority_resolver,
+        expectedPlan,
+      );
+      const expectedQualifiedPlan = planWithAuthorityValidation(
+        expectedPlan,
+        currentAuthority,
       );
       if (
-        digestPayload(plan) !==
-        digestPayload({ ...expectedPlan, execution_allowed: true })
+        digestPayload(plan) !== digestPayload(expectedQualifiedPlan)
       ) {
         throw new CommandError(
-          "HOST_CAPABILITY_REJECTED",
-          "LoopX turn plan does not match the qualified activation, envelope, or SessionBinding",
+          "BRIDGE_NOT_AUTHORIZED",
+          "LoopX current authority validation changed or does not match this turn plan",
         );
       }
 
@@ -307,18 +343,169 @@ export function createLoopXRunOnceConsumer(
   };
 }
 
-function authorityIsCurrent(authority: AuthorityCrossing): boolean {
-  if (authority.session_binding_ref === undefined) {
-    return false;
+function planWithAuthorityValidation(
+  draft: BoundedTurnRequest,
+  validation: LoopXRunOnceAuthorityValidationReceipt,
+): BoundedTurnRequest {
+  return {
+    ...draft,
+    authority_validation_ref: {
+      receipt_id: validation.receipt_id,
+      validation_digest: validation.validation_digest,
+    },
+    execution_allowed: true,
+  };
+}
+
+async function tryResolveAuthority(
+  resolver: LoopXRunOnceAuthorityResolverPort,
+  plan: BoundedTurnRequest,
+): Promise<LoopXRunOnceAuthorityValidationReceipt | undefined> {
+  try {
+    const value = await resolver.resolve(plan);
+    return assertAuthorityValidationReceipt(value, plan, resolver.resolver_id);
+  } catch {
+    return undefined;
   }
-  if (authority.task_authority === "local") {
-    return authority.freshness === "fresh" || authority.freshness === "not_applicable";
+}
+
+async function resolveAuthorityRequired(
+  resolver: LoopXRunOnceAuthorityResolverPort,
+  plan: BoundedTurnRequest,
+): Promise<LoopXRunOnceAuthorityValidationReceipt> {
+  const value = await tryResolveAuthority(resolver, plan);
+  if (value === undefined) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "current Hufu authority could not be resolved or did not match this turn",
+    );
   }
-  return (
-    authority.freshness === "fresh" &&
-    typeof authority.observed_at === "string" &&
-    typeof authority.source_revision === "string"
-  );
+  return value;
+}
+
+function assertAuthorityValidationReceipt(
+  value: unknown,
+  plan: BoundedTurnRequest,
+  resolverId: string,
+): LoopXRunOnceAuthorityValidationReceipt {
+  if (!isJsonObject(value) || value["accepted"] !== true) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver did not accept the current Hufu authority",
+    );
+  }
+  const allowed = new Set([
+    "accepted",
+    "authority_ref",
+    "authority_scope_ref",
+    "decision_ref",
+    "envelope_ref",
+    "freshness",
+    "observed_at",
+    "receipt_id",
+    "resolver_id",
+    "session_binding_ref",
+    "source_revision",
+    "task_ref",
+    "validation_digest",
+  ]);
+  if (Object.keys(value).some((key) => !allowed.has(key))) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver returned unsupported fields",
+    );
+  }
+  if (
+    plan.authority_ref === undefined ||
+    digestPayload(value["authority_ref"]) !== digestPayload(plan.authority_ref) ||
+    digestPayload(value["decision_ref"]) !== digestPayload(plan.decision_ref) ||
+    digestPayload(value["envelope_ref"]) !== digestPayload(plan.envelope_ref) ||
+    digestPayload(value["session_binding_ref"]) !==
+      digestPayload(plan.session_binding_ref)
+  ) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver receipt does not bind this authority, decision, envelope, and SessionBinding",
+    );
+  }
+  if (value["task_ref"] !== plan.authority_ref.task_ref) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver receipt does not bind the requested task",
+    );
+  }
+  const authorityScope = value["authority_scope_ref"];
+  if (
+    !isJsonObject(authorityScope) ||
+    typeof authorityScope["grant_id"] !== "string" ||
+    authorityScope["grant_id"].trim() === "" ||
+    typeof authorityScope["revision"] !== "number" ||
+    !Number.isSafeInteger(authorityScope["revision"]) ||
+    authorityScope["revision"] < 1
+  ) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver receipt is missing a current grant revision",
+    );
+  }
+  const observedAt = requiredReceiptText(value, "observed_at");
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(observedAt)) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver observed_at is invalid",
+    );
+  }
+  if (value["freshness"] !== "fresh") {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver receipt is not fresh",
+    );
+  }
+  if (value["resolver_id"] !== resolverId) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver identity does not match its receipt",
+    );
+  }
+  const semantic = {
+    accepted: true as const,
+    authority_ref: plan.authority_ref,
+    authority_scope_ref: {
+      grant_id: authorityScope["grant_id"],
+      revision: authorityScope["revision"],
+    },
+    decision_ref: plan.decision_ref,
+    envelope_ref: plan.envelope_ref,
+    freshness: "fresh" as const,
+    observed_at: observedAt,
+    receipt_id: requiredReceiptText(value, "receipt_id"),
+    resolver_id: resolverId,
+    session_binding_ref: plan.session_binding_ref,
+    source_revision: requiredReceiptText(value, "source_revision"),
+    task_ref: requiredReceiptText(value, "task_ref"),
+  };
+  const validationDigest = requiredReceiptText(value, "validation_digest");
+  if (validationDigest !== digestPayload(semantic)) {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      "authority resolver validation digest does not match the current receipt",
+    );
+  }
+  return { ...semantic, validation_digest: validationDigest };
+}
+
+function requiredReceiptText(
+  value: Record<string, unknown>,
+  field: string,
+): string {
+  const text = value[field];
+  if (typeof text !== "string" || text.trim() === "") {
+    throw new CommandError(
+      "BRIDGE_NOT_AUTHORIZED",
+      `authority resolver ${field} is missing`,
+    );
+  }
+  return text;
 }
 
 async function readAttemptSafely(

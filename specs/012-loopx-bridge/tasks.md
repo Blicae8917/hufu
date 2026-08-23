@@ -136,3 +136,5 @@
 - [x] T030 增加注入式耐久 attempt store：首次执行前 CAS `prepared`，既有 attempt 禁止二次 execute。
 - [x] T031 将 `execution_allowed` 收紧为现行 Authority/grant + Envelope + SessionBinding + 实际 Port/attempt store/独立 Validator/readback 全部齐备。
 - [x] T032 同步 `docs/COMPATIBILITY.md` 至 exact LoopX v0.5.2 / `423035f…` 基线并补回归。
+- [x] T033 拒绝裸 fresh AuthorityCrossing；增加独立 AuthorityResolver 与 opaque authority ref。
+- [x] T034 覆盖 stale grant revision、错 Envelope/Session 与 Resolver unavailable，均在 runtime effect 前失败关闭。

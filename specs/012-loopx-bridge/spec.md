@@ -91,8 +91,8 @@
 
 **Acceptance Scenarios**:
 
-1. 没有现行 Authority/grant、显式 activation receipt、耐久 attempt store，或没有齐备的 Adapter / Validator / readback 时，只能 Plan，不能 Execute。
-2. Plan 必须包含现行 Authority/grant、真实 Envelope、真实 SessionBinding generation、固定 v0.5.2 commit 与稳定 turn key。
+1. 没有 AuthorityResolver 从 Hufu current Ledger/status 返回的 fresh validation receipt、显式 activation receipt、耐久 attempt store，或没有齐备的 Adapter / Validator / readback 时，只能 Plan，不能 Execute。
+2. Plan 必须包含 opaque authority ref、Resolver 回执、真实 Envelope、真实 SessionBinding generation、固定 v0.5.2 commit 与稳定 turn key。
 3. Execute 前先 readback；既有完整结果直接恢复，prepared / unavailable 不盲重试。
 4. 独立 Validator 拒绝伪造结果时，不形成下一 Turn。
 5. 只有 TypedResultRef、EffectRef、Validator Receipt、Effect readback 和 Receipt 全部匹配时，`next_allowed=true`。
@@ -140,9 +140,10 @@
 - **FR-023**: 失败 / 超时 / 重启 MUST 先 readback；complete 复用、prepared / unavailable 失败关闭，不得盲目重试。
 - **FR-024**: 显式 wrapper 只能由 Provider 自有配置解析；桥只携带 `runtime_locator_ref`，不得持久化本机路径正文。
 - **FR-025**: #68 MUST 不增加 `loopx` 依赖、不 vendor、不安装 LoopX、不调用真实 Host；测试只使用 public-safe fake port。
-- **FR-026**: Activation Receipt 只表达能力，不授权执行。`execution_allowed=true` MUST 同时绑定现行 Authority/grant、当前 Envelope、真实 SessionBinding，以及实际注入的 RunOncePort、耐久 attempt store、独立 Validator / readback。
+- **FR-026**: Activation Receipt 只表达能力，不授权执行。MUST NOT 接受裸 AuthorityCrossing；`execution_allowed=true` MUST 由独立 AuthorityResolver 按 opaque `authority_ref` 从 Hufu current Ledger/status 读回并签发 fresh receipt，绑定 current grant revision、task、Decision/Envelope、SessionBinding generation，再同时满足实际注入的 RunOncePort、耐久 attempt store、独立 Validator / readback。
 - **FR-027**: 首次 execute 前 MUST 用 `turn_key` CAS 耐久写入 `prepared` attempt；只有本次创建成功才能调用 Port。
 - **FR-028**: 已存在 `prepared` / `attempted` 记录且效果 readback 仍不完整时 MUST 只允许 readback 或 typed stop，MUST NOT 自动第二次 execute。
+- **FR-029**: execute 前 MUST 再次调用同一 AuthorityResolver；stale grant revision、错 Envelope/Session、伪造 fresh Authority 或 Resolver unavailable 均 MUST 在任何 runtime effect 前失败关闭。
 
 ### Key Entities
 

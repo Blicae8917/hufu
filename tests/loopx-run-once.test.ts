@@ -3,17 +3,20 @@ import { describe, it } from "node:test";
 
 import { digestPayload } from "../src/hufu/digest.js";
 import {
-  assertAuthorityCrossing,
   assertBridgeActivationReceipt,
   isBridgeEnabled,
   LOOPX_RUN_ONCE_BASELINE,
   prepareOutboundTurn,
+  type BoundedTurnRequest,
 } from "../src/hufu/loopx-bridge.js";
 import { CommandError } from "../src/hufu/errors.js";
 import {
   createLoopXRunOnceConsumer,
+  type LoopXRunOnceAuthorityRef,
+  type LoopXRunOnceAuthorityResolverPort,
   type LoopXRunOnceAttemptStore,
   type LoopXRunOnceConsumer,
+  type LoopXRunOnceConsumerOptions,
   type LoopXRunOncePort,
   type LoopXTypedResultValidatorPort,
 } from "../src/hufu/loopx-run-once.js";
@@ -37,14 +40,9 @@ function sessionBindingRef(): Record<string, unknown> {
   return { binding_id: "bind-example", generation: 3 };
 }
 
-function currentAuthority(): Record<string, unknown> {
+function authorityRef(): LoopXRunOnceAuthorityRef {
   return {
-    authority_scope_ref: { grant_id: "grant-example", revision: 7 },
-    freshness: "fresh",
-    observed_at: "2026-08-23T12:00:00.000Z",
-    session_binding_ref: sessionBindingRef(),
-    source_revision: "revision-example",
-    task_authority: "gitlab",
+    authority_id: "authority:example-current",
     task_ref: "gitlab:example-group/example-project#68",
   };
 }
@@ -91,16 +89,86 @@ function configuredConsumer(
   port: LoopXRunOncePort,
   validator: LoopXTypedResultValidatorPort,
   attemptStore: LoopXRunOnceAttemptStore = durableAttemptStore(),
+  authorityResolver: LoopXRunOnceAuthorityResolverPort = stableAuthorityResolver(),
 ): LoopXRunOnceConsumer {
   return createLoopXRunOnceConsumer({
     activation_receipt: assertBridgeActivationReceipt(
       qualifiedActivationReceipt(),
     ),
     attempt_store: attemptStore,
-    authority: assertAuthorityCrossing(currentAuthority()),
+    authority_ref: authorityRef(),
+    authority_resolver: authorityResolver,
     port,
     validator,
   });
+}
+
+function inertPort(): LoopXRunOncePort {
+  return {
+    adapter_id: "example.loopx-run-once",
+    runtime_locator_ref: "runtime:loopx-wrapper-example",
+    async execute() {
+      throw new Error("must not execute");
+    },
+    async readback(turnKey) {
+      return { status: "not_found", turn_key: turnKey };
+    },
+  };
+}
+
+function inertValidator(): LoopXTypedResultValidatorPort {
+  return {
+    validator_id: "example.independent-validator",
+    async validate() {
+      return { accepted: false, reason: "must not validate" };
+    },
+  };
+}
+
+function authorityValidationSemantic(
+  plan: BoundedTurnRequest,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    accepted: true,
+    authority_ref: plan.authority_ref,
+    authority_scope_ref: { grant_id: "grant-example", revision: 7 },
+    decision_ref: plan.decision_ref,
+    envelope_ref: plan.envelope_ref,
+    freshness: "fresh",
+    observed_at: "2026-08-23T12:00:00.000Z",
+    receipt_id: "authority-validation-example",
+    resolver_id: "example.hufu-current-authority",
+    session_binding_ref: plan.session_binding_ref,
+    source_revision: "revision-example",
+    task_ref: "gitlab:example-group/example-project#68",
+    ...overrides,
+  };
+}
+
+function stableAuthorityResolver(): LoopXRunOnceAuthorityResolverPort {
+  return {
+    resolver_id: "example.hufu-current-authority",
+    async resolve(plan) {
+      return authorityValidationReceipt(plan);
+    },
+  };
+}
+
+function authorityValidationReceipt(
+  plan: BoundedTurnRequest,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const semantic = authorityValidationSemantic(plan, overrides);
+  return { ...semantic, validation_digest: digestPayload(semantic) };
+}
+
+async function executablePlan(
+  consumer: LoopXRunOnceConsumer,
+): Promise<Awaited<ReturnType<LoopXRunOnceConsumer["plan"]>>> {
+  const plan = await consumer.plan(executionEnvelopeRef(), sessionBindingRef());
+  assert.equal(plan.execution_allowed, true);
+  return plan;
 }
 
 function qualifiedActivationReceipt(): Record<string, unknown> {
@@ -193,7 +261,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
 
   it("keeps execution disabled when no RunOncePort is injected", async () => {
     const consumer = createLoopXRunOnceConsumer();
-    const plan = consumer.plan(executionEnvelopeRef(), sessionBindingRef());
+    const plan = await consumer.plan(executionEnvelopeRef(), sessionBindingRef());
     assert.equal(plan.execution_allowed, false);
     await assert.rejects(
       () => consumer.execute(plan),
@@ -202,7 +270,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
     );
   });
 
-  it("keeps execution disabled when capability and runtime exist without current authority", () => {
+  it("keeps execution disabled when capability and runtime exist without current authority", async () => {
     const port: LoopXRunOncePort = {
       adapter_id: "example.loopx-run-once",
       runtime_locator_ref: "runtime:loopx-wrapper-example",
@@ -227,10 +295,121 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       port,
       validator,
     });
-    assert.equal(
-      consumer.plan(executionEnvelopeRef(), sessionBindingRef()).execution_allowed,
-      false,
+    const plan = await consumer.plan(executionEnvelopeRef(), sessionBindingRef());
+    assert.equal(plan.execution_allowed, false);
+  });
+
+  it("ignores a caller-supplied fresh AuthorityCrossing without an AuthorityResolver", async () => {
+    const options = {
+      activation_receipt: assertBridgeActivationReceipt(
+        qualifiedActivationReceipt(),
+      ),
+      attempt_store: durableAttemptStore(),
+      authority: {
+        authority_scope_ref: { grant_id: "forged", revision: 99 },
+        freshness: "fresh",
+        observed_at: "2026-08-23T12:00:00.000Z",
+        session_binding_ref: sessionBindingRef(),
+        source_revision: "forged-revision",
+        task_authority: "gitlab",
+        task_ref: "gitlab:example-group/example-project#68",
+      },
+      authority_ref: authorityRef(),
+      port: inertPort(),
+      validator: inertValidator(),
+    } as unknown as LoopXRunOnceConsumerOptions;
+    const consumer = createLoopXRunOnceConsumer(options);
+    const plan = await consumer.plan(executionEnvelopeRef(), sessionBindingRef());
+    assert.equal(plan.execution_allowed, false);
+  });
+
+  it("rejects a stale grant revision between plan and execute before runtime effects", async () => {
+    let resolves = 0;
+    let runtimeCalls = 0;
+    const port: LoopXRunOncePort = {
+      ...inertPort(),
+      async readback(turnKey) {
+        runtimeCalls += 1;
+        return { status: "not_found", turn_key: turnKey };
+      },
+    };
+    const resolver: LoopXRunOnceAuthorityResolverPort = {
+      resolver_id: "example.hufu-current-authority",
+      async resolve(plan) {
+        resolves += 1;
+        return authorityValidationReceipt(plan, {
+          authority_scope_ref: {
+            grant_id: "grant-example",
+            revision: resolves === 1 ? 7 : 8,
+          },
+          receipt_id: `authority-validation-${String(resolves)}`,
+        });
+      },
+    };
+    const consumer = configuredConsumer(
+      port,
+      inertValidator(),
+      durableAttemptStore(),
+      resolver,
     );
+    const plan = await executablePlan(consumer);
+    await assert.rejects(
+      () => consumer.execute(plan),
+      (error: unknown) =>
+        error instanceof CommandError && error.code === "BRIDGE_NOT_AUTHORIZED",
+    );
+    assert.equal(runtimeCalls, 0);
+  });
+
+  it("keeps plan disabled when resolver binds the wrong task, envelope, or SessionBinding", async () => {
+    const cases: Array<Record<string, unknown>> = [
+      { task_ref: "gitlab:example-group/example-project#69" },
+      {
+        envelope_ref: {
+          ...executionEnvelopeRef(),
+          envelope_id: "env-wrong",
+        },
+      },
+      {
+        session_binding_ref: { binding_id: "bind-example", generation: 99 },
+      },
+    ];
+    for (const overrides of cases) {
+      const resolver: LoopXRunOnceAuthorityResolverPort = {
+        resolver_id: "example.hufu-current-authority",
+        async resolve(plan) {
+          return authorityValidationReceipt(plan, overrides);
+        },
+      };
+      const consumer = configuredConsumer(
+        inertPort(),
+        inertValidator(),
+        durableAttemptStore(),
+        resolver,
+      );
+      const plan = await consumer.plan(
+        executionEnvelopeRef(),
+        sessionBindingRef(),
+      );
+      assert.equal(plan.execution_allowed, false);
+    }
+  });
+
+  it("keeps plan disabled when the AuthorityResolver is unavailable", async () => {
+    const resolver: LoopXRunOnceAuthorityResolverPort = {
+      resolver_id: "example.hufu-current-authority",
+      async resolve() {
+        throw new Error("resolver unavailable");
+      },
+    };
+    const consumer = configuredConsumer(
+      inertPort(),
+      inertValidator(),
+      durableAttemptStore(),
+      resolver,
+    );
+    const plan = await consumer.plan(executionEnvelopeRef(), sessionBindingRef());
+    assert.equal(plan.execution_allowed, false);
   });
 
   it("allows next only after execute, independent validation, readback, and Receipt", async () => {
@@ -286,8 +465,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
-    const plan = consumer.plan(executionEnvelopeRef(), sessionBindingRef());
-    assert.equal(plan.execution_allowed, true);
+    const plan = await executablePlan(consumer);
 
     const outcome = await consumer.execute(plan);
     assert.equal(outcome.status, "committed");
@@ -335,9 +513,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
-    const outcome = await consumer.execute(
-      consumer.plan(executionEnvelopeRef(), sessionBindingRef()),
-    );
+    const outcome = await consumer.execute(await executablePlan(consumer));
     assert.equal(outcome.idempotent_replay, true);
     assert.equal(outcome.next_allowed, true);
     assert.equal(executions, 1);
@@ -364,7 +540,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
-    const plan = consumer.plan(executionEnvelopeRef(), sessionBindingRef());
+    const plan = await executablePlan(consumer);
     await assert.rejects(() => consumer.execute(plan));
     await assert.rejects(() => consumer.execute(plan));
     assert.equal(executions, 1);
@@ -403,11 +579,9 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
+    const plan = await executablePlan(consumer);
     await assert.rejects(
-      () =>
-        consumer.execute(
-          consumer.plan(executionEnvelopeRef(), sessionBindingRef()),
-        ),
+      () => consumer.execute(plan),
       (error: unknown) =>
         error instanceof CommandError && error.code === "RECEIPT_INVALID",
     );
@@ -443,7 +617,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
-    const plan = consumer.plan(executionEnvelopeRef(), sessionBindingRef());
+    const plan = await executablePlan(consumer);
     await assert.rejects(
       () =>
         consumer.execute({
@@ -456,7 +630,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         }),
       (error: unknown) =>
         error instanceof CommandError &&
-        error.code === "HOST_CAPABILITY_REJECTED",
+        error.code === "BRIDGE_NOT_AUTHORIZED",
     );
     assert.equal(invoked, 0);
   });
@@ -487,11 +661,9 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
+    const plan = await executablePlan(consumer);
     await assert.rejects(
-      () =>
-        consumer.execute(
-          consumer.plan(executionEnvelopeRef(), sessionBindingRef()),
-        ),
+      () => consumer.execute(plan),
       (error: unknown) =>
         error instanceof CommandError && error.code === "DATA_INSUFFICIENT",
     );
@@ -536,9 +708,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const restarted = configuredConsumer(port, validator);
-    const outcome = await restarted.execute(
-      restarted.plan(executionEnvelopeRef(), sessionBindingRef()),
-    );
+    const outcome = await restarted.execute(await executablePlan(restarted));
     assert.equal(outcome.idempotent_replay, true);
     assert.equal(outcome.typed_result_ref.result_id, "result-recovered");
     assert.equal(executions, 0);
@@ -580,11 +750,9 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
+    const plan = await executablePlan(consumer);
     await assert.rejects(
-      () =>
-        consumer.execute(
-          consumer.plan(executionEnvelopeRef(), sessionBindingRef()),
-        ),
+      () => consumer.execute(plan),
       (error: unknown) =>
         error instanceof CommandError && error.code === "DATA_INSUFFICIENT",
     );
@@ -609,11 +777,9 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
+    const plan = await executablePlan(consumer);
     await assert.rejects(
-      () =>
-        consumer.execute(
-          consumer.plan(executionEnvelopeRef(), sessionBindingRef()),
-        ),
+      () => consumer.execute(plan),
       (error: unknown) => {
         if (!(error instanceof CommandError)) {
           return false;
@@ -651,11 +817,9 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       },
     };
     const consumer = configuredConsumer(port, validator);
+    const plan = await executablePlan(consumer);
     await assert.rejects(
-      () =>
-        consumer.execute(
-          consumer.plan(executionEnvelopeRef(), sessionBindingRef()),
-        ),
+      () => consumer.execute(plan),
       (error: unknown) => {
         if (!(error instanceof CommandError)) {
           return false;

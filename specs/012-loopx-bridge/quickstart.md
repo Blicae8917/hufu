@@ -47,7 +47,8 @@ pnpm exec tsc
 node --test dist/tests/loopx-run-once.test.js dist/tests/loopx-bridge.test.js
 ```
 
-预期：默认 bridge disabled；capability receipt 单独存在仍不可执行；现行 Authority/grant、qualified
+预期：默认 bridge disabled；capability receipt 或裸 fresh AuthorityCrossing 单独存在仍不可执行；
+独立 AuthorityResolver 按 opaque authority ref 从 Hufu current Ledger/status 返回 fresh receipt，且 qualified
 `BridgeActivationReceipt`、实际 Port、耐久 attempt store、独立 Validator/readback 齐备后 Plan 才绑定可执行的真实
 `ExecutionEnvelopeRef` / `SessionBindingRef`；public-safe fake port 最多执行一次；独立 Validator、
 readback 与 Receipt 完整前 `next_allowed` 不成立；失败、超时、重复 Turn 和重启均不盲重试。

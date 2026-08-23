@@ -111,6 +111,9 @@ describe("012 LoopX Authority/Decision/Evidence bridge spec (#50)", () => {
     assert.match(readRepo(`${KIT_DIR}/tasks.md`), /T001/);
     assert.match(readRepo(`${KIT_DIR}/tasks.md`), /012-loopx-bridge-adapter\.test\.ts/);
     assert.match(corpus, /SessionBindingRef/);
+    assert.match(corpus, /AuthorityResolver/);
+    assert.match(corpus, /opaque `authority_ref`|opaque authority_ref/);
+    assert.match(corpus, /current Ledger\/status/);
     assert.match(corpus, /ExecutionEnvelopeRef/);
     assert.match(corpus, /EffectRef/);
     assert.match(corpus, /ReceiptRef/);

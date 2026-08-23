@@ -73,6 +73,11 @@ export interface SessionBindingRef {
   readonly generation: number;
 }
 
+export interface RunOnceAuthorityRef {
+  readonly authority_id: string;
+  readonly task_ref: string;
+}
+
 export interface AuthoritySnapshotRef {
   readonly freshness: BridgeFreshness;
   readonly observed_at?: string;
@@ -161,7 +166,11 @@ export interface BoundedTurnRequest {
   readonly decision_ref: DecisionRef;
   readonly envelope_ref: ExecutionEnvelopeRef;
   readonly execution_allowed: boolean;
-  readonly authority_ref?: AuthorityCrossing;
+  readonly authority_ref?: RunOnceAuthorityRef;
+  readonly authority_validation_ref?: {
+    readonly receipt_id: string;
+    readonly validation_digest: string;
+  };
   readonly loopx_baseline: typeof LOOPX_RUN_ONCE_BASELINE;
   readonly max_invocations: 1;
   readonly runtime_locator_ref?: string;
@@ -316,17 +325,7 @@ export function prepareOutboundTurn(
   const authority =
     authorityCrossing === undefined
       ? undefined
-      : assertAuthorityCrossing(authorityCrossing);
-  if (
-    authority?.session_binding_ref !== undefined &&
-    (authority.session_binding_ref.binding_id !== session.binding_id ||
-      authority.session_binding_ref.generation !== session.generation)
-  ) {
-    throw new CommandError(
-      "HOST_CAPABILITY_REJECTED",
-      "current authority and outbound turn must bind the same SessionBinding generation",
-    );
-  }
+      : requiredRunOnceAuthorityRef(authorityCrossing);
   const turnKey = digestPayload({
     ...(authority === undefined ? {} : { authority_ref: authority }),
     envelope_ref: envelope,
@@ -352,6 +351,19 @@ export function prepareOutboundTurn(
     session_binding_ref: session,
     turn_key: turnKey,
     turn_kind: "run_once",
+  };
+}
+
+function requiredRunOnceAuthorityRef(value: unknown): RunOnceAuthorityRef {
+  const object = requireObject(value, "run-once authority_ref");
+  rejectUnknownKeys(
+    object,
+    ["authority_id", "task_ref"],
+    "run-once authority_ref",
+  );
+  return {
+    authority_id: requiredText(object, "authority_id"),
+    task_ref: requiredText(object, "task_ref"),
   };
 }
 
