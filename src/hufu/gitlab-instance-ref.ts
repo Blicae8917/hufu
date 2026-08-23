@@ -72,11 +72,7 @@ export function parseGitLabInstanceOrigin(input: string): string {
       "instance_origin must not embed credentials",
     );
   }
-  if (
-    (parsed.pathname !== "/" && parsed.pathname !== "") ||
-    parsed.search !== "" ||
-    parsed.hash !== ""
-  ) {
+  if (parsed.href !== parsed.origin && parsed.href !== `${parsed.origin}/`) {
     throw new CommandError(
       "REPOSITORY_NOT_ALLOWED",
       "instance_origin must be an origin without a project path",
