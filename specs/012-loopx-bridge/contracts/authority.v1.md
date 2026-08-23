@@ -1,8 +1,8 @@
 # Authority 过桥合同 v1
 
-本文件锁死 Authority 侧哪些字段可以进入未来 Hufu↔LoopX 桥载荷。它不是实现授权，也不把 LoopX 加入 `task_authority`。
+本文件锁死 Authority 侧哪些字段可以进入 Hufu↔LoopX 桥载荷。它不把 LoopX 加入 `task_authority`。实现授权见 [#58](https://github.com/Blicae8917/hufu/issues/58) / ADR 0007；本波仍不交付 Adapter。
 
-本票属于 ADR 0006 第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥。引用 [#50](https://github.com/Blicae8917/hufu/issues/50)。
+本票属于 ADR 0006 第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥。引用 [#50](https://github.com/Blicae8917/hufu/issues/50)（设计史）。
 
 ## 可过桥
 
@@ -14,6 +14,7 @@
 | `observed_at` | 观测墙钟 | 数字 `0` |
 | `freshness` | `fresh` \| `stale` \| `unknown` \| `not_applicable` | 自造生命周期枚举 |
 | `authority_scope_ref` | `{ grant_id, revision }` 不透明指针 | `scope_text`、`scope.*`、`issuer_id`、命令短语 |
+| `SessionBindingRef` | 不透明 binding 身份与 generation | SessionBinding 授权本体、Host transcript、RoleBinding 正文 |
 
 `AuthoritySnapshotRef` = `{ task_ref, source_revision, observed_at, freshness }`。它只证明「当时看到了哪个正本版本」，不拥有该正本。
 

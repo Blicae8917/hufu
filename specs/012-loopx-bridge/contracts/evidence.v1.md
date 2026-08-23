@@ -1,8 +1,8 @@
 # Evidence 过桥合同 v1
 
-本文件锁死 Evidence 侧哪些字段可以进入未来 Hufu↔LoopX 桥载荷。Evidence 是带来源的观测指针，不是授权，也不是议题完成声明。本文件不是实现授权。
+本文件锁死 Evidence 侧哪些字段可以进入 Hufu↔LoopX 桥载荷。Evidence 是带来源的观测指针，不是授权，也不是议题完成声明。实现授权见 #58 / ADR 0007；本波仍不交付 Adapter。
 
-本票属于 ADR 0006 第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥。引用 [#50](https://github.com/Blicae8917/hufu/issues/50)。
+本票属于 ADR 0006 第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥。引用 [#50](https://github.com/Blicae8917/hufu/issues/50)（设计史）。
 
 ## 可过桥
 
@@ -17,6 +17,9 @@
 | `availability` | `available` \| `unavailable` \| `data_insufficient` \| `conflict` | 数字 `0` |
 | `freshness` | `fresh` \| `stale` \| `unknown` \| `not_applicable` | 自造完成态 |
 | `observed_at` | 真实墙钟；缺失则省略 | 数字 `0` |
+| `EffectRef` | 稳定效果身份 | `observed_result` / `durability` |
+| `ReceiptRef` | 稳定回执身份 | Receipt `ok`、核验声明正文 |
+| `TypedResultRef` | 稳定类型化结果身份 | TypedResult 正文 / `kind` 当授权 |
 
 `readback_status` 若出现，只表示读回覆盖，取值 `complete` \| `unavailable` \| `data_insufficient`。它 **不得** 携带 `observed_result=applied|confirmed_absent` 作为过桥授权或议题关闭依据。
 

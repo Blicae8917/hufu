@@ -82,7 +82,8 @@ Decision 引用、Role/SessionBinding、逐槽三轴 CurrentView、Evidence、Re
 和企业项目 Renderer 合同。已交付的 `loopx-mechanisms`（#9）仍须显式选用，只记录类型化结果与回执，
 不得把 LoopX Registry、Goal/Todo 或 Scheduler 映射为任务正本或授权。
 不得自行实现通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine 或完整 Web 控制面。
-Hufu↔LoopX 桥接须另立 Module，本规范不授权现在实现。
+Hufu↔LoopX 桥接由 #58 / ADR 0007 授权实现，对照 LoopX v0.5.2 合同且不 vendoring 源码；
+本规范仍不把桥写成已交付 Adapter，也不授权本波交付运行时。
 
 UI 同样不是任务正本。它只是权威事实、观测事实和派生事实的 Renderer。
 
@@ -99,12 +100,13 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
   在 `0.1.0` 系列交付（Envelope、ACK、三类 Delta、semantic rebase 护栏）。DeepSeek 与 Standalone
   双 Profile 夹具对等及插件真装真卸已由 #7 交付。GitLab 只读投影已由 #8 交付。LoopX 第一批机制已由 #9
   交付为须显式选用的机制记录口（不是任务正本）。效能试点记录与扩充门禁已由 #10 交付。
-- **ADR 0006 之后仅可设计、尚未授权实现的能力**：自建 GitLab AuthorityProvider、
-  Hufu↔LoopX 的 Authority / Decision / Evidence 桥、通过效能门禁后的企业项目 Renderer。
-  本规范不授权现在实现它们。原自行建设的 M10–M15（通用 Goal/Todo/Scheduler/Heartbeat、
-  PM Engine、Wave Engine、完整 Web 控制面）以及关键决策会商、loopback Web Console、
-  出站 Runtime 不再作为已接受方向。
-  上述三类若开工，须另立独立 Module Issue 与 Spec Kit 合同并各自验收。
+- **ADR 0007 之后的实现授权（本波不交付运行时）**：受控 GitLab Effect（#57）、
+  #50 桥实现后继（#58，LoopX v0.5.2 合同、不 vendoring）、Codex NativeHost RuntimeProvider
+  + SessionBinding（#59），以及公开安全端到端试点验收（#60）。企业项目 Renderer 仍未授权。
+  原自行建设的 M10–M15（通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine、
+  完整 Web 控制面）以及关键决策会商、loopback Web Console 不再作为已接受方向。
+  上述已授权项若开工实现 PR，须引用对应 Issue 与 Spec Kit，并先写失败测试；真实生产
+  `execute` 仍未授予。
 
 发布门若触碰决策记录，至多要求“一份裁决只完整保存一次，`status` 与 `handoff` 只传引用”。
 完整决策状态机已由后续 Module #6 交付，仍不阻塞 `0.1.0` 发布门。
@@ -422,14 +424,14 @@ ADR 0006 废止原 M10–M15 自行控制面计划。后续仅可设计、尚未
 
 ## 未来方向
 
-ADR 0006 之后，后续能力只围绕三类、且都尚未授权实现：自建 GitLab AuthorityProvider、
-Hufu↔LoopX 的 Authority / Decision / Evidence 桥、通过效能门禁后的企业项目 Renderer。
-原 M10–M15 自行控制面、关键决策会商 Runtime、loopback Web Console 与出站 Runtime
-不再作为已接受方向。[ADR 0004](adr/0004-bounded-decision-council.md) 保留为历史候选记录，
-不构成开工授权。游戏化界面只能作为 Renderer 研究，不得改变核心合同或状态所有权。
+ADR 0007 记录 2026-08-23 指挥官授权：受控 GitLab Effect、#50 桥实现、Codex NativeHost
+RuntimeProvider，以及公开安全端到端试点。企业项目 Renderer 仍未授权。原 M10–M15
+自行控制面、关键决策会商 Runtime、loopback Web Console 不再作为已接受方向。
+[ADR 0004](adr/0004-bounded-decision-council.md) 保留为历史候选记录，不构成开工授权。
+游戏化界面只能作为 Renderer 研究，不得改变核心合同或状态所有权。
 
-上述三类若进入实现，必须另有已接受 Module Issue、Spec Kit 合同、架构检查，以及能够减少
-操作者工作量或执行风险的证据。本规范不因列出它们而授权现在实现。
+已授权项进入实现 PR 时必须引用对应 Module Issue 与 Spec Kit，并先写失败测试。
+本规范不因列出它们而授权本波交付运行时，也不授权对真实生产执行 `execute`。
 
 ## V1 明确不做
 

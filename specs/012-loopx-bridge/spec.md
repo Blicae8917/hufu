@@ -4,21 +4,23 @@
 
 **Created**: 2026-08-23
 
-**Status**: Design-only（已落地设计合同，不是实现授权）
+**Status**: Design + implementation-authorized（#50 设计史保持；实现后继 [#58](https://github.com/Blicae8917/hufu/issues/58) / ADR 0007）。本波仍不交付 Adapter。
 
 **Input**: User description: "GitHub Module Issue #50：按 ADR 0006 设计 Hufu 与 LoopX 之间仅覆盖 Authority / Decision / Evidence 的桥。Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务控制面。已交付的 loopx-mechanisms（#9 / specs/008-loopx-engine）仍只是须显式选用的机制记录口，不是任务正本，也不得被本票静默升格。写明三端哪些字段可过桥、哪些必须留在本侧；LoopX 不得取代 GitHub / GitLab 原生 Issue 生命周期，也不得从 Journal、Receipt 或执行结果反推或扩大授权。不引入 LoopX 发行包、不复制上游源码。开本票与落地本设计 kit 都不是 Adapter 实现授权。"
 
-**Parent Issue**: [#50](https://github.com/Blicae8917/hufu/issues/50)
+**Parent Issue**: [#50](https://github.com/Blicae8917/hufu/issues/50)（设计史，不关闭）
+
+**Implementation Issue**: [#58](https://github.com/Blicae8917/hufu/issues/58)
 
 **Parent Contract**: [ADR 0006](../../docs/adr/0006-upstream-positioning.md)（产品定位与三类后续能力）、[ADR 0003](../../docs/adr/0003-cordis-first-plugin-architecture.md)（已被 0006 修订的 LoopX 定位）、[008-loopx-engine](../008-loopx-engine/spec.md)（已交付机制记录口，不是本桥）、[005-zero-copy-decision](../005-zero-copy-decision/spec.md)（canonical Decision 引用）、[003-local-ledger-commands](../003-local-ledger-commands/spec.md)（AuthorizationGrant 与本机正本）
 
-**ADR class**: 第 (2) 类。ADR 0006「后续仅可设计、尚未授权实现的能力」只列三类：(1) 自建 GitLab AuthorityProvider；(2) Hufu↔LoopX 的 Authority / Decision / Evidence 桥；(3) 通过效能门禁后的企业项目 Renderer。#50 / 本 kit 只属于第 (2) 类，不实现 (1) 或 (3)。
+**ADR class**: 第 (2) 类。ADR 0006「三类后续能力」历史清单仍为：(1) 自建 GitLab AuthorityProvider；(2) Hufu↔LoopX 的 Authority / Decision / Evidence 桥；(3) 企业项目 Renderer。#50 / 本 kit 只属于第 (2) 类，不实现 (1) 或 (3)。ADR 0007 已授权实现本类；合同基线为 LoopX **v0.5.2**（release `423035f402e2f1703f076c3cfe60c14c5803433f`），不 vendoring，不依赖 `loopx`。最新 LoopX `main` 仅供研究。
 
 ## User Scenarios & Testing *(mandatory)*
 
 本模块的用户仍是本公开仓库的维护者。它交付的是**设计合同**：桥的三端字段白名单、本侧留守清单，以及 LoopX 不得代管原生议题生命周期、不得从 Journal / Receipt / 执行结果反推授权的失败关闭规则。它不交付 Adapter、不改 CLI、不改 `src/` 运行时。
 
-阅读本规格与 `contracts/` 即可独立验收本票。实现必须另立已接受开工令与失败测试，不得因本 kit 存在而开工。
+阅读本规格与 `contracts/` 即可独立验收设计合同。实现授权由 #58 / ADR 0007 下达；本波仍不交付 Adapter，后续实现 PR 必须先失败测试。
 
 ### User Story 1 - 三端字段白名单可独立核对 (Priority: P1)
 
@@ -67,7 +69,7 @@
 1. **Given** 评审者打开本 spec，**When** 寻找 ADR 归属，**Then** 可见「第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥」，且写明不是 (1) GitLab AuthorityProvider、不是 (3) 企业 Renderer。
 2. **Given** 已交付的 `loopx-mechanisms` 选用记录，**When** 对照本桥，**Then** 该选用不构成桥的启用、不改变 `task_authority`、不授权把 TypedResult / Receipt 当成正本。
 3. **Given** 设计或后续实现试图加入 `loopx` 依赖、vendoring 上游源码、或默认启用完整控制面，**When** 对照本 kit，**Then** 不合格；采用任何机制仍须独立 Module、边界测试、效能假设、可逆关闭，并遵守该提交的许可证与 NOTICE。
-4. **Given** 试图把本 kit 读成 Adapter 开工令，或复活 M10–M15、会商 Runtime、出站 Runtime、`hufu serve`，**When** 对照 Status 与 Out of Scope，**Then** 必须视为未授权。
+4. **Given** 试图把本波 kit 更新读成已经交付 Adapter，或复活 M10–M15、会商 Runtime、`hufu serve`，**When** 对照 Status 与 Out of Scope，**Then** 本波仍未交付运行时；实现只属于 #58 后续 PR。
 
 ---
 
@@ -88,11 +90,11 @@
 ### Functional Requirements
 
 - **FR-001**: 本模块 MUST 以设计合同回答三端字段划分。MUST 分别列出 Authority / Decision / Evidence 的可过桥字段与本侧留守字段。本 PR MUST NOT 实现桥 Adapter，MUST NOT 改变 CLI 行为，MUST NOT 修改 `src/` 运行时。
-- **FR-002**: 本模块 MUST 引用 [ADR 0006](../../docs/adr/0006-upstream-positioning.md) 与 [#50](https://github.com/Blicae8917/hufu/issues/50)，并证明自己属于第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥。MUST NOT 把本票写成第 (1) 类 GitLab AuthorityProvider 或第 (3) 类企业 Renderer。
-- **FR-003**: 本模块 MUST 声明自身为仅设计、不是实现授权。维护者尚未接受独立实现开工令之前，任何 Adapter、网络入口或 CLI 扩展 MUST 视为未授权。
-- **FR-004**: Authority 可过桥字段 MUST 仅限：`task_authority` 枚举声明（`github` \| `gitlab` \| `local`）、`task_ref` 身份、`AuthoritySnapshotRef`（`task_ref` / `source_revision` / `observed_at` / `freshness`）、不透明 `authority_scope_ref`（`{ grant_id, revision }`）。MUST NOT 过桥 `AuthorizationGrant` 正文、`scope_text`、`issuer_id`、RoleBinding / SessionBinding 授权本体、议题 `body`。
-- **FR-005**: Decision 可过桥字段 MUST 仅限稳定 `DecisionRef`：`{ decision_id, version, content_digest }`。可选附带不透明成分摘要（`outcome_digest` / `state_digest` / `acceptance_digest`）仅供相等性核对。MUST NOT 过桥 `DECISION_PACKET` 语义正文、`EXECUTION_ENVELOPE`、`ROUTE_ACK`、`FACT_DELTA` / `DECISION_DELTA` / `EFFECT_DELTA` 正文。
-- **FR-006**: Evidence 可过桥字段 MUST 仅限：`evidence_ref`、相关目标 / 输入 / 效果 / 工作项的身份指针、`fact_class`、`availability`、`freshness`、`observed_at`。MUST NOT 把 Receipt、Journal、TypedResult、`observed_result` 或 Host 运行结果当作授权、验收或议题完成声明过桥。
+- **FR-002**: 本模块 MUST 引用 [ADR 0006](../../docs/adr/0006-upstream-positioning.md)、[#50](https://github.com/Blicae8917/hufu/issues/50) 与 [#58](https://github.com/Blicae8917/hufu/issues/58)，并证明自己属于第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥。MUST NOT 把本票写成第 (1) 类 GitLab AuthorityProvider 或第 (3) 类企业 Renderer。
+- **FR-003**: 本模块 MUST 声明 #50 为设计史、#58 / ADR 0007 为实现授权。本波 MUST NOT 实现桥 Adapter，MUST NOT 改变 CLI，MUST NOT 修改 `src/` 运行时。后续实现 PR 在失败测试落地前 MUST 视为未开工。
+- **FR-004**: Authority 可过桥字段 MUST 仅限：`task_authority` 枚举声明（`github` \| `gitlab` \| `local`）、`task_ref` 身份、`AuthoritySnapshotRef`（`task_ref` / `source_revision` / `observed_at` / `freshness`）、不透明 `authority_scope_ref`（`{ grant_id, revision }`）、不透明 `SessionBindingRef`。MUST NOT 过桥 `AuthorizationGrant` 正文、`scope_text`、`issuer_id`、RoleBinding / SessionBinding 授权本体、议题 `body`。
+- **FR-005**: Decision 可过桥字段 MUST 仅限稳定 `DecisionRef`：`{ decision_id, version, content_digest }`，以及不透明 `ExecutionEnvelopeRef`。可选附带不透明成分摘要（`outcome_digest` / `state_digest` / `acceptance_digest`）仅供相等性核对。MUST NOT 过桥 `DECISION_PACKET` 语义正文、`EXECUTION_ENVELOPE` 正文、`ROUTE_ACK`、`FACT_DELTA` / `DECISION_DELTA` / `EFFECT_DELTA` 正文。
+- **FR-006**: Evidence 可过桥字段 MUST 仅限：`EvidenceRef` / `evidence_ref`、相关目标 / 输入 / 效果 / 工作项的身份指针、`EffectRef`、`ReceiptRef`、`TypedResultRef`、`fact_class`、`availability`、`freshness`、`observed_at`。MUST NOT 把 Receipt / Journal / TypedResult / `observed_result` 或 Host 运行结果当作授权、验收或议题完成声明过桥。
 - **FR-007**: LoopX MUST NOT 取代 GitHub / GitLab 原生 Issue 生命周期。`github` / `gitlab` 正本下，桥的全部路径 MUST 保持只读 Projection 合同；MUST NOT 出现创建、修改、关闭、评论、合并或第二套权威状态机。
 - **FR-008**: Journal、Receipt、类型化结果、效果读回、Host 运行结果、CurrentView 派生值与 `ROUTE_ACK` MUST NOT 被用来反推或扩大授权。`authority_scope_ref` 只能引用既有 `AuthorizationGrant`，不能使桥载荷成为新的授权来源。
 - **FR-009**: MUST NOT 把 #9 / `specs/008-loopx-engine` 的 `loopx-mechanisms` 升格为 `task_authority` 或本桥。008 仍只是须显式选用的机制记录口。绑定 008 MUST NOT 启用本桥。
@@ -101,7 +103,7 @@
 - **FR-012**: MUST NOT 实现自建 GitLab AuthorityProvider（#49）或企业 Renderer。本 kit MUST NOT 修改 `docs/SPEC.md`、`AGENTS.md` 或 008 的行为合同。
 - **FR-013**: 每个已连接 Project MUST 仍然恰好报告一个 `task_authority`。LoopX、引擎、桥 Adapter 均 MUST NOT 加入该枚举。
 - **FR-014**: 缺失的墙钟、用量、读回或上游观测 MUST NOT 写成 `0`。只能报告 `unavailable` 或 `data_insufficient`。
-- **FR-015**: 本设计 kit MUST 附带一条会通过的设计约束测试。失败的 Adapter / 实现测试 MUST 只写在 `tasks.md` 供未来实现 PR，MUST NOT 在本 PR 落地以免破坏 CI。版本保持 `0.1.0`。
+- **FR-015**: 本 kit MUST 附带会通过的设计约束测试。失败的 Adapter / 实现测试 MUST 只写在 `tasks.md` 供 #58 实现 PR，MUST NOT 在本波落地以免破坏 CI。版本保持 `0.1.0`。MUST NOT 引入 `loopx` 依赖或 vendoring 上游源码。后续实现结束 MUST 报告 `IMPLEMENTATION_COMPLETE` 或类型化 `NO_GO`，MUST NOT 把「CI 绿」写成生产已自动化。
 
 ### Key Entities
 
@@ -117,7 +119,7 @@
 ### Measurable Outcomes
 
 - **SC-001**: 维护者能在 10 分钟内从本 kit 指出三端可过桥字段与本侧留守字段，无需阅读 `src/`。
-- **SC-002**: 100% 设计约束测试通过，且断言本 kit 引用 ADR 0006 与 #50、声明仅设计、禁止反向授权、禁止升格 008、禁止发行包 / 源码搬入。
+- **SC-002**: 100% 设计约束测试通过，且断言本 kit 引用 ADR 0006、#50、#58 与 ADR 0007、禁止反向授权、禁止升格 008、禁止发行包 / 源码搬入。
 - **SC-003**: 把 Journal / Receipt / 执行结果写成授权来源的设计陈述在本 kit 中 100% 被列为不合格。
 - **SC-004**: 把 `loopx-mechanisms` 或 LoopX 写成 `task_authority` 的设计陈述在本 kit 中 100% 被列为不合格。
 - **SC-005**: 本 PR 合入后 `package.json` 版本仍为 `0.1.0`，任何 `package.json` 依赖字段仍不含 `loopx`，CLI 行为与 `src/` 运行时不变。
@@ -134,7 +136,7 @@
 
 ## Out of Scope
 
-- 实现桥 Adapter、修改 CLI、修改 `src/` 运行时、提升版本或打标签
+- 本波实现桥 Adapter、修改 CLI、修改 `src/` 运行时、提升版本或打标签
 - 把 LoopX 或 `loopx-mechanisms` 作为 `task_authority`
 - 把 Goal / Todo / Scheduler / Heartbeat、PM Engine、Wave Engine 或完整 Web 控制面搬进 Hufu
 - 复活 M10–M15、会商 Runtime、出站 Runtime、默认 `hufu serve`

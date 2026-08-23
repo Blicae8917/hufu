@@ -1,6 +1,6 @@
 # 008 / #9 显式非升格合同 v1
 
-本文件锁死：已交付的 `specs/008-loopx-engine` / GitHub #9 **不是**本桥，也 **不得**被本票升格为任务正本。本文件不是实现授权。
+本文件锁死：已交付的 `specs/008-loopx-engine` / GitHub #9 **不是**本桥，也 **不得**被本票升格为任务正本。本文件不把 008 升格；桥的实现授权见 #58 / ADR 0007，本波仍不交付 Adapter。
 
 引用 ADR 0006、[#50](https://github.com/Blicae8917/hufu/issues/50)、[#9](https://github.com/Blicae8917/hufu/issues/9)。
 
@@ -17,13 +17,13 @@
 
 ## 本桥是什么
 
-本 kit 是 ADR 0006 第 (2) 类的**仅设计**合同。它回答哪些 Authority / Decision / Evidence 字段可以过桥。它：
+本 kit 是 ADR 0006 第 (2) 类桥合同，现由 #58 / ADR 0007 标为 implementation-authorized。它回答哪些 Authority / Decision / Evidence 字段可以过桥。它：
 
 - 不因 008 已交付而自动启用
 - 不把 `hufu/engine.bound` 解释成桥启用令
 - 不把 TypedResult / Receipt 当成 DecisionRef 或 AuthorizationGrant
 
-选用 008 与启用本桥是两件独立的事。未来若实现桥 Adapter，必须另有实现授权，且仍须显式启用，不得因引擎绑定而旁路。
+选用 008 与启用本桥是两件独立的事。#58 实现 PR 仍须显式启用桥，不得因引擎绑定而旁路。
 
 ## 禁止的升格读法
 
@@ -43,7 +43,7 @@
 | 类 | Module | 本 kit |
 | --- | --- | --- |
 | (1) | 自建 GitLab AuthorityProvider（#49） | 不做 |
-| (2) | Hufu↔LoopX Authority / Decision / Evidence 桥（#50） | 仅设计 |
+| (2) | Hufu↔LoopX Authority / Decision / Evidence 桥（#50 设计史 / #58 实现） | implementation-authorized；本波无 Adapter |
 | (3) | 企业 Renderer | 不做 |
 
 008 / #9 不在这三类里；它是已交付的机制记录口，保持原合同。

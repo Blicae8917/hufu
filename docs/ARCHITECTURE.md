@@ -21,7 +21,8 @@ Hufu 在不夺取事实所有权的前提下，为操作者组合出可信视图
 - [`ADR 0004：有界关键决策会商`](adr/0004-bounded-decision-council.md)，历史候选记录，
   ADR 0006 之后不是已接受实现方向；
 - [`ADR 0005：零拷贝决策传递与语义重基`](adr/0005-zero-copy-decision-transfer.md)；
-- [`ADR 0006：Hufu 作为 LoopX 下游的严格项目协调 Provider`](adr/0006-upstream-positioning.md)。
+- [`ADR 0006：Hufu 作为 LoopX 下游的严格项目协调 Provider`](adr/0006-upstream-positioning.md)；
+- [`ADR 0007：受控 GitLab Effect、LoopX 桥实现与 Codex NativeHost`](adr/0007-controlled-gitlab-effect-and-host-runtime.md)。
 
 动态上游版本、已核对提交和漂移状态记录在[上游兼容性与同步基线](COMPATIBILITY.md)，
 不写入 Constitution 或把源码核对等同于实现支持。
@@ -579,9 +580,9 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 9. 连续三轮代表性试点比较质量、墙钟、零效果尝试、协调唤醒和可取得的实测 Token（#10，已在本 `0.1.0` 系列交付为记录与扩充门禁）。
    本模块合入不等于网页已交付。
 
-ADR 0006 废止原 M10–M15 自行控制面计划，以及关键决策会商、loopback Web Console 和出站 Runtime
-作为已接受方向。后续仅可设计、尚未授权实现的能力是自建 GitLab AuthorityProvider、
-Hufu↔LoopX Authority/Decision/Evidence 桥，以及通过效能门禁后的企业 Renderer。
+ADR 0006 废止原 M10–M15 自行控制面计划，以及关键决策会商、loopback Web Console
+作为已接受方向。ADR 0007 授权实现受控 GitLab Effect、#50 桥与 Codex NativeHost
+RuntimeProvider，仍不授权企业 Renderer，也不授权本波交付运行时。
 
 私有试点证据留在其所属环境；公开仓只保存脱敏方法、聚合结果和已采纳结论。
 

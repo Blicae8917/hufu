@@ -1,7 +1,11 @@
 <!--
 同步影响报告
 - 版本变化：保持 0.1.0
-- 修订原则：无
+- 修订原则：2026-08-23 指挥官授权，仅修订系统边界「外部写回」一条。GitHub Adapter
+  仍只读。GitLab 写回只允许经独立 `GitLabTaskMutationProvider` 的五种 kind，且须
+  `preview` / `execute` / `readback` 与列名引用绑定；只读 allowlist 不授权 HTTP 写。
+  通用透传、正文编辑、删除、MR / 分支 / 发布仍禁止。本修订不授予对真实生产项目执行
+  `execute`。原则 I–VIII 其余正文不改。
 - 修订交付流程与质量门禁：首个 TypeScript 实现 Module 将当前门禁替换为 `pnpm test`、
   `node scripts/check-version.mjs` 与 `git diff --check`；`0.0.1` Python 基线改为由标签
   `v0.0.1` 保留，并从主线移除
@@ -137,7 +141,16 @@ durable Effect。当实现活动持续增长而首个 durable Effect 仍被可�
   凭据或 Provider 生命周期状态。
 - DeepSeek Harness 是原生 Host Profile，不是任务正本。项目级、跨 Session 状态必须由 Hufu
   StorageDomain 或等价持久边界拥有；Host Session Log 只保存可重建的 Session 执行事实和投影。
-- 第一版 GitHub 和 GitLab Adapter 只读，外部写回不在已接受范围内。
+- GitHub Adapter 保持只读。GitLab 写回只允许通过独立的 `GitLabTaskMutationProvider`
+  （不得把写方法加到只读端口）执行五种 kind：`append_comment`、
+  `transition_managed_status_label`、`set_assignee`、`close_issue`、`reopen_issue`。
+  路径必须是 `preview` / `execute` / `readback`，且每个动作绑定 `effect_id`、`task_ref`、
+  `decision_ref`、`execution_envelope_ref`、`authority_scope_ref`、`expected_source_revision`、
+  `mutation_kind`、`canonical_payload_digest`、`actor_binding`、`idempotency_key`。
+  写回必须命中经本条修订后的指挥官 allowlist；自建明文 HTTP 写还须操作者本机
+  `transport_security_exception_ref`。只读 allowlist 不授权 HTTP 写。通用 GitLab 透传、
+  编辑正文、删除议题或评论、整表换标签、MR / 分支 / 发布仍禁止。本条不授权对真实生产项目
+  执行 `execute`；在另一次部署确认之前，真实项目第一次写停在 preview / 只读预检。
 - Local 正本使用逻辑 append-only Event Ledger，不需要数据库、Message Queue、Daemon、Scheduler、
   Heartbeat、Quota Service 或多主机 Coordinator。Standalone Profile 的物理格式是 JSONL；
   DeepSeek Profile 可以在 Hufu StorageDomain 后使用已验证的 Host Storage Provider，但必须保持同一事件语义。
@@ -190,4 +203,4 @@ Agent 才可以根据已接受变更依次提升 `PATCH`。该控制规则同时
 每项功能 Plan 和 Review 都必须包含显式 Constitution Check。Reviewer 必须拒绝无法解释的正本重复、
 隐藏状态所有权、不安全公开内容，或缺少已接受决策、验证路径和成本假设的基础设施。
 
-**版本**：0.1.0 | **批准日期**：2026-08-14 | **最后修订**：2026-08-15
+**版本**：0.1.0 | **批准日期**：2026-08-14 | **最后修订**：2026-08-23

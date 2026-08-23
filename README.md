@@ -38,7 +38,9 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - 一套当前有效的 pnpm / Node 门禁。
 
 当前版本**尚未**提供关键决策会商、网页界面或出站 Runtime；ADR 0006 之后它们也不是已接受方向。
-GitHub 正本仅接受本公开仓；GitLab 正本接受可解析的两段 `group/project`，且都不写回议题。
+GitHub 正本仅接受本公开仓且保持只读；GitLab 正本接受可解析的两段 `group/project`。
+受控 GitLab 写回已由 Constitution / ADR 0007 收束到独立 `GitLabTaskMutationProvider`
+的五种 kind，但真实生产 `execute` 仍未授予。
 
 Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务控制面。`0.1.0` 的发布门是一个
 本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库 GitHub 只读投影。
@@ -47,8 +49,9 @@ Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务�
 机制记录口；效能试点门禁已由后续 Module（GitHub #10）交付为记录与门禁，**网页仍未实现**。
 原自行建设的 Goal/Todo/Scheduler/Heartbeat、PM Engine、
 Wave Engine 与完整 Web 控制面已由 [ADR 0006](docs/adr/0006-upstream-positioning.md) 废止。
-后续仅可设计、尚未授权实现的能力是自建 GitLab AuthorityProvider、Hufu↔LoopX 桥，以及
-通过效能门禁后的企业 Renderer。合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
+ADR 0007 已授权实现受控 GitLab Effect、#50 桥（LoopX v0.5.2 合同、不 vendoring）与
+Codex NativeHost RuntimeProvider；企业 Renderer 仍未授权。本波不交付这些运行时。
+合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
 ## 当前基线快速开始
 

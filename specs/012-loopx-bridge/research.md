@@ -8,7 +8,7 @@
 
 ## 2. ADR 0006 类别证明
 
-- **Decision**: #50 / 本 kit 明确写成 ADR 0006 后续三类中的 **第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥**。不是 (1) 自建 GitLab AuthorityProvider，不是 (3) 企业 Renderer。本文件与 #50、ADR 0006 都不是实现授权。
+- **Decision**: #50 / 本 kit 明确写成 ADR 0006 后续三类中的 **第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥**。不是 (1) 自建 GitLab AuthorityProvider，不是 (3) 企业 Renderer。#50 与 ADR 0006 仍是设计史；实现授权由 #58 / ADR 0007 下达，合同基线 LoopX v0.5.2，不 vendoring。
 - **Rationale**: ADR 0006「后续约束」要求每个后续能力 Module 引用该 ADR 并证明属于三类之一。#50 正文已声明「这是 ADR 0006 允许的三类后续能力之一」。
 - **Alternatives considered**: 把桥写成 008 的实现续篇（违反「不得升格 #9」）；把桥与 GitLab 写能力捆成一张票（跨越 (1) 与 (2)）。
 

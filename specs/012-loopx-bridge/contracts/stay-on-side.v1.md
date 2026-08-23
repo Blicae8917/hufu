@@ -1,8 +1,8 @@
 # 本侧留守与反向授权禁令 v1
 
-本文件列出必须留在各自本侧的字段，以及 LoopX **不得**取代原生 Issue 生命周期、**不得**从 Journal / Receipt / 执行结果反推或扩大授权的规则。本文件不是实现授权。
+本文件列出必须留在各自本侧的字段，以及 LoopX **不得**取代原生 Issue 生命周期、**不得**从 Journal / Receipt / 执行结果反推或扩大授权的规则。实现授权见 #58 / ADR 0007；本波仍不交付 Adapter。
 
-引用 ADR 0006 与 [#50](https://github.com/Blicae8917/hufu/issues/50)。本票是第 (2) 类桥的设计合同。
+引用 ADR 0006 与 [#50](https://github.com/Blicae8917/hufu/issues/50)（设计史）。本票是第 (2) 类桥的设计合同。不透明 `SessionBindingRef` / `ExecutionEnvelopeRef` / `ReceiptRef` / `TypedResultRef` / `EffectRef` 可以过桥，但其正文仍留守。
 
 ## Hufu 本侧留守
 

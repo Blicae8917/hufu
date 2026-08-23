@@ -6,6 +6,11 @@
 
 ### 新增
 
+- 指挥官 2026-08-23 授权落地（#57 / #58 / #59 / #60）：Constitution 最小修订允许经独立
+  `GitLabTaskMutationProvider` 的五种受控 GitLab Effect；ADR 0007 记录该授权并取代
+  ADR 0006 对 (a)(b)(c) 的「尚未授权实现」；`specs/012-loopx-bridge/` 升为
+  implementation-authorized，并新增 `013-gitlab-mutation` / `014-codex-native-host` /
+  `015-e2e-pilot`。本波不交付写回 / 桥 / Host 运行时，版本保持 `0.1.0`。
 - 自建 GitLab 认证只读 AuthorityProvider（#53）：独立 `gitlab-instance:` 身份、指挥官 allowlist 与宿主注入凭据；仅受控 GET 投影；失败保留缓存；不写回。007 `gitlab.com` 只读合同不变。
 - 自建 GitLab AuthorityProvider 设计合同（#49 / `specs/011-gitlab-authority`）：仅设计，不授权 Adapter 实现；Constitution 写回禁令不因本 Kit 修订。
 - Hufu↔LoopX Authority / Decision / Evidence 桥设计合同（#50 / `specs/012-loopx-bridge/`）：仅设计，不是 Adapter 实现授权；008 `loopx-mechanisms` 仍只是须显式选用的机制记录口。

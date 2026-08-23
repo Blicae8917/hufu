@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Hufu↔LoopX Authority / Decision / Evidence 桥
+# Specification Quality Checklist: 端到端试点验收大纲
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-08-23
@@ -31,6 +31,4 @@
 
 ## Notes
 
-- 本仓第一读者是维护者。规格沿用 003 / 005 / 008 的字段名与失败类别写法；未写入具体网络接口或 Adapter API 形状到 spec.md（这些只出现在 plan / contracts，且标明「未来实现才物化」）。
-- 三端字段白名单、008 非升格、第 (2) 类归属、以及「#50 设计史 / #58 实现授权 / 本波不交付 Adapter」记在 Assumptions 与 FR，不作为未决澄清。
-- 无 [NEEDS CLARIFICATION]。本波扩展设计 kit 与通过的设计约束测试；Adapter 代码仍留给 #58。
+- 本文件是大纲。夹具实现延后。无 [NEEDS CLARIFICATION]。
