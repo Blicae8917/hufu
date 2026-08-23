@@ -5,11 +5,13 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  CODEX_APP_PROVIDER_CONTRACT_REF,
+  CODEX_APP_V2_CAPABILITY_DIGEST,
   createCodexAppConsumerV2,
   type CodexAppHostToolCall,
   type CodexAppWorkspaceResolver,
 } from "../src/hufu/codex-native-host.js";
-import { appendEvents } from "../src/hufu/storage.js";
+import { appendEvents, type EventDraft } from "../src/hufu/storage.js";
 
 const FIXED_NOW = "2026-08-23T16:00:00.000Z";
 const PRIVATE_PROMPT = "private prompt bytes must stay outside the ledger";
@@ -42,12 +44,35 @@ function seedAuthority(
   workItemRef: string,
   options: {
     readonly bindingId?: string;
+    readonly capabilityId?: string;
+    readonly capabilityProviderRef?: string;
+    readonly capabilityExpiresAt?: string;
+    readonly includeCapability?: boolean;
     readonly role?: string;
   } = {},
 ): void {
   const bindingId = options.bindingId ?? "binding:example-owner";
   const role = options.role ?? "owner";
-  appendEvents(workspaceRoot, [
+  const events: EventDraft[] = [
+    ...(options.includeCapability === false ? [] : [{
+      actor_binding_ref: "host:codex-app",
+      event_type: "hufu/mutation.receipt" as const,
+      idempotency_key: `capability:${envelopeId}`,
+      payload: {
+        capability_digest: CODEX_APP_V2_CAPABILITY_DIGEST,
+        capability_id: options.capabilityId ?? "codex_app",
+        capability_receipt_ref: `capability:${envelopeId}`,
+        contract: "codex_app_host_capability_v1",
+        declared: true,
+        expires_at: options.capabilityExpiresAt ?? "2026-08-23T16:05:00.000Z",
+        observed: true,
+        observed_at: "2026-08-23T15:59:00.000Z",
+        provider_contract_ref:
+          options.capabilityProviderRef ?? CODEX_APP_PROVIDER_CONTRACT_REF,
+        qualified: true,
+        runtime_event_kind: "host_capability_observed",
+      },
+    }]),
     {
       actor_binding_ref: "human:example",
       event_type: "hufu/project.connected",
@@ -107,14 +132,9 @@ function seedAuthority(
         work_item_ids: [workItemRef],
       },
     },
-  ]);
+  ];
+  appendEvents(workspaceRoot, events);
 }
-
-const QUALIFIED_APP = {
-  declared: true,
-  observed: true,
-  qualified: true,
-} as const;
 
 describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
   it("persists prepare before the Host call and restores the completed binding after restart", async () => {
@@ -123,7 +143,6 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       const calls: CodexAppHostToolCall[] = [];
       const consumer = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
-        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -180,7 +199,6 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
 
       const restarted = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
-        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -199,7 +217,6 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       seedAuthority(workspaceRoot, "envelope:pending", "work-item:pending");
       const consumer = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
-        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -237,7 +254,6 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
 
       const restarted = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
-        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -272,7 +288,6 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       seedAuthority(workspaceRoot, "envelope:send", "work-item:send");
       const build = () => createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
-        hostCapability: QUALIFIED_APP,
         messageResolver: {
           resolve(message) {
             assert.equal(message.message_ref, "message:example");
@@ -361,7 +376,6 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       seedAuthority(workspaceRoot, "envelope:wait", "work-item:wait");
       const consumer = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
-        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -429,7 +443,6 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       assert.deepEqual(
         createCodexAppConsumerV2({
           actorBindingRef: "binding:example-owner",
-          hostCapability: QUALIFIED_APP,
           messageResolver: { resolve: () => "unused" },
           now: () => new Date(FIXED_NOW),
           workspaceResolver: workspaceResolver(),
@@ -451,7 +464,6 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       });
       const consumer = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-lead",
-        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -593,7 +605,9 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
 
   it("fails start before prepare when Host capability or current authority scope is missing", async () => {
     await withTempDir(async (workspaceRoot) => {
-      seedAuthority(workspaceRoot, "envelope:scope", "work-item:scope");
+      seedAuthority(workspaceRoot, "envelope:scope", "work-item:scope", {
+        includeCapability: false,
+      });
       const base = {
         actorBindingRef: "binding:example-owner",
         messageResolver: { resolve: () => "unused" },
@@ -601,10 +615,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         workspaceResolver: workspaceResolver(),
         workspaceRoot,
       };
-      const unqualified = createCodexAppConsumerV2({
-        ...base,
-        hostCapability: { declared: true, observed: true, qualified: false },
-      });
+      const unqualified = createCodexAppConsumerV2(base);
       assert.throws(
         () => unqualified.prepareStart(
           { content_digest: CONTENT_DIGEST, envelope_id: "envelope:scope" },
@@ -621,10 +632,25 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
           error instanceof Error && "code" in error && error.code === "HOST_CAPABILITY_REJECTED",
       );
 
-      const qualified = createCodexAppConsumerV2({
-        ...base,
-        hostCapability: QUALIFIED_APP,
-      });
+      appendEvents(workspaceRoot, [{
+        actor_binding_ref: "host:codex-app",
+        event_type: "hufu/mutation.receipt",
+        idempotency_key: "capability:scope:valid",
+        payload: {
+          capability_digest: CODEX_APP_V2_CAPABILITY_DIGEST,
+          capability_id: "codex_app",
+          capability_receipt_ref: "capability:scope:valid",
+          contract: "codex_app_host_capability_v1",
+          declared: true,
+          expires_at: "2026-08-23T16:05:00.000Z",
+          observed: true,
+          observed_at: "2026-08-23T15:59:00.000Z",
+          provider_contract_ref: CODEX_APP_PROVIDER_CONTRACT_REF,
+          qualified: true,
+          runtime_event_kind: "host_capability_observed",
+        },
+      }]);
+      const qualified = createCodexAppConsumerV2(base);
       assert.throws(
         () => qualified.prepareStart(
           { content_digest: CONTENT_DIGEST, envelope_id: "envelope:scope" },
@@ -641,5 +667,50 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
           error instanceof Error && "code" in error && error.code === "GRANT_SCOPE_EXCEEDED",
       );
     });
+  });
+
+  it("rejects forged, wrong-id, and stale Host capability observations", async () => {
+    const cases = [
+      {
+        expected: "HOST_CAPABILITY_REJECTED",
+        seed: { capabilityProviderRef: "caller:all-true" },
+      },
+      {
+        expected: "HOST_CAPABILITY_REJECTED",
+        seed: { capabilityId: "codex_cli" },
+      },
+      {
+        expected: "HOST_CAPABILITY_REJECTED",
+        seed: { capabilityExpiresAt: "2026-08-23T15:59:59.000Z" },
+      },
+    ] as const;
+    for (const [index, item] of cases.entries()) {
+      await withTempDir(async (workspaceRoot) => {
+        const envelopeId = `envelope:capability:${String(index)}`;
+        seedAuthority(workspaceRoot, envelopeId, "work-item:capability", item.seed);
+        const consumer = createCodexAppConsumerV2({
+          actorBindingRef: "binding:example-owner",
+          messageResolver: { resolve: () => "unused" },
+          now: () => new Date(FIXED_NOW),
+          workspaceResolver: workspaceResolver(),
+          workspaceRoot,
+        });
+        assert.throws(
+          () => consumer.prepareStart(
+            { content_digest: CONTENT_DIGEST, envelope_id: envelopeId },
+            "owner",
+            {
+              authority_ref: "grant:example",
+              channel: "codex-app",
+              work_item_ref: "work-item:capability",
+              workspace_ref: "workspace:example",
+            },
+            `start-capability-${String(index)}`,
+          ),
+          (error: unknown) =>
+            error instanceof Error && "code" in error && error.code === item.expected,
+        );
+      });
+    }
   });
 });

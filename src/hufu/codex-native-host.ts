@@ -715,6 +715,20 @@ function requiredText(value: string | undefined, field: string): string {
 }
 
 const CODEX_APP_CONSUMER_V2_CONTRACT = "codex_app_consumer_v2";
+const CODEX_APP_CAPABILITY_RECEIPT_CONTRACT = "codex_app_host_capability_v1";
+export const CODEX_APP_PROVIDER_CONTRACT_REF = "hufu/codex-app-native-tools@v2";
+export const CODEX_APP_V2_CAPABILITY_DIGEST = digestPayload({
+  capability: "codex_app",
+  contract: CODEX_APP_CONSUMER_V2_CONTRACT,
+  provider_contract_ref: CODEX_APP_PROVIDER_CONTRACT_REF,
+  tools: [
+    "create_thread",
+    "list_threads",
+    "read_thread",
+    "send_message_to_thread",
+    "wait_threads",
+  ],
+});
 
 export type CodexAppHostToolName =
   | "create_thread"
@@ -855,7 +869,6 @@ export type CodexAppReleaseCompletion =
 
 export interface CreateCodexAppConsumerV2Options {
   readonly actorBindingRef: string;
-  readonly hostCapability: CapabilityCheck;
   readonly messageResolver: CodexAppMessageResolver;
   readonly now?: () => Date;
   readonly workspaceResolver: CodexAppWorkspaceResolver;
@@ -925,17 +938,7 @@ export function createCodexAppConsumerV2(
   const actorBindingRef = requiredText(options.actorBindingRef, "actor_binding_ref");
   const workspaceRoot = requiredText(options.workspaceRoot, "workspace_root");
   const now = options.now ?? (() => new Date());
-  const capabilityDigest = digestPayload({
-    capability: "codex_app",
-    contract: CODEX_APP_CONSUMER_V2_CONTRACT,
-    tools: [
-      "create_thread",
-      "list_threads",
-      "read_thread",
-      "send_message_to_thread",
-      "wait_threads",
-    ],
-  });
+  const capabilityDigest = CODEX_APP_V2_CAPABILITY_DIGEST;
 
   function events(): readonly EventEnvelope[] {
     const snapshot = readLedger(workspaceRoot);
@@ -1028,16 +1031,6 @@ export function createCodexAppConsumerV2(
     workspaceRef: NativeWorkspaceRef,
     idempotencyKey: string,
   ): CodexAppPreparedAction {
-    if (
-      !options.hostCapability.declared ||
-      !options.hostCapability.observed ||
-      !options.hostCapability.qualified
-    ) {
-      throw new CommandError(
-        "HOST_CAPABILITY_REJECTED",
-        "codex_app capability is not declared, observed, and qualified",
-      );
-    }
     const envelopeId = requiredText(envelopeRef.envelope_id, "envelope_id");
     const envelopeDigest = requiredText(envelopeRef.content_digest, "envelope content_digest");
     const normalizedRole = requiredText(role, "role");
@@ -1097,6 +1090,7 @@ export function createCodexAppConsumerV2(
         envelope_id: envelopeId,
         project_id: projectId,
         role: normalizedRole,
+        observed_at: now(),
         workspace: workspaceRef,
       });
       const priorPrepared = findRuntimePrepared(current, operationId);
@@ -2003,6 +1997,7 @@ interface StartAuthorityInput {
   readonly actor_binding_ref: string;
   readonly envelope_content_digest: string;
   readonly envelope_id: string;
+  readonly observed_at: Date;
   readonly project_id: string;
   readonly role: string;
   readonly workspace: NativeWorkspaceRef;
@@ -2012,6 +2007,36 @@ function assertStartAuthority(
   events: readonly EventEnvelope[],
   input: StartAuthorityInput,
 ): void {
+  const capability = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/mutation.receipt" &&
+        event.payload["contract"] === CODEX_APP_CAPABILITY_RECEIPT_CONTRACT &&
+        event.payload["runtime_event_kind"] === "host_capability_observed",
+    );
+  const capabilityObservedAt = Date.parse(String(capability?.payload["observed_at"] ?? ""));
+  const capabilityExpiresAt = Date.parse(String(capability?.payload["expires_at"] ?? ""));
+  const nowMs = input.observed_at.getTime();
+  if (
+    capability?.payload["capability_id"] !== "codex_app" ||
+    optionalText(capability.payload["capability_receipt_ref"]) === undefined ||
+    capability.payload["provider_contract_ref"] !== CODEX_APP_PROVIDER_CONTRACT_REF ||
+    capability.payload["capability_digest"] !== CODEX_APP_V2_CAPABILITY_DIGEST ||
+    capability.payload["declared"] !== true ||
+    capability.payload["observed"] !== true ||
+    capability.payload["qualified"] !== true ||
+    !Number.isFinite(capabilityObservedAt) ||
+    !Number.isFinite(capabilityExpiresAt) ||
+    capabilityObservedAt > nowMs ||
+    capabilityExpiresAt < nowMs
+  ) {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "current codex_app capability receipt is missing, stale, or bound to another provider contract",
+    );
+  }
+
   const project = [...events]
     .reverse()
     .find((event) => event.event_type === "hufu/project.connected");
