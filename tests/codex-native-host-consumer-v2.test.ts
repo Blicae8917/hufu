@@ -44,6 +44,7 @@ function seedAuthority(
   workItemRef: string,
   options: {
     readonly bindingId?: string;
+    readonly capabilityActorRef?: string;
     readonly capabilityId?: string;
     readonly capabilityProviderRef?: string;
     readonly capabilityExpiresAt?: string;
@@ -53,28 +54,14 @@ function seedAuthority(
 ): void {
   const bindingId = options.bindingId ?? "binding:example-owner";
   const role = options.role ?? "owner";
+  const providerIssuerBindingId =
+    role === "project_lead" ? bindingId : "binding:example-project-lead";
+  const providerIssuerPrincipal =
+    role === "project_lead" ? "agent:example" : "human:example";
+  const providerBindingRef = "provider:codex-app:example";
   const events: EventDraft[] = [
-    ...(options.includeCapability === false ? [] : [{
-      actor_binding_ref: "host:codex-app",
-      event_type: "hufu/mutation.receipt" as const,
-      idempotency_key: `capability:${envelopeId}`,
-      payload: {
-        capability_digest: CODEX_APP_V2_CAPABILITY_DIGEST,
-        capability_id: options.capabilityId ?? "codex_app",
-        capability_receipt_ref: `capability:${envelopeId}`,
-        contract: "codex_app_host_capability_v1",
-        declared: true,
-        expires_at: options.capabilityExpiresAt ?? "2026-08-23T16:05:00.000Z",
-        observed: true,
-        observed_at: "2026-08-23T15:59:00.000Z",
-        provider_contract_ref:
-          options.capabilityProviderRef ?? CODEX_APP_PROVIDER_CONTRACT_REF,
-        qualified: true,
-        runtime_event_kind: "host_capability_observed",
-      },
-    }]),
     {
-      actor_binding_ref: "human:example",
+      actor_binding_ref: providerIssuerPrincipal,
       event_type: "hufu/project.connected",
       idempotency_key: `project:${envelopeId}`,
       payload: {
@@ -96,6 +83,54 @@ function seedAuthority(
         scope_text: "example runtime scope",
       },
     },
+    ...(role === "project_lead" ? [] : [{
+      actor_binding_ref: "human:example",
+      event_type: "hufu/role_binding.established" as const,
+      idempotency_key: `provider-issuer-role:${envelopeId}`,
+      payload: {
+        binding_id: providerIssuerBindingId,
+        principal_id: "human:example",
+        role: "project_lead",
+        scope_id: "example-project",
+        scope_kind: "project",
+      },
+    }]),
+    {
+      actor_binding_ref: providerIssuerPrincipal,
+      event_type: "hufu/mutation.receipt",
+      idempotency_key: `provider-binding:${envelopeId}`,
+      payload: {
+        capability_digest: CODEX_APP_V2_CAPABILITY_DIGEST,
+        contract: "codex_app_host_provider_binding_v1",
+        generation: 1,
+        issuer_binding_ref: providerIssuerBindingId,
+        provider_binding_ref: providerBindingRef,
+        provider_contract_ref: CODEX_APP_PROVIDER_CONTRACT_REF,
+        runtime_event_kind: "host_provider_bound",
+        state: "active",
+      },
+    },
+    ...(options.includeCapability === false ? [] : [{
+      actor_binding_ref: options.capabilityActorRef ?? providerBindingRef,
+      event_type: "hufu/mutation.receipt" as const,
+      idempotency_key: `capability:${envelopeId}`,
+      payload: {
+        capability_digest: CODEX_APP_V2_CAPABILITY_DIGEST,
+        capability_id: options.capabilityId ?? "codex_app",
+        capability_receipt_ref: `capability:${envelopeId}`,
+        contract: "codex_app_host_capability_v1",
+        declared: true,
+        expires_at: options.capabilityExpiresAt ?? "2026-08-23T16:05:00.000Z",
+        issuer_binding_ref: providerBindingRef,
+        observed: true,
+        observed_at: "2026-08-23T15:59:00.000Z",
+        provider_binding_ref: providerBindingRef,
+        provider_contract_ref:
+          options.capabilityProviderRef ?? CODEX_APP_PROVIDER_CONTRACT_REF,
+        qualified: true,
+        runtime_event_kind: "host_capability_observed",
+      },
+    }]),
     {
       actor_binding_ref: "human:example",
       event_type: "hufu/decision.packet_recorded",
@@ -335,7 +370,11 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       assert.equal(ledger.includes(PRIVATE_PROMPT), false);
       assert.match(ledger, /message:example/);
       assert.match(ledger, /prompt_digest/);
-      assert.deepEqual(build().recoverPrepared(send.ref), send);
+      assert.throws(
+        () => build().recoverPrepared(send.ref),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "DATA_INSUFFICIENT",
+      );
 
       const completed = consumer.completeSend(send.ref, {
         availability: "available",
@@ -633,7 +672,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       );
 
       appendEvents(workspaceRoot, [{
-        actor_binding_ref: "host:codex-app",
+        actor_binding_ref: "provider:codex-app:example",
         event_type: "hufu/mutation.receipt",
         idempotency_key: "capability:scope:valid",
         payload: {
@@ -643,9 +682,11 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
           contract: "codex_app_host_capability_v1",
           declared: true,
           expires_at: "2026-08-23T16:05:00.000Z",
+          issuer_binding_ref: "provider:codex-app:example",
           observed: true,
           observed_at: "2026-08-23T15:59:00.000Z",
           provider_contract_ref: CODEX_APP_PROVIDER_CONTRACT_REF,
+          provider_binding_ref: "provider:codex-app:example",
           qualified: true,
           runtime_event_kind: "host_capability_observed",
         },
@@ -674,6 +715,10 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       {
         expected: "HOST_CAPABILITY_REJECTED",
         seed: { capabilityProviderRef: "caller:all-true" },
+      },
+      {
+        expected: "HOST_CAPABILITY_REJECTED",
+        seed: { capabilityActorRef: "caller:forged-observer" },
       },
       {
         expected: "HOST_CAPABILITY_REJECTED",
@@ -712,5 +757,53 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         );
       });
     }
+  });
+
+  it("recovers Host-success-before-complete only through start correlation readback", async () => {
+    await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:crash", "work-item:crash");
+      const build = () => createCodexAppConsumerV2({
+        actorBindingRef: "binding:example-owner",
+        messageResolver: { resolve: () => "unused" },
+        now: () => new Date(FIXED_NOW),
+        workspaceResolver: workspaceResolver(),
+        workspaceRoot,
+      });
+      const prepared = build().prepareStart(
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:crash" },
+        "owner",
+        {
+          authority_ref: "grant:example",
+          channel: "codex-app",
+          work_item_ref: "work-item:crash",
+          workspace_ref: "workspace:example",
+        },
+        "start-crash-1",
+      );
+      const correlationTitle = String(prepared.call.input["title"]);
+
+      // The Host created the thread, then the process died before completeStart.
+      const recovered = build().recoverPrepared(prepared.ref);
+      assert.equal(recovered.call.tool, "list_threads");
+      assert.notEqual(recovered.call.tool, "create_thread");
+      assert.deepEqual(recovered.call.input, { limit: 100 });
+      const completed = build().completeStart(recovered.ref, {
+        availability: "available",
+        host_id: "host:crash",
+        idle: true,
+        matched_title: correlationTitle,
+        thread_id: "thread:already-created",
+      });
+      assert.equal(completed.status, "ready");
+      if (completed.status === "unavailable") {
+        throw new Error("start recovery unexpectedly unavailable");
+      }
+      assert.equal(completed.binding.host_thread_ref, "thread:already-created");
+      const ledger = readFileSync(
+        join(workspaceRoot, ".hufu", "ledger", "events.jsonl"),
+        "utf8",
+      );
+      assert.match(ledger, /recovery_prepared/);
+    });
   });
 });

@@ -716,6 +716,7 @@ function requiredText(value: string | undefined, field: string): string {
 
 const CODEX_APP_CONSUMER_V2_CONTRACT = "codex_app_consumer_v2";
 const CODEX_APP_CAPABILITY_RECEIPT_CONTRACT = "codex_app_host_capability_v1";
+const CODEX_APP_PROVIDER_BINDING_CONTRACT = "codex_app_host_provider_binding_v1";
 export const CODEX_APP_PROVIDER_CONTRACT_REF = "hufu/codex-app-native-tools@v2";
 export const CODEX_APP_V2_CAPABILITY_DIGEST = digestPayload({
   capability: "codex_app",
@@ -1226,6 +1227,17 @@ export function createCodexAppConsumerV2(
         throw new CommandError(
           "CONTRACT_INVALID",
           "start result must contain exactly one thread_id or client_thread_id",
+        );
+      }
+      const recovery = findRuntimeRecovery(current, operationId);
+      if (
+        recovery !== undefined &&
+        optionalText(result.matched_title) !==
+          requiredText(String(request["correlation_title"] ?? ""), "correlation_title")
+      ) {
+        throw new CommandError(
+          "CONTRACT_INVALID",
+          "start recovery did not match the prepared correlation title",
         );
       }
       if (hostThreadRef !== undefined && hostId === undefined) {
@@ -1892,6 +1904,59 @@ export function createCodexAppConsumerV2(
           "completed Host action cannot be recovered for another call",
         );
       }
+      const request = requiredRecord(payload["runtime_request"], "runtime_request");
+      if (request["operation_kind"] === "send") {
+        throw new CommandError(
+          "DATA_INSUFFICIENT",
+          "send recovery requires a verifiable Host effect marker or manual closeout",
+        );
+      }
+      if (request["operation_kind"] === "start") {
+        const correlationTitle = requiredText(
+          String(request["correlation_title"] ?? ""),
+          "correlation_title",
+        );
+        const recoveryCall: CodexAppHostToolCall = {
+          input: { limit: 100 },
+          tool: "list_threads",
+        };
+        const recoveryId = `codex-app:recovery:${ref.operation_id}`;
+        const recoveryRequest = {
+          call: recoveryCall,
+          correlation_title: correlationTitle,
+          operation_kind: "start_correlation_readback",
+          original_operation_id: ref.operation_id,
+          original_packet_digest: ref.packet_digest,
+        };
+        const recoveryDigest = digestPayload(recoveryRequest);
+        mutateLedger(workspaceRoot, (latest, append) => {
+          const prior = findRuntimeRecovery(latest, ref.operation_id);
+          if (prior !== undefined) {
+            if (prior["canonical_payload_digest"] !== recoveryDigest) {
+              throw new CommandError(
+                "LEDGER_DIGEST_CONFLICT",
+                "start recovery collides with another correlation readback",
+              );
+            }
+            return;
+          }
+          append([{
+            actor_binding_ref: actorBindingRef,
+            event_type: "hufu/mutation.prepared",
+            idempotency_key: `hufu/mutation.prepared:${recoveryId}`,
+            payload: {
+              canonical_payload_digest: recoveryDigest,
+              contract: CODEX_APP_CONSUMER_V2_CONTRACT,
+              effect_id: recoveryId,
+              mutation_kind: "codex_host.start_correlation_readback",
+              original_operation_id: ref.operation_id,
+              runtime_event_kind: "recovery_prepared",
+              runtime_request: recoveryRequest,
+            },
+          }]);
+        });
+        return { call: recoveryCall, ref };
+      }
       return hydratePrepared(payload);
     },
     recordLogicalHandoff,
@@ -1928,6 +1993,21 @@ function findRuntimeReceipt(
       candidate.payload["effect_id"] === operationId,
   );
   return event?.payload;
+}
+
+function findRuntimeRecovery(
+  events: readonly EventEnvelope[],
+  originalOperationId: string,
+): Record<string, unknown> | undefined {
+  return [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/mutation.prepared" &&
+        event.payload["contract"] === CODEX_APP_CONSUMER_V2_CONTRACT &&
+        event.payload["runtime_event_kind"] === "recovery_prepared" &&
+        event.payload["original_operation_id"] === originalOperationId,
+    )?.payload;
 }
 
 function runtimeBindings(events: readonly EventEnvelope[]): CodexAppSessionBinding[] {
@@ -2007,6 +2087,21 @@ function assertStartAuthority(
   events: readonly EventEnvelope[],
   input: StartAuthorityInput,
 ): void {
+  const project = [...events]
+    .reverse()
+    .find((event) => event.event_type === "hufu/project.connected");
+  if (project?.payload["project_id"] !== input.project_id) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "workspace resolver project is outside the connected Hufu project",
+    );
+  }
+  const supersededBindings = new Set(
+    events
+      .filter((event) => event.event_type === "hufu/role_binding.established")
+      .map((event) => optionalText(event.payload["supersedes"]))
+      .filter((value): value is string => value !== undefined),
+  );
   const capability = [...events]
     .reverse()
     .find(
@@ -2018,9 +2113,40 @@ function assertStartAuthority(
   const capabilityObservedAt = Date.parse(String(capability?.payload["observed_at"] ?? ""));
   const capabilityExpiresAt = Date.parse(String(capability?.payload["expires_at"] ?? ""));
   const nowMs = input.observed_at.getTime();
+  const providerBindingRef = optionalText(capability?.payload["provider_binding_ref"]);
+  const providerBinding = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/mutation.receipt" &&
+        event.payload["contract"] === CODEX_APP_PROVIDER_BINDING_CONTRACT,
+    );
+  const providerIssuerBindingRef = optionalText(
+    providerBinding?.payload["issuer_binding_ref"],
+  );
+  const providerIssuer = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/role_binding.established" &&
+        event.payload["binding_id"] === providerIssuerBindingRef &&
+        providerIssuerBindingRef !== undefined &&
+        !supersededBindings.has(providerIssuerBindingRef),
+    );
+  const currentProjectLead = [...events]
+    .filter(
+      (event) =>
+        event.event_type === "hufu/role_binding.established" &&
+        event.payload["role"] === "project_lead" &&
+        typeof event.payload["binding_id"] === "string" &&
+        !supersededBindings.has(event.payload["binding_id"]),
+    )
+    .at(-1);
   if (
     capability?.payload["capability_id"] !== "codex_app" ||
     optionalText(capability.payload["capability_receipt_ref"]) === undefined ||
+    capability.actor_binding_ref !== providerBindingRef ||
+    capability.payload["issuer_binding_ref"] !== providerBindingRef ||
     capability.payload["provider_contract_ref"] !== CODEX_APP_PROVIDER_CONTRACT_REF ||
     capability.payload["capability_digest"] !== CODEX_APP_V2_CAPABILITY_DIGEST ||
     capability.payload["declared"] !== true ||
@@ -2036,14 +2162,23 @@ function assertStartAuthority(
       "current codex_app capability receipt is missing, stale, or bound to another provider contract",
     );
   }
-
-  const project = [...events]
-    .reverse()
-    .find((event) => event.event_type === "hufu/project.connected");
-  if (project?.payload["project_id"] !== input.project_id) {
+  if (
+    providerBindingRef === undefined ||
+    providerBinding?.payload["provider_binding_ref"] !== providerBindingRef ||
+    providerBinding.payload["provider_contract_ref"] !== CODEX_APP_PROVIDER_CONTRACT_REF ||
+    providerBinding.payload["capability_digest"] !== CODEX_APP_V2_CAPABILITY_DIGEST ||
+    providerBinding.payload["state"] !== "active" ||
+    providerBinding.payload["generation"] !== 1 ||
+    providerIssuer === undefined ||
+    currentProjectLead?.payload["binding_id"] !== providerIssuerBindingRef ||
+    providerIssuer.payload["role"] !== "project_lead" ||
+    providerIssuer.payload["scope_kind"] !== "project" ||
+    providerIssuer.payload["scope_id"] !== input.project_id ||
+    providerIssuer.payload["principal_id"] !== providerBinding.actor_binding_ref
+  ) {
     throw new CommandError(
-      "GRANT_SCOPE_EXCEEDED",
-      "workspace resolver project is outside the connected Hufu project",
+      "HOST_CAPABILITY_REJECTED",
+      "capability observation is not issued by the current active Host ProviderBinding",
     );
   }
 
@@ -2114,12 +2249,6 @@ function assertStartAuthority(
     );
   }
 
-  const supersededBindings = new Set(
-    events
-      .filter((event) => event.event_type === "hufu/role_binding.established")
-      .map((event) => optionalText(event.payload["supersedes"]))
-      .filter((value): value is string => value !== undefined),
-  );
   const roleBinding = [...events]
     .reverse()
     .find(

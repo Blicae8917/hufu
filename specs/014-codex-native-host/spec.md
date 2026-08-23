@@ -101,6 +101,12 @@ Claude / DeepSeek Harness / Codex 不是等价运行时。Codex App 可声明原
   字符串、历史Receipt或prepared事件不得产生或扩大授权。
 - **FR-017**: prepared action一旦已有completion receipt，`recoverPrepared` MUST 拒绝再次生成Host
   call；active Turn的send拒绝不得由调用方通过`expectedIdle=false`放宽。
+- **FR-018**: capability observation的`provider_binding_ref`与issuer MUST exact指向Ledger当前active
+  Host ProviderBinding；该ProviderBinding必须由当前项目负责人RoleBinding签发，并绑定同一provider
+  contract与capability digest。任意actor追加的同形receipt不得授权。
+- **FR-019**: 任何无completion的非幂等prepared均不得恢复为原Host call。start只能恢复为基于唯一
+  correlation title的`list_threads` readback；send在没有可验证effect marker时必须
+  `DATA_INSUFFICIENT`并人工收口。只读wait/readback/release才可安全重放。
 
 ## Key Entities
 

@@ -23,7 +23,10 @@
 - **Decision**: Hufu在Host调用前追加脱敏prepared packet，Host调用后追加receipt/readback；进程重启
   只能恢复尚无completion receipt的prepared；已有receipt必须拒绝再次生成Host调用。start prepare
   还必须从Ledger最新Host observation核验exact `codex_app` capability id、provider contract ref、digest与
-  freshness，并核验当前grant/envelope/RoleBinding/work-item/project；调用方全true布尔不构成能力证据。
+  freshness；observation issuer还必须exact绑定由当前项目负责人签发的active Host ProviderBinding。
+  同时核验当前grant/envelope/RoleBinding/work-item/project；调用方全true布尔或任意actor同形事件不构成
+  能力证据。非幂等prepared的恢复只允许operation-specific readback：start走correlation/list_threads，
+  send无effect marker时DATA_INSUFFICIENT，绝不重放create/send。
 - **Rationale**: Codex创建/投递是外部Effect；单纯内存binding会在崩溃后产生双Session或假投递。
 - **Alternatives considered**: Consumer内部直接调用真实Codex工具（拒绝，CI不可复现且混淆Host能力）；
   保存prompt或raw transcript以便重放（拒绝，复制不可信正文）。
