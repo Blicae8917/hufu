@@ -77,7 +77,8 @@
 - 声明自建实例为正本，仍禁止在本机账本复制议题开关事件。
 - 嵌套组、史诗、迭代、Merge Request 作为工作项：仍失败关闭，不在本票发明新 scheme 猜测。
 - 凭据不得写入连接记录、账本、缓存、公开仓或示例夹具。未来若需要认证读取，只能走宿主既有凭据机制，缺失时失败关闭，不得把缺失写成已授权。
-- 公开仓只使用示例占位：`https://gitlab.example.com`（示例）与 `example-group/example-project`（示例）。真实客户名、内部路径、家庭或机房主机名不得入库。
+- 公开仓只使用标明为示例的占位：`https://gitlab.example.com`（示例）、`http://192.0.2.10:41101`（示例，RFC 5737 TEST-NET-1）、`http://gitlab.example.com:41101`（示例），以及项目路径 `example-group/example-project`（示例）。真实客户名、内部路径、家庭或机房主机名、RFC 1918 / 本机地址不得入库。
+- 允许清单内的自建 `instance_origin` 可以是 `http:` 或 `https:`，主机可以是主机名或 IPv4，并可带非默认端口。规范来源必须保留 scheme + host + port。来源不得含项目路径或内嵌凭据。`gitlab.com` / `www.gitlab.com` 无论 HTTP 还是 HTTPS 都不得冒充自建。007 / `gitlab-ref.ts` 继续拒绝自建 Host 与 `gitlab-instance:`。
 - Constitution I 与「系统边界」写明第一版 GitHub / GitLab Adapter 只读、外部写回不在已接受范围。本 Kit **不修订** Constitution；未来写回实现在维护者批准修订之前保持阻断。
 - 不得占用已废止的 M10–M15 编号；本 Kit 编号为 `011`，不复用 `007`。
 
@@ -87,7 +88,7 @@
 
 - **FR-001**: 本 Kit MUST 引用 ADR 0006 与 #49，并 MUST 声明自己属于「自建 GitLab AuthorityProvider」类 (1)。MUST NOT 把本票写成 LoopX 桥、企业 Renderer、出站 Runtime，或已废止 M10–M15 的复活。
 - **FR-002**: 本 Kit MUST 写明与 #8 / 007 的边界：公开 `gitlab.com` 只读投影、无凭据、无写回、自建 / 私有实例失败关闭，MUST 继续留在 007。MUST NOT 默默扩大 007 合同。
-- **FR-003**: 自建实例要成为 `task_authority=gitlab` 的任务正本，MUST 同时满足：操作者显式声明实例来源与两段项目路径、指挥官授权允许清单包含该来源、每个项目恰好一个正本、默认能力为只读投影。MUST NOT 从 git remote 或议题正文推断身份或授权。
+- **FR-003**: 自建实例要成为 `task_authority=gitlab` 的任务正本，MUST 同时满足：操作者显式声明实例来源与两段项目路径、指挥官授权允许清单包含该来源、每个项目恰好一个正本、默认能力为只读投影。MUST NOT 从 git remote 或议题正文推断身份或授权。允许清单内的 `instance_origin` MAY 为 `http:` 或 `https:`，MAY 为主机名或 IPv4，并可带非默认端口；规范来源 MUST 保留 scheme + host + port，允许清单比较 MUST 按三者精确匹配。来源 MUST NOT 含项目路径或内嵌凭据。`gitlab.com` / `www.gitlab.com` 无论 HTTP 或 HTTPS MUST NOT 冒充自建。
 - **FR-004**: SaaS `gitlab.com` 上的任意客户项目 MUST NOT 被默认为可写正本。把 `gitlab.com` 写成自建实例 MUST 失败关闭。
 - **FR-005**: 写回（创建、修改、关闭、评论、合并）的默认值 MUST 为关闭。在 Constitution 写回禁令被维护者修订之前，写回授权 MUST 视为无效并失败关闭。落地本 Kit MUST NOT 修订 Constitution。
 - **FR-006**: 身份、授权、失败关闭与默认不写回 MUST 可独立验收。Journal、Receipt、Projection、RoleBinding 或模型意见 MUST NOT 扩大授权。
@@ -101,7 +102,7 @@
 ### Key Entities
 
 - **GitLabAuthorityClass**: ADR 0006 三类后续能力中的类 (1)；本票的唯一归类。
-- **GitLabInstanceIdentity**: 操作者显式声明的实例种类、来源与两段项目路径。示例来源为 `https://gitlab.example.com`（示例）。
+- **GitLabInstanceIdentity**: 操作者显式声明的实例种类、来源与两段项目路径。公开仓示例来源为 `https://gitlab.example.com`（示例）、`http://192.0.2.10:41101`（示例）与 `http://gitlab.example.com:41101`（示例）。
 - **AuthorityCapability**: `read_projection`（默认）或未来的 `write_back`（Constitution 修订前无效）。
 - **WriteBackGate**: 记录「默认关闭」以及「须维护者修订 Constitution 后才可评估实现」。
 - **007ReadonlyBoundary**: 已交付只读投影的不可扩张边界。
@@ -122,7 +123,7 @@
 
 - 「任务正本」指项目声明的唯一 `task_authority`，生命周期仍归 GitLab 原生议题；Hufu 不因此拥有议题。
 - 「不只是影子」指：自建实例的议题是该项目的权威来源，而不是另一正本旁边的只读旁路。这仍默认不写回。
-- 自建实例身份由操作者手填，不得探测。公开仓示例固定为 `https://gitlab.example.com`（示例）与 `example-group/example-project`（示例）。
+- 自建实例身份由操作者手填，不得探测。公开仓示例固定为 `https://gitlab.example.com`（示例）、`http://192.0.2.10:41101`（示例，RFC 5737 TEST-NET-1）、`http://gitlab.example.com:41101`（示例）与 `example-group/example-project`（示例）。
 - 007 的两段路径、经典 Issue、正文不可信、无后台刷新等边界继续有效。
 - Constitution 0.1.0 的只读与写回禁令仍然有效；本 Kit 只记录张力，不修订正文。
 - 未来认证读取若被独立实现票接受，凭据仍由宿主常规机制持有，Hufu 不存储。

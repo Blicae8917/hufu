@@ -7,7 +7,7 @@
 下列行为在本设计 PR 之后仍然有效，且本 PR 不编辑 007 的 `spec.md` 或 `contracts/`：
 
 1. `connect --task-authority gitlab` 只接受可解析为两段、且指向 `gitlab.com` 形状的身份。
-2. 自建 Host、私有实例、嵌套组、GitHub 网址 → `REPOSITORY_NOT_ALLOWED` 或等价失败关闭。
+2. 自建 Host、私有实例、嵌套组、GitHub 网址 → `REPOSITORY_NOT_ALLOWED` 或等价失败关闭。007 路径继续拒绝示例自建来源，包括 `https://gitlab.example.com`（示例）与 `http://192.0.2.10:41101`（示例）。
 3. HTTP 实现 Host 仅 `gitlab.com`，仅 GET，不发送 `Authorization`。
 4. `GitLabPort` 只有 `listIssueProjections`；测试锁死无写方法。
 5. ExternalRef 仍是 `gitlab:<group>/<project>#<iid>`。

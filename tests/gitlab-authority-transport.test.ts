@@ -35,9 +35,12 @@ const fixturePath = fileURLToPath(
   new URL("../../tests/fixtures/gitlab/instance-list-issues.sample.json", import.meta.url),
 );
 const EXAMPLE_ORIGIN = "https://gitlab.example.com";
+const EXAMPLE_HTTP_IPV4_ORIGIN = "http://192.0.2.10:41101";
 const EXAMPLE_PROJECT = "example-group/example-project";
 const EXAMPLE_REF =
   "gitlab-instance:gitlab.example.com/example-group/example-project#456";
+const EXAMPLE_HTTP_IPV4_REF =
+  "gitlab-instance:192.0.2.10/example-group/example-project#456";
 const EXAMPLE_CREDENTIAL = "example-host-injected-credential";
 const EXAMPLE_ITEM = {
   external_ref: EXAMPLE_REF,
@@ -244,6 +247,96 @@ describe("gitlab authority authenticated read (#53)", () => {
     );
   });
 
+  it("issues authenticated GET against the example HTTP IPv4:port origin", async () => {
+    const calls: { headers: unknown; method: string; url: string }[] = [];
+    const identity = parseGitLabInstanceIdentity({
+      instanceKind: "self_hosted",
+      instanceOrigin: EXAMPLE_HTTP_IPV4_ORIGIN,
+      projectPath: EXAMPLE_PROJECT,
+    });
+    const port = createHttpGitLabInstancePort({
+      identity,
+      secretProvider: exampleSecret(),
+      fetch: async (url, init) => {
+        calls.push({
+          headers: init?.headers ?? null,
+          method: String(init?.method ?? "GET"),
+          url: String(url),
+        });
+        return {
+          ok: true,
+          status: 200,
+          headers: jsonHeaders({ get: () => null }),
+          json: async () => [
+            {
+              iid: 456,
+              title: "Example HTTP IPv4 issue",
+              web_url: `${EXAMPLE_HTTP_IPV4_ORIGIN}/${EXAMPLE_PROJECT}/-/issues/456`,
+              state: "opened",
+              updated_at: "2026-08-16T10:00:00Z",
+              type: "Issue",
+            },
+          ],
+        };
+      },
+      now: () => new Date("2026-08-16T12:00:00.000Z"),
+    });
+    const listed = await port.listIssueProjections(EXAMPLE_PROJECT);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.method, "GET");
+    assert.match(
+      calls[0]?.url ?? "",
+      /^http:\/\/192\.0\.2\.10:41101\/api\/v4\/projects\/example-group%2Fexample-project\/issues/,
+    );
+    assert.doesNotMatch(calls[0]?.url ?? "", /https:\/\//);
+    assert.doesNotMatch(calls[0]?.url ?? "", /gitlab\.com/);
+    const headerText = JSON.stringify(calls[0]?.headers ?? {});
+    assert.match(headerText, /Authorization/);
+    assert.match(headerText, /Bearer example-host-injected-credential/);
+    assert.equal(listed.items.length, 1);
+    assert.equal(listed.items[0]?.external_ref, EXAMPLE_HTTP_IPV4_REF);
+    assert.equal(JSON.stringify(listed).includes(EXAMPLE_CREDENTIAL), false);
+  });
+
+  it("keeps HTTPS-declared origins on HTTPS and rejects an HTTP pagination hop", async () => {
+    const identity = parseGitLabInstanceIdentity({
+      instanceKind: "self_hosted",
+      instanceOrigin: EXAMPLE_ORIGIN,
+      projectPath: EXAMPLE_PROJECT,
+    });
+    const port = createHttpGitLabInstancePort({
+      identity,
+      secretProvider: exampleSecret(),
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        headers: jsonHeaders({
+          get(name: string) {
+            if (name.toLowerCase() === "link") {
+              return `<http://gitlab.example.com/api/v4/projects/example-group%2Fexample-project/issues?state=all&per_page=100&page=2>; rel="next"`;
+            }
+            return null;
+          },
+        }),
+        json: async () => [
+          {
+            iid: 456,
+            title: "Page one",
+            web_url:
+              "https://gitlab.example.com/example-group/example-project/-/issues/456",
+            state: "opened",
+            type: "Issue",
+          },
+        ],
+      }),
+    });
+    await assert.rejects(
+      () => port.listIssueProjections(EXAMPLE_PROJECT),
+      (error: unknown) =>
+        error instanceof CommandError && error.code === "REPOSITORY_NOT_ALLOWED",
+    );
+  });
+
   it("fails closed on a redirect that escapes the authorized origin", async () => {
     const identity = parseGitLabInstanceIdentity({
       instanceKind: "self_hosted",
@@ -275,6 +368,43 @@ describe("gitlab authority authenticated read (#53)", () => {
         (error.code === "REPOSITORY_NOT_ALLOWED" ||
           error.code === "OBSERVATION_UNAVAILABLE"),
     );
+  });
+
+  it("fails closed when an HTTP origin redirects to HTTPS or gitlab.com", async () => {
+    const identity = parseGitLabInstanceIdentity({
+      instanceKind: "self_hosted",
+      instanceOrigin: EXAMPLE_HTTP_IPV4_ORIGIN,
+      projectPath: EXAMPLE_PROJECT,
+    });
+    for (const location of [
+      "https://192.0.2.10:41101/api/v4/projects/example-group%2Fexample-project/issues",
+      "https://gitlab.com/api/v4/projects/example-group%2Fexample-project/issues",
+    ]) {
+      const port = createHttpGitLabInstancePort({
+        identity,
+        secretProvider: exampleSecret(),
+        fetch: async () => ({
+          ok: false,
+          status: 302,
+          headers: jsonHeaders({
+            get(name: string) {
+              return name.toLowerCase() === "location" ? location : null;
+            },
+          }),
+          json: async () => {
+            throw new Error("redirect body must not be parsed");
+          },
+        }),
+      });
+      await assert.rejects(
+        () => port.listIssueProjections(EXAMPLE_PROJECT),
+        (error: unknown) =>
+          error instanceof CommandError &&
+          (error.code === "REPOSITORY_NOT_ALLOWED" ||
+            error.code === "OBSERVATION_UNAVAILABLE"),
+        location,
+      );
+    }
   });
 
   it("connects, refreshes, caches, and reports freshness without writing the 007 cache file", async () => {

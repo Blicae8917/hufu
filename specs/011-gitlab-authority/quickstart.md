@@ -16,7 +16,7 @@ git diff --check
 
 1. 打开 `spec.md` 首页：应同时看到 ADR 0006、#49、类 (1)、以及「不是实现授权」。
 2. 打开 `contracts/gitlab-authority.v1.md`：应能把「仍只读」与「进入 Authority」分开，且写回默认关闭。
-3. 打开 `contracts/identity-auth-fail-closed.v1.md`：用示例 `https://gitlab.example.com`（示例）+ `example-group/example-project`（示例）走「允许声明」；把 `gitlab.com` 当作可写正本必须被拒绝。
+3. 打开 `contracts/identity-auth-fail-closed.v1.md`：用示例 `https://gitlab.example.com`（示例）或 `http://192.0.2.10:41101`（示例，RFC 5737 TEST-NET-1）+ `example-group/example-project`（示例）走「允许声明」；把 `gitlab.com` / `http://gitlab.com` 当作自建或可写正本必须被拒绝。允许清单比较按 scheme + host + port 精确匹配。
 4. 打开 `contracts/007-non-expansion.v1.md`：007 合同路径未被本票改写；`gitlab-instance:` 不得被 007 的 `gitlab:` 解析器接受。
 5. 确认 `tasks.md` 的**第一条未来实现任务**是会失败的适配器测试，且那些测试文件尚未落地。
 

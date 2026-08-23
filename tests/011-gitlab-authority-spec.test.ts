@@ -107,6 +107,10 @@ describe("011 GitLab AuthorityProvider design kit (#49)", () => {
     assert.match(kit, /示例/);
     assert.match(kit, /gitlab\.example\.com/);
     assert.match(kit, /example-group\/example-project/);
+    assert.match(kit, /http:\/\/192\.0\.2\.10:41101/);
+    assert.match(kit, /http:\/\/gitlab\.example\.com:41101/);
+    assert.match(kit, /RFC 5737|TEST-NET-1/);
+    assert.match(kit, /HTTP 或 HTTPS|http: 或 https:|`http:` 或 `https:`/);
     assert.match(kit, /凭据/);
     assert.match(kit, /机房|家庭/);
 

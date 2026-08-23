@@ -40,7 +40,7 @@
 | --- | --- |
 | I 单一任务正本与显式授权 | 通过（设计）。仍恰好一个 `task_authority`；GitLab 拥有议题生命周期；Hufu 只投影。Journal/Receipt 不扩权。**已核实张力**：Constitution I 要求 GitHub/GitLab 议题只作为只读 Projection。本 Kit 描述的未来写回不得在本 PR 实现，也不得把 Kit 落地当成已修订该条。 |
 | II 正交分离与插件优先 | 通过。未来 GitLab 特定状态仍必须放在 Adapter 之后；本 PR 不改 Host Agent Loop，不引入出站 Runtime。 |
-| III 公开核心，研究外置 | 通过。仅示例占位 `https://gitlab.example.com`（示例）与 `example-group/example-project`（示例）；无凭据、无客户名、无家庭 / 机房细节。 |
+| III 公开核心，研究外置 | 通过。仅示例占位 `https://gitlab.example.com`（示例）、`http://192.0.2.10:41101`（示例，RFC 5737 TEST-NET-1）、`http://gitlab.example.com:41101`（示例）与 `example-group/example-project`（示例）；无凭据、无客户名、无家庭 / 机房细节。 |
 | IV 真实事件与证据 | 通过。本 PR 不伪造观测；设计文本禁止把缺失写成 `0`。 |
 | V 唯一责任角色 | 通过。不把 GitLab assignee 升格为 RoleBinding。 |
 | VI 默认小型、可移植、可逆 | 通过。本 PR 无新依赖、无 daemon、无凭据存储、无写回。 |
