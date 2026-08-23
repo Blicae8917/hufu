@@ -99,6 +99,15 @@
 2. 未来实现 PR：先红 T001–T004，再写独立解析文件，永不扩大 007
 3. 写回另等 Constitution 修订，不得在实现票顺手打开
 
+## Phase 7: #53 后来源形状修订（指挥官授权，修订 011，不另开 013）
+
+**Purpose**: 允许清单内的自建来源可使用 HTTP、IPv4 与非默认端口。这是真实自建形状，不是新 Module。
+
+- [ ] T015 [P] 修订 011 research / spec / contracts：允许清单内 `http:` 或 `https:`；主机名或 IPv4；可选非默认端口；规范来源保留 scheme + host + port；公开示例增加 `http://192.0.2.10:41101`（RFC 5737 TEST-NET-1，示例）与 `http://gitlab.example.com:41101`（示例）
+- [ ] T016 [P] 在身份 / 传输 / 011 约束测试中先红后绿：HTTP IPv4:port + allowlist + 宿主凭据可声明 `task_authority=gitlab` 并对该 origin 做认证 GET；HTTPS 示例仍通过；`http://gitlab.com` 与 `https://gitlab.com` 冒充自建失败关闭
+- [ ] T017 007 `gitlab-ref.ts` / 007 测试保持拒绝自建 Host 与 `gitlab-instance:`；不改 Constitution；版本保持 `0.1.0`；写回保持关闭
+- [ ] T018 公开仓、测试、CHANGELOG、PR 正文不得出现真实客户 / 内部地址或凭据
+
 ## Notes
 
 - 不要在本设计 PR 落地 T001–T014
@@ -106,4 +115,5 @@
 - 不要把 SaaS `gitlab.com` 默认为可写正本
 - 不要占用 M10–M15 编号
 - 不要修订 Constitution
-- 公开仓只用标明为示例的占位符
+- 不要创建 `specs/013`
+- 公开仓只用标明为示例的占位符；IPv4 示例只用 RFC 5737 TEST-NET-1

@@ -11,6 +11,8 @@ import {
 
 const EXAMPLE_SELF_HOSTED_URL =
   "https://gitlab.example.com/example-group/example-project";
+const EXAMPLE_HTTP_IPV4_URL =
+  "http://192.0.2.10:41101/example-group/example-project";
 const EXAMPLE_INSTANCE_REF =
   "gitlab-instance:gitlab.example.com/example-group/example-project#456";
 
@@ -43,6 +45,11 @@ describe("gitlab authority adapter (#53 / T001 T007)", () => {
       () => parseGitLabExternalRef(EXAMPLE_INSTANCE_REF),
       (error: unknown) =>
         error instanceof CommandError && error.code === "EXTERNAL_REF_INVALID",
+    );
+    assert.throws(
+      () => parseGitLabProject(EXAMPLE_HTTP_IPV4_URL),
+      (error: unknown) =>
+        error instanceof CommandError && error.code === "REPOSITORY_NOT_ALLOWED",
     );
   });
 

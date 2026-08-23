@@ -20,12 +20,13 @@
 | 字段 | 约束 |
 | --- | --- |
 | `instance_kind` | `saas_gitlab_com` 或 `self_hosted` |
-| `instance_origin` | `self_hosted` 时必填；必须是 HTTPS 来源；公开仓示例仅为 `https://gitlab.example.com`（示例） |
+| `instance_origin` | `self_hosted` 时必填；允许清单内可为 `http:` 或 `https:` 来源；主机为主机名或 IPv4，可选非默认端口；规范值必须保留 scheme + host + port；不得含项目路径或内嵌凭据。公开仓示例：`https://gitlab.example.com`（示例）、`http://192.0.2.10:41101`（示例，RFC 5737 TEST-NET-1）、`http://gitlab.example.com:41101`（示例） |
 | `project_path` | 恰好两段 `group/project`；示例为 `example-group/example-project`（示例） |
 
 校验：
 
-- `instance_kind=self_hosted` 且 `instance_origin` 的 host 为 `gitlab.com` → 失败关闭（SaaS 不得冒充自建）
+- `instance_kind=self_hosted` 且 `instance_origin` 的 host 为 `gitlab.com` 或 `www.gitlab.com` → 失败关闭（SaaS 不得冒充自建，HTTP 与 HTTPS 皆拒）
+- 允许清单比较按 scheme + host + port 精确匹配；`http://host:41101` 不等于 `https://host:41101`
 - `instance_kind=saas_gitlab_com` → 继续只走 007，不得启用 Authority 写回
 - 从 git remote、议题正文或环境主机名推断 → 失败关闭
 - 嵌套组路径 → 失败关闭（与 007 相同，本票不发明猜测规则）

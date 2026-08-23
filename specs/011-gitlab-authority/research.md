@@ -27,13 +27,15 @@
 ## 5. 身份、授权、失败关闭、默认不写回
 
 - **Decision**:
-  - 身份：`instance_kind=self_hosted` + 操作者手填 `instance_origin` + 两段 `group/project`。示例来源仅为 `https://gitlab.example.com`（示例）。禁止从 git remote 猜测。`gitlab.com` 不得伪造成自建。
-  - 引用：自建工作项使用与 007 不同的 scheme 前缀 `gitlab-instance:`，避免 007 的 `gitlab:` 解析器被静默扩权。007 必须继续拒绝该前缀。
+  - 身份：`instance_kind=self_hosted` + 操作者手填 `instance_origin` + 两段 `group/project`。禁止从 git remote 猜测。`gitlab.com` / `www.gitlab.com` 不得伪造成自建，无论 `http:` 还是 `https:`。
+  - 允许清单内的自建来源可以是 `http:` 或 `https:`；主机可以是主机名或 IPv4，并可带非默认端口。规范来源必须保留 scheme + host + port，比较按三者精确匹配（`http://host:41101` 不等于 `https://host:41101`）。来源不得含项目路径，不得内嵌凭据。
+  - 公开仓示例（均标明为示例）：保留 `https://gitlab.example.com`；增加 `http://192.0.2.10:41101`（RFC 5737 TEST-NET-1 文档地址）与 `http://gitlab.example.com:41101`。项目路径仍为 `example-group/example-project`。禁止写入真实客户 / 内部地址。
+  - 引用：自建工作项使用与 007 不同的 scheme 前缀 `gitlab-instance:`，避免 007 的 `gitlab:` 解析器被静默扩权。007 必须继续拒绝该前缀与自建 Host。
   - 授权：指挥官 `AuthorizationGrant` 允许清单必须点名实例来源与项目路径；能力默认 `read_projection`。Journal / Receipt / Projection 不扩权。
-  - 失败关闭：来源不在允许清单、SaaS 冒充自建、明文凭据进入连接记录、HTTP 非 HTTPS、嵌套组、未知种类 → 拒绝。
+  - 失败关闭：来源不在允许清单、SaaS 冒充自建、明文凭据进入连接记录、未知 scheme、内嵌凭据、带来源路径、嵌套组、未知种类 → 拒绝。不再仅因 `http:` 拒绝已允许清单的自建来源。
   - 默认不写回：`write_back_enabled` 唯一合法默认值是关闭。Constitution 未修订前，写回授权无效。
-- **Rationale**: #49 点名四项必须可验收；Constitution III 禁止公开仓写入私有 Endpoint 与凭据。
-- **Alternatives considered**: 复用 007 的 `gitlab:` scheme 并塞进 Host（会扩大 007）；默认开启写回（违反 Constitution）；把 token 写入 `.hufu/`（禁止）。
+- **Rationale**: #49 点名四项必须可验收；Constitution III 禁止公开仓写入私有 Endpoint 与凭据。#53 之后指挥官确认真实自建形状包含 HTTP + IPv4 + 非默认端口，须修订本 Kit 而非另开 `013`。
+- **Alternatives considered**: 复用 007 的 `gitlab:` scheme 并塞进 Host（会扩大 007）；默认开启写回（违反 Constitution）；把 token 写入 `.hufu/`（禁止）；继续「HTTP 非 HTTPS → 拒绝」（与已授权的自建形状冲突）。
 
 ## 6. Constitution 张力
 
@@ -49,6 +51,12 @@
 
 ## 8. 公开安全示例
 
-- **Decision**: 公开仓只使用标明为示例的 `https://gitlab.example.com` 与 `example-group/example-project`。禁止真实客户名、内部路径、家庭 / 机房主机、字面量凭据。
-- **Rationale**: Constitution III 与 #49 必须交付项。
-- **Alternatives considered**: 使用维护者真实自建 URL（禁止入库）。
+- **Decision**: 公开仓只使用标明为示例的占位来源与 `example-group/example-project`。允许的示例来源是 `https://gitlab.example.com`、`http://192.0.2.10:41101`（RFC 5737 TEST-NET-1）与 `http://gitlab.example.com:41101`。禁止真实客户名、内部路径、家庭 / 机房主机、字面量凭据、RFC 1918 / 本机地址。
+- **Rationale**: Constitution III 与 #49 必须交付项。文档 IPv4 只用 TEST-NET，避免把操作者真实地址写进公开仓。
+- **Alternatives considered**: 使用维护者真实自建 URL（禁止入库）；只用 HTTPS 主机名示例（无法覆盖已授权的 HTTP IPv4:port 形状）。
+
+## 9. #53 之后的来源形状修订（指挥官授权，不另开 013）
+
+- **Decision**: 修订本 Kit，不创建 `specs/013`。允许清单内的自建来源可以是 HTTP 或 HTTPS；请求必须停留在已声明的精确 origin（scheme + host + port）。声明为 `https:` 的来源仍只接受 HTTPS 请求。离开授权 origin 的 redirect（含 http→https 不同 origin、跳到 `gitlab.com`）失败关闭。写回保持关闭。Constitution 不修订。版本保持 `0.1.0`。
+- **Rationale**: #53 实现按原 Kit「HTTP 非 HTTPS → 拒绝」失败关闭；指挥官确认真实用法是 HTTP + IPv4 + 非默认端口。这是 011 合同修订，不是新 Module。
+- **Alternatives considered**: 另开 013（用户禁止）；把 SaaS `http://gitlab.com` 当成自建（禁止）；放宽 007 解析器（禁止）。

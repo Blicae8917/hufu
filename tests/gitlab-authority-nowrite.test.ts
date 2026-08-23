@@ -18,6 +18,7 @@ import { type GitLabPort } from "../src/hufu/gitlab-port.js";
 
 const mainJs = fileURLToPath(new URL("../src/hufu/main.js", import.meta.url));
 const EXAMPLE_ORIGIN = "https://gitlab.example.com";
+const EXAMPLE_HTTP_IPV4_ORIGIN = "http://192.0.2.10:41101";
 const EXAMPLE_PROJECT = "example-group/example-project";
 const EXAMPLE_CREDENTIAL = "example-host-injected-credential";
 
@@ -84,6 +85,26 @@ describe("gitlab authority no-write (#53 / T003 T011 T012)", () => {
     assert.deepEqual(Object.keys(port), ["listIssueProjections"]);
     for (const method of WRITE_METHODS) {
       assert.equal(method in port, false);
+    }
+    const httpIdentity = parseGitLabInstanceIdentity({
+      instanceKind: "self_hosted",
+      instanceOrigin: EXAMPLE_HTTP_IPV4_ORIGIN,
+      projectPath: EXAMPLE_PROJECT,
+    });
+    const httpPort: GitLabPort = createHttpGitLabInstancePort({
+      identity: httpIdentity,
+      secretProvider: {
+        resolve() {
+          return EXAMPLE_CREDENTIAL;
+        },
+      },
+      fetch: async () => {
+        throw new Error("write-method assertion must not fetch");
+      },
+    });
+    assert.deepEqual(Object.keys(httpPort), ["listIssueProjections"]);
+    for (const method of WRITE_METHODS) {
+      assert.equal(method in httpPort, false);
     }
   });
 
