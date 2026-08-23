@@ -25,6 +25,11 @@ describe("Windows run-shape and pack-surface isolation (#53)", () => {
     const pack = readRepo("tests/workdir-pack.test.ts");
     assert.match(pack, /replace\(\/\\\\\/g,\s*"\/"\)|replaceAll\(|posix|win32/);
     assert.match(pack, /npm\.cmd|win32|shell/);
+    assert.match(
+      pack,
+      /if \(process\.platform === "win32"\) \{\s*return;/,
+      "live npm pack stays on POSIX; Windows PASS is the declared files field",
+    );
   });
 
   it("records an explicit GitHub Actions Windows PASS job", () => {
