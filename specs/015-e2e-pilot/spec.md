@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-23
 
-**Status**: Outline + acceptance-authorized（#60 / ADR 0007）。本波只写大纲。公开夹具测试可等到 #57–#59 有代码。
+**Status**: Outline + public-safe fixture tests（#60 / ADR 0007）。公开夹具测试已对照 #57–#59 API 落地；真实生产 `execute` 仍未授予。
 
 **Input**: User description: "公开安全夹具：一个父 + 四个子。覆盖并行、串行、用户决策停线、换届、重复回调、过期 revision、中断、重复 start、Turn 中额外消息、有序 Effect 链。"
 

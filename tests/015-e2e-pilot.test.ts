@@ -273,7 +273,8 @@ describe("015 e2e public-safe pilot fixture (#60)", () => {
       const second = await world.execute("append_comment", PILOT_PARENT.iid);
       assert.equal(first.outcome, "complete");
       assert.equal(second.idempotent_replay, true);
-      assert.equal(second.write_performed, false);
+      assert.equal(second.effect_id, first.effect_id);
+      assert.equal(second.canonical_payload_digest, first.canonical_payload_digest);
       assert.equal(world.writeCount(PILOT_PARENT.iid), 1);
       assert.equal(world.comments(PILOT_PARENT.iid).length, 1);
       const marker = commentEffectMarker(

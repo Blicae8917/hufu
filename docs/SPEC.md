@@ -85,7 +85,8 @@ Decision 引用、Role/SessionBinding、逐槽三轴 CurrentView、Evidence、Re
 Hufu↔LoopX 桥 Adapter（#58）已交付为库级投影 / 校验口：只过桥稳定引用与摘要，对照
 LoopX v0.5.2 合同且不 vendoring 源码、不引入 `loopx` 依赖。008 `loopx-mechanisms`
 仍只是须显式选用的机制记录口，不是任务正本。#59 NativeHost RuntimeProvider
-已交付为只下发 packet 的库级口；#60 e2e 夹具仍未交付。
+已交付为只下发 packet 的库级口；#60 公开安全 e2e 夹具测试已交付（fake ports only），
+真实生产 `execute` 仍未授予。
 
 UI 同样不是任务正本。它只是权威事实、观测事实和派生事实的 Renderer。
 
@@ -106,7 +107,7 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
   Authority / Decision / Evidence 桥已由 #58 交付为只过引用的 Adapter；008 仍不是正本。
   Codex NativeHost RuntimeProvider + SessionBinding 已由 #59 交付为只下发 packet 的库级口，
   不调用真实 Codex Desktop 工具。
-- **ADR 0007 之后仍未交付的实现授权**：公开安全端到端试点验收（#60）。企业项目 Renderer 仍未授权。原自行建设的 M10–M15
+- **ADR 0007 之后仍未交付的实现授权**：企业项目 Renderer 仍未授权。公开安全端到端试点夹具测试（#60）已交付，不等于生产写回已自动化。原自行建设的 M10–M15
   （通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine、完整 Web 控制面）以及
   关键决策会商、loopback Web Console 不再作为已接受方向。真实生产 `execute` 仍未授予。
 

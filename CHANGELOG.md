@@ -6,6 +6,11 @@
 
 ### 新增
 
+- 公开安全端到端试点夹具验收（#60）：一个 `example/parent` 父议题 + 四个子议题，只使用
+  `gitlab.example.com` / RFC 5737 示例主机与 fake fetch / fake NativeHost adapter；覆盖并行、
+  串行、用户决策停线、换届、重复回调、过期 revision、prepared 中断恢复、重复 start、Turn
+  中额外消息与 comment→label→assignee→close。这不是真实项目自动化，生产 `execute` 仍
+  fail-closed。
 - Codex NativeHost RuntimeProvider + SessionBinding（#59）：Hufu 只下发 action packet 并记录结果，
   不创建 Session；无宿主适配器失败关闭，禁止静默回退；能力三分检查；CAS + generation fence；
   换届须 Handoff 后 `supersedes`；不读 transcript。

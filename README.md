@@ -55,7 +55,7 @@ Wave Engine 与完整 Web 控制面已由 [ADR 0006](docs/adr/0006-upstream-posi
 ADR 0007 已授权实现受控 GitLab Effect、#50 桥（LoopX v0.5.2 合同、不 vendoring）与
 Codex NativeHost RuntimeProvider；企业 Renderer 仍未授权。#57 写回端口与 #58 桥
 Adapter 已交付；#59 NativeHost RuntimeProvider 已交付为只下发 packet 的库级口；
-#60 e2e 夹具仍未交付。
+#60 公开安全 e2e 夹具测试已交付（fake ports only），不是真实项目自动化。
 合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
 ## 当前基线快速开始

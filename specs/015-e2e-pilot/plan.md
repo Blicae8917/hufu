@@ -12,7 +12,7 @@
 
 ## Technical Context
 
-本波无新依赖、无网络、无夹具代码。测试仅为 `tests/015-e2e-pilot-spec.test.ts`。
+公开夹具测试现为 `tests/e2e-pilot-fixture.ts` + `tests/015-e2e-pilot.test.ts`，只注入 fake fetch / fake NativeHost adapter，无真实 GitLab、无 `loopx` 依赖。
 
 ## Constitution Check
 
