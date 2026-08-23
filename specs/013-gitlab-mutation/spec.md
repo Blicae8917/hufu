@@ -63,10 +63,10 @@
 - 多动作必须拆成有序单个 Effect，禁止伪造跨 API 事务或自动回滚。
 - 评论重试前必须检查隐藏 effect marker。
 - GET 当前议题必须核对恰好 `instance_origin` + `project_path` + `iid` + `updated_at`/revision。
-- 任意注入 `fetch` 只提供 transport，不产生授权；`execute` 还必须持有 owner-local `ProductionExecuteGrantRef`，且它命中当前 Ledger grant id + revision。
+- 任意注入 `fetch` 只提供 transport，不产生授权；`execute` 还必须持有 owner-local `ProductionExecuteGrantRef`，且它命中当前 Ledger grant id + revision。该 Ledger grant 的结构化 `scope` 必须为 `action=mutate`、`resource=gitlab_issue`，并以 `mutation_allowances` 覆盖 exact target / kind / payload；不得从 `scope_text` 猜写权。
 - `readAllowlist` 与写 allowlist 都参与 preview / execute；写 allowlist 的单元是 exact origin + project + iid + kind，并在标签/指派时继续精确到 label 或 assignee + id。
 - 标签转换的 owner-local 集合必须恰好六个唯一标签；写入同时 add 目标标签并 remove 当前其他受管标签。
-- prepared 恢复必须重新读取 current source revision；若目标尚未实现且 revision 已变，停车，不继续旧计划。
+- prepared 恢复先按原 grant / label scope 只读核验 effect marker 或目标态；已实现则只读收尾，不要求 successor grant。目标尚未实现时才核验 current grant / envelope / source revision，任一变化即停车。
 - 版本保持 `0.1.0`。不 npm-publish。
 
 ## Requirements *(mandatory)*
@@ -83,12 +83,12 @@
 - **FR-010**: MUST NOT 实现 Goal/Todo/Scheduler/Heartbeat、PM/Wave Engine、`hufu serve`、会商或企业 Renderer。
 - **FR-011**: 公开产物 MUST 只用示例 `https://gitlab.example.com`、`http://192.0.2.10:41101`、`http://gitlab.example.com:41101`。MUST NOT 写入真实 GitLab IP、token、项目名或例外正文。
 - **FR-012**: 后续实现结束 MUST 报告 `IMPLEMENTATION_COMPLETE` 或类型化 `NO_GO`，MUST NOT 把「CI 绿」写成生产已自动化。
-- **FR-013**: `execute` MUST 要求显式 `ProductionExecuteGrantRef`，并核对当前 Ledger `AuthorizationGrant` 的 exact `grant_id + revision`。注入 `fetch` MUST NOT 构成授权。
+- **FR-013**: 新写入 MUST 要求显式 `ProductionExecuteGrantRef`，并核对当前 Ledger `AuthorizationGrant` 的 exact `grant_id + revision`。当前 grant MUST 具备机器可读 `scope.action=mutate`、`scope.resource=gitlab_issue` 与 `scope.mutation_allowances`，且 exact 覆盖 target / kind / payload / label / assignee；read-only scope、自由文本 `scope_text` 或注入 `fetch` MUST NOT 构成授权。
 - **FR-014**: `authority_scope_ref`、`decision_ref`、`execution_envelope_ref`、`actor_binding`、`task_ref` MUST 共同命中当前 Ledger 的 grant / decision / 当前 envelope / executor / work item；`task_ref` MUST 与 exact mutation target 相同。
 - **FR-015**: `readAllowlist` MUST 实际参与判断。production write allowlist MUST 使用 exact origin + project + iid + kind；标签和指派还 MUST 精确到受管 label、assignee 与 assignee id。origin-only 条目 MUST NOT 授权 execute。
-- **FR-016**: `transition_managed_status_label` MUST 使用 owner-local 注入的恰好六标签集合，并通过 `add_labels + remove_labels` 保证互斥；readback / projection MUST 同时证明目标存在且其他受管标签不存在。
-- **FR-017**: `close_issue` MUST 绑定当前 decision 中真实存在的 `acceptance_evidence_refs` 和 `acceptance_matrix_ref`；调用方 boolean MUST NOT 充当证据。
-- **FR-018**: `mutation.prepared` MUST 审计 `production_execute_grant_ref`。恢复时 MUST 先重新读取 exact source revision；目标尚未实现且 revision 改变时 MUST 以冲突停车，禁止继续旧写计划；若唯一 effect marker / 目标态已证明存在，只允许 readback 收尾，不得重复写。
+- **FR-016**: `transition_managed_status_label` MUST 使用 owner-local 注入的恰好六标签集合，并通过 `add_labels + remove_labels` 保证互斥；current issue 或 projection 缺少完整 `labels` 时 MUST `data_insufficient`，不得把缺失当 `[]`。readback / projection MUST 同时证明目标存在且其他受管标签不存在。
+- **FR-017**: `close_issue` MUST 绑定当前 decision version 中真实存在的 `acceptance_evidence_refs` 和 `acceptance_matrix_ref`；Effect 证据还 MUST 匹配 current `execution_envelope_ref` 与 decision version。旧 envelope / 旧 version EvidenceRef 和调用方 boolean MUST NOT 充当证据。
+- **FR-018**: `mutation.prepared` MUST 审计 `production_execute_grant_ref` 与标签 scope。恢复 MUST 先只读核验原 effect；目标已实现时只允许 readback 收尾，即使 current grant / envelope 已换版也不得重复写。目标尚未实现时才要求 current production grant / envelope，并重新核验 exact source revision；任一变化 MUST 以冲突停车。
 
 ## Key Entities
 
@@ -96,7 +96,7 @@
 - **TaskMutationIntent / MutationPlan / MutationReceipt / MutationReadback**: preview / execute / readback 对象。
 - **ManagedMutationKind**: 五种允许 kind。
 - **TransportSecurityExceptionRef**: 仅本机持有的 HTTP 写例外引用。
-- **ProductionExecuteGrantRef**: owner-local 显式执行授权引用；只含既有 Ledger grant id + revision，不由 fetch、Receipt 或 readback 推导。
+- **ProductionExecuteGrantRef**: owner-local 显式执行授权引用；只含既有 Ledger grant id + revision。真实写权来自该 Ledger grant 的结构化 mutation scope 与 owner-local exact allowlist 的交集，不由 scope_text、fetch、Receipt 或 readback 推导。
 - **MutationWriteAllowance**: 单个 exact target / kind / label 或 assignee 的本机允许项；旧式字符串 origin 只能被识别并失败关闭，不能形成合法 plan 或授权 execute。
 
 ## Success Criteria *(mandatory)*
@@ -106,7 +106,7 @@
 - **SC-003**: 100% 无 exception ref 的 HTTP 写样例被拒绝。
 - **SC-004**: 所有 RED→GREEN 与既有回归门禁通过；版本仍为 `0.1.0`。
 - **SC-005**: arbitrary fetch、错误 grant/ref/scope/label/assignee/evidence/revision 的夹具 100% 在零写入前失败关闭。
-- **SC-006**: prepared 恢复对已实现目标只读收尾，对 revision 已变且目标未实现的计划 100% 停车。
+- **SC-006**: prepared 恢复对已实现目标先于 successor grant / envelope 做只读收尾，对 grant / envelope / revision 已变且目标未实现的计划 100% 停车。
 
 ## Assumptions
 

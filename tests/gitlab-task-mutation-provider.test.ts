@@ -123,6 +123,7 @@ function withTempDir(fn: (dir: string) => Promise<void>): Promise<void> {
 function connectExample(
   dir: string,
   origin: string = EXAMPLE_ORIGIN,
+  productionWriteAllowlist: readonly MutationWriteAllowance[] | null = exactWriteAllowlist(origin),
 ): ReturnType<typeof connectWorkspace> {
   const connected = connectWorkspace(dir, {
     commander: "human:alice",
@@ -136,6 +137,27 @@ function connectExample(
     identitySource: "explicit",
     secretProvider: exampleSecret(),
   });
+  const grantRevision = productionWriteAllowlist === null ? 1 : 2;
+  if (productionWriteAllowlist !== null) {
+    appendEvents(dir, [
+      {
+        actor_binding_ref: "human:alice",
+        event_type: "hufu/authorization_grant.issued",
+        idempotency_key: "hufu/authorization_grant.issued:demo:2",
+        payload: {
+          grant_id: "grant:demo",
+          issuer_id: "human:alice",
+          revision: 2,
+          scope: {
+            action: "mutate",
+            mutation_allowances: productionWriteAllowlist,
+            resource: "gitlab_issue",
+          },
+          scope_text: "owner-local structured GitLab mutation execute grant",
+        },
+      },
+    ]);
+  }
   const decision = {
     acceptance_metric: "example acceptance matrix passes",
     authoritative_state: {
@@ -143,7 +165,7 @@ function connectExample(
       observed_at: "2026-08-16T10:00:00.000Z",
       task_ref: externalRefFor(origin),
     },
-    authority_scope_ref: { grant_id: "grant:demo", revision: 1 },
+    authority_scope_ref: { grant_id: "grant:demo", revision: grantRevision },
     business_outcome: "apply one bounded example mutation",
     decision_id: "decision:demo",
     evidence_as_of: "2026-08-16T10:00:00.000Z",
@@ -258,6 +280,18 @@ function exactWriteAllowlist(
     if (mutation_kind === "set_assignee") {
       return [{ ...base, assignee: "example-owner", assignee_id: 7 }];
     }
+    if (mutation_kind === "append_comment") {
+      return [{ ...base, comment_body: "example comment" }];
+    }
+    if (mutation_kind === "close_issue") {
+      return [
+        {
+          ...base,
+          acceptance_evidence_refs: ["evidence:acceptance-matrix"],
+          acceptance_matrix_ref: "evidence:acceptance-matrix",
+        },
+      ];
+    }
     return [base];
   });
 }
@@ -330,6 +364,8 @@ function createFakeGitLab(options: {
   readonly failGetAfterWrites?: boolean;
   readonly disconnectAfterWrite?: boolean;
   readonly getIssueError?: Error;
+  readonly omitLabelsOnIssueGet?: boolean;
+  readonly omitLabelsOnList?: boolean;
 }): {
   calls: RecordedCall[];
   fetch: typeof fetch;
@@ -367,9 +403,13 @@ function createFakeGitLab(options: {
       if (options.failGetAfterWrites === true && writes > 0) {
         throw new Error("readback unavailable after write");
       }
+      const observed: Record<string, unknown> = { ...issue, assignee: issue.assignee };
+      if (options.omitLabelsOnIssueGet === true) {
+        delete observed["labels"];
+      }
       return {
         headers: jsonHeaders(),
-        json: async () => ({ ...issue, assignee: issue.assignee }),
+        json: async () => observed,
         ok: true,
         status: 200,
       };
@@ -383,9 +423,13 @@ function createFakeGitLab(options: {
       };
     }
     if (method === "GET" && parsed.pathname === listPath) {
+      const observed: Record<string, unknown> = { ...issue, assignee: issue.assignee };
+      if (options.omitLabelsOnList === true) {
+        delete observed["labels"];
+      }
       return {
         headers: jsonHeaders(),
-        json: async () => [{ ...issue, assignee: issue.assignee }],
+        json: async () => [observed],
         ok: true,
         status: 200,
       };
@@ -475,7 +519,7 @@ function createProvider(
       : {
           productionExecuteGrant: extras.productionExecuteGrant ?? {
             grant_id: "grant:demo",
-            revision: 1,
+            revision: 2,
           },
         }),
     readAllowlist: extras.readAllowlist ?? [origin],
@@ -635,7 +679,7 @@ describe("GitLabTaskMutationProvider (#57 / #66)", () => {
       );
       assert.deepEqual(prepared?.payload["production_execute_grant_ref"], {
         grant_id: "grant:demo",
-        revision: 1,
+        revision: 2,
       });
       const cache = readGitLabInstanceProjectionCache(dir);
       assert.equal(cache?.items[0]?.labels?.includes("status::doing"), true);
@@ -761,7 +805,7 @@ describe("GitLabTaskMutationProvider (#57 / #66)", () => {
       const provider = createGitLabTaskMutationProvider({
         fetch: fake.fetch,
         identity: identityFor(EXAMPLE_HTTP_IPV4_ORIGIN),
-        productionExecuteGrant: { grant_id: "grant:demo", revision: 1 },
+        productionExecuteGrant: { grant_id: "grant:demo", revision: 2 },
         readAllowlist: [EXAMPLE_HTTP_IPV4_ORIGIN],
         secretProvider: exampleSecret(),
         transportSecurityExceptionRef: EXAMPLE_EXCEPTION_REF,
@@ -791,20 +835,21 @@ describe("GitLabTaskMutationProvider (#57 / #66)", () => {
 
   it("replays the same effect_id and digest and stops on digest conflict", async () => {
     await withTempDir(async (dir) => {
-      connectExample(dir);
+      const expandedWriteAllowlist: readonly MutationWriteAllowance[] = [
+        ...exactWriteAllowlist(),
+        {
+          assignee: "other-owner",
+          assignee_id: 8,
+          iid: EXAMPLE_IID,
+          instance_origin: EXAMPLE_ORIGIN,
+          mutation_kind: "set_assignee",
+          project_path: EXAMPLE_PROJECT,
+        },
+      ];
+      connectExample(dir, EXAMPLE_ORIGIN, expandedWriteAllowlist);
       const fake = createFakeGitLab({ origin: EXAMPLE_ORIGIN });
       const provider = createProvider(dir, fake, {
-        writeAllowlist: [
-          ...exactWriteAllowlist(),
-          {
-            assignee: "other-owner",
-            assignee_id: 8,
-            iid: EXAMPLE_IID,
-            instance_origin: EXAMPLE_ORIGIN,
-            mutation_kind: "set_assignee",
-            project_path: EXAMPLE_PROJECT,
-          },
-        ],
+        writeAllowlist: expandedWriteAllowlist,
       });
       const plan = provider.preview(buildIntent("set_assignee"));
       const first = await provider.execute(plan);
@@ -923,6 +968,64 @@ describe("GitLabTaskMutationProvider (#57 / #66)", () => {
     });
   });
 
+  it("finalizes an already-applied prepared effect before requiring the successor grant", async () => {
+    await withTempDir(async (dir) => {
+      connectExample(dir);
+      const fake = createFakeGitLab({
+        disconnectAfterWrite: true,
+        origin: EXAMPLE_ORIGIN,
+      });
+      const firstProvider = createProvider(dir, fake);
+      const plan = firstProvider.preview(buildIntent("append_comment"));
+      await assert.rejects(() => firstProvider.execute(plan), CommandError);
+      assert.equal(writeCalls(fake).length, 1);
+
+      const snapshot = readLedger(dir);
+      assert.equal(snapshot.status, "ready");
+      if (snapshot.status !== "ready") {
+        throw new Error("ledger is not ready");
+      }
+      const packet = snapshot.events.find(
+        (event) => event.event_type === "hufu/decision.packet_recorded",
+      );
+      appendEvents(dir, [
+        {
+          actor_binding_ref: "human:alice",
+          event_type: "hufu/authorization_grant.issued",
+          idempotency_key: "hufu/authorization_grant.issued:demo:3",
+          payload: {
+            grant_id: "grant:demo",
+            issuer_id: "human:alice",
+            revision: 3,
+            scope: { action: "read", resource: "gitlab_issue" },
+            scope_text: "read-only successor grant",
+          },
+        },
+        {
+          actor_binding_ref: "human:alice",
+          event_type: "hufu/decision.envelope_attached",
+          idempotency_key: "hufu/decision.envelope_attached:envelope:successor",
+          payload: {
+            content_digest: packet?.payload["content_digest"],
+            decision_id: "decision:demo",
+            envelope_id: "envelope:successor",
+            executor_principal_id: "human:alice",
+            version: 1,
+            work_item_ids: [EXAMPLE_REF],
+          },
+        },
+      ]);
+
+      const recoveryProvider = createProvider(dir, fake, {
+        productionExecuteGrant: null,
+      });
+      const recovered = await recoveryProvider.execute(plan);
+      assert.equal(recovered.outcome, "complete");
+      assert.equal(recovered.write_performed, false);
+      assert.equal(writeCalls(fake).length, 1);
+    });
+  });
+
   it("parks a prepared plan when the current source revision changed before any write", async () => {
     await withTempDir(async (dir) => {
       connectExample(dir);
@@ -992,14 +1095,99 @@ describe("GitLabTaskMutationProvider (#57 / #66)", () => {
     });
   });
 
+  it("refuses execute when the exact Ledger grant is still read-only", async () => {
+    await withTempDir(async (dir) => {
+      connectExample(dir, EXAMPLE_ORIGIN, null);
+      const fake = createFakeGitLab({ origin: EXAMPLE_ORIGIN });
+      const provider = createProvider(dir, fake, {
+        productionExecuteGrant: { grant_id: "grant:demo", revision: 1 },
+      });
+      const plan = provider.preview(buildIntent("append_comment"));
+
+      await assert.rejects(
+        () => provider.execute(plan),
+        (error: unknown) =>
+          error instanceof CommandError && error.code === "GRANT_SCOPE_EXCEEDED",
+      );
+      assert.equal(writeCalls(fake).length, 0);
+    });
+  });
+
+  it("refuses execute when structured grant scope misses target, kind, or payload", async () => {
+    const scopes: readonly (readonly MutationWriteAllowance[])[] = [
+      [
+        {
+          comment_body: "example comment",
+          iid: 999,
+          instance_origin: EXAMPLE_ORIGIN,
+          mutation_kind: "append_comment",
+          project_path: EXAMPLE_PROJECT,
+        },
+      ],
+      [
+        {
+          iid: EXAMPLE_IID,
+          instance_origin: EXAMPLE_ORIGIN,
+          mutation_kind: "reopen_issue",
+          project_path: EXAMPLE_PROJECT,
+        },
+      ],
+      [
+        {
+          comment_body: "different payload",
+          iid: EXAMPLE_IID,
+          instance_origin: EXAMPLE_ORIGIN,
+          mutation_kind: "append_comment",
+          project_path: EXAMPLE_PROJECT,
+        },
+      ],
+      [
+        {
+          iid: EXAMPLE_IID,
+          instance_origin: EXAMPLE_ORIGIN,
+          managed_label: "status::triage",
+          mutation_kind: "transition_managed_status_label",
+          project_path: EXAMPLE_PROJECT,
+        },
+      ],
+      [
+        {
+          assignee: "other-owner",
+          assignee_id: 8,
+          iid: EXAMPLE_IID,
+          instance_origin: EXAMPLE_ORIGIN,
+          mutation_kind: "set_assignee",
+          project_path: EXAMPLE_PROJECT,
+        },
+      ],
+    ];
+
+    for (const scope of scopes) {
+      await withTempDir(async (dir) => {
+        connectExample(dir, EXAMPLE_ORIGIN, scope);
+        const fake = createFakeGitLab({ origin: EXAMPLE_ORIGIN });
+        const provider = createProvider(dir, fake);
+        const plan = provider.preview(buildIntent("append_comment"));
+
+        await assert.rejects(
+          () => provider.execute(plan),
+          (error: unknown) =>
+            error instanceof CommandError && error.code === "GRANT_SCOPE_EXCEEDED",
+        );
+        assert.equal(writeCalls(fake).length, 0);
+      });
+    }
+  });
+
   it("binds the production execute grant to the current Ledger grant revision", async () => {
     await withTempDir(async (dir) => {
       connectExample(dir);
       const fake = createFakeGitLab({ origin: EXAMPLE_ORIGIN });
 
       for (const productionExecuteGrant of [
-        { grant_id: "grant:other", revision: 1 },
-        { grant_id: "grant:demo", revision: 2 },
+        { grant_id: "grant:other", revision: 2 },
+        { grant_id: "grant:demo", revision: 1 },
+        { grant_id: "grant:demo", revision: 3 },
       ]) {
         const provider = createProvider(dir, fake, { productionExecuteGrant });
         await assert.rejects(
@@ -1170,6 +1358,56 @@ describe("GitLabTaskMutationProvider (#57 / #66)", () => {
     });
   });
 
+  it("does not write a managed-label transition when current labels are unavailable", async () => {
+    await withTempDir(async (dir) => {
+      connectExample(dir);
+      const fake = createFakeGitLab({
+        issue: {
+          ...baseIssue(),
+          labels: ["example-label", "status::triage"],
+        },
+        omitLabelsOnIssueGet: true,
+        origin: EXAMPLE_ORIGIN,
+      });
+      const provider = createProvider(dir, fake);
+
+      await assert.rejects(
+        () =>
+          provider.execute(
+            provider.preview(buildIntent("transition_managed_status_label")),
+          ),
+        (error: unknown) =>
+          error instanceof CommandError && error.code === "DATA_INSUFFICIENT",
+      );
+      assert.equal(writeCalls(fake).length, 0);
+    });
+  });
+
+  it("does not certify a label transition when projection labels are unavailable", async () => {
+    await withTempDir(async (dir) => {
+      connectExample(dir);
+      const fake = createFakeGitLab({
+        issue: {
+          ...baseIssue(),
+          labels: ["example-label", "status::triage"],
+        },
+        omitLabelsOnList: true,
+        origin: EXAMPLE_ORIGIN,
+      });
+      const provider = createProvider(dir, fake);
+
+      await assert.rejects(
+        () =>
+          provider.execute(
+            provider.preview(buildIntent("transition_managed_status_label")),
+          ),
+        (error: unknown) =>
+          error instanceof CommandError && error.code === "DATA_INSUFFICIENT",
+      );
+      assert.equal(writeCalls(fake).length, 1);
+    });
+  });
+
   it("does not accept a caller boolean as close evidence", async () => {
     await withTempDir(async (dir) => {
       connectExample(dir);
@@ -1195,13 +1433,79 @@ describe("GitLabTaskMutationProvider (#57 / #66)", () => {
 
   it("requires close EvidenceRefs to exist in the current decision acceptance matrix", async () => {
     await withTempDir(async (dir) => {
-      connectExample(dir);
+      const unknownCloseAllowance: MutationWriteAllowance = {
+        acceptance_evidence_refs: ["evidence:unknown-matrix"],
+        acceptance_matrix_ref: "evidence:unknown-matrix",
+        iid: EXAMPLE_IID,
+        instance_origin: EXAMPLE_ORIGIN,
+        mutation_kind: "close_issue",
+        project_path: EXAMPLE_PROJECT,
+      };
+      const writeAllowlist = [
+        ...exactWriteAllowlist().filter(
+          (entry) => entry.mutation_kind !== "close_issue",
+        ),
+        unknownCloseAllowance,
+      ];
+      connectExample(dir, EXAMPLE_ORIGIN, writeAllowlist);
       const fake = createFakeGitLab({ origin: EXAMPLE_ORIGIN });
-      const provider = createProvider(dir, fake);
+      const provider = createProvider(dir, fake, { writeAllowlist });
       const intent = buildIntent("close_issue", {
         payload: {
           acceptance_evidence_refs: ["evidence:unknown-matrix"],
           acceptance_matrix_ref: "evidence:unknown-matrix",
+        },
+      });
+
+      assert.throws(
+        () => provider.preview(intent),
+        (error: unknown) =>
+          error instanceof CommandError && error.code === "DATA_INSUFFICIENT",
+      );
+      assert.equal(writeCalls(fake).length, 0);
+    });
+  });
+
+  it("does not accept EvidenceRefs from an old envelope effect for close", async () => {
+    await withTempDir(async (dir) => {
+      const oldEffectCloseAllowance: MutationWriteAllowance = {
+        acceptance_evidence_refs: ["evidence:old-effect"],
+        acceptance_matrix_ref: "evidence:old-effect",
+        iid: EXAMPLE_IID,
+        instance_origin: EXAMPLE_ORIGIN,
+        mutation_kind: "close_issue",
+        project_path: EXAMPLE_PROJECT,
+      };
+      const writeAllowlist = [
+        ...exactWriteAllowlist().filter(
+          (entry) => entry.mutation_kind !== "close_issue",
+        ),
+        oldEffectCloseAllowance,
+      ];
+      connectExample(dir, EXAMPLE_ORIGIN, writeAllowlist);
+      appendEvents(dir, [
+        {
+          actor_binding_ref: "human:alice",
+          event_type: "hufu/decision.effect_delta",
+          idempotency_key: "hufu/decision.effect_delta:effect:old:observation:1",
+          payload: {
+            decision_id: "decision:demo",
+            durability: "durable",
+            effect_id: "effect:old",
+            envelope_id: "envelope:old",
+            evidence_refs: ["evidence:old-effect"],
+            observation_id: "observation:old",
+            readback_status: "complete",
+            version: 1,
+          },
+        },
+      ]);
+      const fake = createFakeGitLab({ origin: EXAMPLE_ORIGIN });
+      const provider = createProvider(dir, fake, { writeAllowlist });
+      const intent = buildIntent("close_issue", {
+        payload: {
+          acceptance_evidence_refs: ["evidence:old-effect"],
+          acceptance_matrix_ref: "evidence:old-effect",
         },
       });
 

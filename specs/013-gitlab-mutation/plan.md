@@ -8,7 +8,7 @@
 
 ## Summary
 
-在 #57 已交付端口上增加六个失败关闭闸门：显式 production grant、Ledger exact refs、读口 + exact 写 allowlist、六状态互斥标签、真实 EvidenceRef 关闭、revision-safe prepared 恢复。仍不对真实项目执行写。
+在 #57 已交付端口上增加六个失败关闭闸门：结构化 production mutation scope 与 owner-local allowlist 求交、Ledger exact refs、六状态完整标签互斥、current version/envelope EvidenceRef 关闭，以及 readback-first / revision-safe prepared 恢复。仍不对真实项目执行写。
 
 ## Technical Context
 

@@ -34,7 +34,7 @@ import {
   type TaskMutationIntent,
 } from "../src/hufu/gitlab-task-mutation-provider.js";
 import { type SecretProvider } from "../src/hufu/secret-provider.js";
-import { readLedger } from "../src/hufu/storage.js";
+import { appendEvents, readLedger } from "../src/hufu/storage.js";
 import { statusWorkspace } from "../src/hufu/status.js";
 import { VERSION } from "../src/hufu/version.js";
 import { basePacket } from "./decision-harness.js";
@@ -262,6 +262,26 @@ async function createPublicSafePilotWorld(
     instanceOrigin: origin,
     projectPath: project,
   });
+  const writeAllowlist = pilotWriteAllowlist(origin, project, issues);
+  const productionGrantRevision = connected.grant_revision + 1;
+  appendEvents(workspaceRoot, [
+    {
+      actor_binding_ref: "human:alice",
+      event_type: "hufu/authorization_grant.issued",
+      idempotency_key: `hufu/authorization_grant.issued:example-parent:${String(productionGrantRevision)}`,
+      payload: {
+        grant_id: connected.grant_id,
+        issuer_id: "human:alice",
+        revision: productionGrantRevision,
+        scope: {
+          action: "mutate",
+          mutation_allowances: writeAllowlist,
+          resource: "gitlab_issue",
+        },
+        scope_text: "public-safe structured GitLab mutation execute grant",
+      },
+    },
+  ]);
   const gitlab = createPilotFakeGitLab(origin, project, options);
   const injectFetch = options.injectFetch !== false;
   const exceptionRef =
@@ -274,7 +294,7 @@ async function createPublicSafePilotWorld(
     identity,
     productionExecuteGrant: {
       grant_id: connected.grant_id,
-      revision: connected.grant_revision,
+      revision: productionGrantRevision,
     },
     readAllowlist: [origin],
     secretProvider,
@@ -282,7 +302,7 @@ async function createPublicSafePilotWorld(
       ? {}
       : { transportSecurityExceptionRef: exceptionRef }),
     workspaceRoot,
-    writeAllowlist: pilotWriteAllowlist(origin, project, issues),
+    writeAllowlist,
   });
   const gitlabPort = createPilotProjectionPort(origin, project, gitlab);
   await statusWorkspace(workspaceRoot, {
@@ -295,7 +315,7 @@ async function createPublicSafePilotWorld(
     project,
     PILOT_PARENT.iid,
   );
-  const packetInput = basePacket(connected.grant_id, connected.grant_revision);
+  const packetInput = basePacket(connected.grant_id, productionGrantRevision);
   (packetInput["authoritative_state"] as Record<string, unknown>)["task_ref"] = parentRef;
   packetInput["verified_facts"] = [
     {
@@ -619,6 +639,18 @@ function pilotWriteAllowlist(
       }
       if (mutation_kind === "set_assignee") {
         return [{ ...base, assignee: "example-owner", assignee_id: 7 }];
+      }
+      if (mutation_kind === "append_comment") {
+        return [{ ...base, comment_body: `example comment for #${String(issue.iid)}` }];
+      }
+      if (mutation_kind === "close_issue") {
+        return [
+          {
+            ...base,
+            acceptance_evidence_refs: ["evidence:acceptance-matrix"],
+            acceptance_matrix_ref: "evidence:acceptance-matrix",
+          },
+        ];
       }
       return [base];
     }),

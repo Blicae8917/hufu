@@ -33,11 +33,11 @@
 ## Phase 5: #66 production binding hardening
 
 - [x] T013 RED→GREEN：任意 injected fetch 无显式 production grant 时零写入失败关闭
-- [x] T014 RED→GREEN：production grant 与 authority / decision / envelope / actor / task refs exact Ledger 绑定
+- [x] T014 RED→GREEN：只读 grant 拒写；结构化 `action=mutate` scope 与 exact target / kind / payload allowance 求交；authority / decision / envelope / actor / task refs exact Ledger 绑定
 - [x] T015 RED→GREEN：read allowlist、exact target/kind/label/assignee write allowance
-- [x] T016 RED→GREEN：owner-local 六状态互斥转换及 projection/readback
-- [x] T017 RED→GREEN：真实 EvidenceRef + acceptance matrix 关闭闸门，拒绝 boolean
-- [x] T018 RED→GREEN：prepared grant 审计与 current source revision-safe 恢复
+- [x] T016 RED→GREEN：owner-local 六状态互斥转换；issue / projection labels 缺失失败关闭
+- [x] T017 RED→GREEN：current decision version + current envelope Effect EvidenceRef / acceptance matrix 关闭闸门，拒绝旧 evidence 与 boolean
+- [x] T018 RED→GREEN：prepared grant / label scope 审计；readback-first 收尾与 current grant / envelope / revision-safe 续写
 - [x] T019 更新公开安全 e2e 夹具；仍无真实 endpoint、secret 或 GitLab 写入
 
 ## Notes

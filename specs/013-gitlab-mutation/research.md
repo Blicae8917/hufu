@@ -31,7 +31,7 @@
 
 ## 6. Production execute grant
 
-- **Decision**: `fetch` 只提供 transport。`execute` 额外要求 owner-local `ProductionExecuteGrantRef`，并核对当前 Ledger grant id + revision；prepared 记录该引用。
+- **Decision**: `fetch` 只提供 transport。新写入额外要求 owner-local `ProductionExecuteGrantRef`，并核对当前 Ledger grant id + revision；该 Ledger grant 必须有 `action=mutate` / `resource=gitlab_issue` / exact `mutation_allowances`，再与 owner-local allowlist 求交。`scope_text` 不参与授权判断；prepared 记录原 grant 引用。
 - **Rationale**: 防止测试缝或任意依赖注入静默升级成真实写权。
 
 ## 7. Exact refs 与 allowlist
@@ -41,15 +41,15 @@
 
 ## 8. 六状态互斥
 
-- **Decision**: 不硬编码产品标签名；owner-local profile 以六条 exact label allowance 注入。转换时 add 目标并 remove 当前其他受管标签，readback 同时核验二者。
+- **Decision**: 不硬编码产品标签名；owner-local profile 以六条 exact label allowance 注入。转换时只有在 current labels 完整时才 add 目标并 remove 当前其他受管标签；缺失不得降级为 `[]`。readback / projection 同时核验二者。
 - **Rationale**: GitLab add-only 会留下两个互斥状态。
 
 ## 9. 关闭证据
 
-- **Decision**: boolean 废止为授权证据；关闭必须携带 `acceptance_evidence_refs` 与其中的 `acceptance_matrix_ref`，并在当前 decision 证据中真实存在。
+- **Decision**: boolean 废止为授权证据；关闭必须携带 `acceptance_evidence_refs` 与其中的 `acceptance_matrix_ref`，并在 current decision version 中真实存在；Effect 证据还必须来自 current envelope / version。
 - **Rationale**: 调用方自报 `true` 不是验收事实。
 
 ## 10. Prepared 恢复
 
-- **Decision**: 恢复先 readback。目标已存在只做收尾；目标未实现时重新核验 exact source revision，变化即停车。
+- **Decision**: 恢复先用 prepared 中原 grant / label scope 做 readback。目标已存在只做收尾，不要求 current grant；目标未实现时才重新核验 current grant / envelope 与 exact source revision，变化即停车。
 - **Rationale**: 既避免断线后重复写，也避免在外部状态已变化时继续旧计划。
