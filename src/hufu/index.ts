@@ -30,6 +30,14 @@ export { recordPilot } from "./pilot.js";
 export { projectCurrentView, type CurrentView } from "./projector.js";
 export { statusWorkspace, type StatusOptions } from "./status.js";
 export {
+  CODEX_CONSUMER_MAPPING,
+  HOST_CAPABILITY_IDS,
+  createNativeHostRuntimeProvider,
+  type HostCapabilityReport,
+  type NativeHostRuntimeProvider,
+  type SessionBinding,
+} from "./codex-native-host.js";
+export {
   acceptTypedResult,
   assertAuthorityCrossing,
   assertDecisionCrossing,

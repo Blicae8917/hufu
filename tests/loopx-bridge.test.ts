@@ -280,8 +280,8 @@ describe("LoopX bridge surface (#58)", () => {
     assert.equal(existsSync(join(root, "src/hufu/scheduler.ts")), false);
     assert.equal(existsSync(join(root, "src/hufu/heartbeat.ts")), false);
     assert.equal(existsSync(join(root, "src/hufu/goal.ts")), false);
-    assert.equal(existsSync(join(root, "src/hufu/codex-native-host.ts")), false);
     const bridge = readFileSync(join(root, "src/hufu/loopx-bridge.ts"), "utf8");
+    assert.doesNotMatch(bridge, /codex-native-host/);
     assert.doesNotMatch(bridge, /while\s*\(\s*true\s*\)/);
     assert.doesNotMatch(bridge, /setInterval\s*\(/);
     assert.doesNotMatch(bridge, /createGitLabTaskMutationProvider/);
