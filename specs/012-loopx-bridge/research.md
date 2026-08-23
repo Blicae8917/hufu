@@ -41,3 +41,18 @@
 - **Decision**: 仅在 `[Unreleased]` 增加一条设计 kit 说明。不把本票写入 `[0.1.0]`，不升版本。
 - **Rationale**: `0.1.0` 已由标签发布；设计合同属于未发布后续。`tests/release-010.test.ts` 锁定 `[0.1.0] - 2026-08-23` 行。
 - **Alternatives considered**: 改写 `0.1.0` 新增列表（会把未实现桥写进已发布版本）；不记 CHANGELOG（评审者难以发现本设计落地）。
+
+## 8. #68 固定 RunOnce 合同核验
+
+- **Source fact**: LoopX v0.5.2 commit `423035f402e2f1703f076c3cfe60c14c5803433f`
+  的公开执行结果使用 `mode=run_once`、`loopx_turn_execution_v0`；物质结果要求独立任务
+  Validator，committed 判据包含 committed Receipt、通过/进展 Validation，以及 durable
+  state write / quota spend。
+- **Decision**: Hufu 不复制该 transaction、quota 或 scheduler；只在注入式 RunOncePort 后
+  验证稳定 Turn / TypedResult / Effect / Receipt 引用链。一次调用后必须 readback，完整链前
+  不允许 next。
+- **Decision**: wrapper 位置由部署侧 Provider 明确配置，桥只持有
+  `runtime_locator_ref`。这同时支持 Windows wrapper 与其他 Host，而不把本机路径写入公开仓。
+- **Alternatives rejected**: 安装 `loopx` 作为 npm 依赖；vendor Python；从 Hufu 启动
+  Scheduler / while-loop；把 Codex CLI headless thread 当 Desktop Session；只看 execute 返回
+  而跳过 readback。

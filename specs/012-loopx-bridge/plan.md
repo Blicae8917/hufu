@@ -98,3 +98,25 @@ tests/
 ## Complexity Tracking
 
 > 无违规。本 PR 不增加运行时表面积。把失败 Adapter 测试留在 `tasks.md` 而不是本 PR，是为了遵守「本票不是实现授权」且保持 CI 绿色。
+
+## #68 实现增量（2026-08-23）
+
+Issue #68 在既有三端引用桥之上增加一个窄 RunOnce Consumer。兼容基线固定为 LoopX
+`v0.5.2` / `423035f402e2f1703f076c3cfe60c14c5803433f`。新增编译单元仅为
+`src/hufu/loopx-run-once.ts`；无新增依赖、网络、真实 Host、CLI、持久事件类型或后台进程。
+
+公开接口顺序为：
+
+```text
+BridgeActivationReceipt
+  -> Plan(ExecutionEnvelopeRef, SessionBindingRef)
+  -> pre-readback
+  -> one bounded RunOncePort.execute
+  -> independent TypedResult Validator
+  -> effect readback + Validator Receipt + final Receipt
+  -> next_allowed
+```
+
+显式 wrapper 路径属于部署侧 Provider 配置；Hufu 只绑定 `runtime_locator_ref`。Constitution
+复检通过：GitLab / GitHub 仍是任务正本；LoopX 控制面不复制；无 Scheduler/while-loop；
+缺失读回使用 `DATA_INSUFFICIENT`；失败/超时与重启不盲重试。

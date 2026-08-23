@@ -26,6 +26,7 @@ const REQUIRED_KIT_FILES = [
   "contracts/evidence.v1.md",
   "contracts/stay-on-side.v1.md",
   "contracts/008-non-promotion.v1.md",
+  "contracts/run-once.v1.md",
 ] as const;
 
 const DEPENDENCY_FIELDS = [
@@ -233,5 +234,27 @@ describe("012 LoopX Authority/Decision/Evidence bridge spec (#50)", () => {
     assert.match(changelog, /仅设计|不是 Adapter 实现授权/);
     assert.match(changelog, /loopx-mechanisms|机制记录口/);
     assert.match(changelog, /^## \[0\.1\.0\] - 2026-08-23$/m);
+  });
+
+  it("records the #68 run-once implementation increment without adding a control plane", () => {
+    const spec = readRepo(`${KIT_DIR}/spec.md`);
+    const plan = readRepo(`${KIT_DIR}/plan.md`);
+    const tasks = readRepo(`${KIT_DIR}/tasks.md`);
+    const model = readRepo(`${KIT_DIR}/data-model.md`);
+    const contract = readRepo(`${KIT_DIR}/contracts/run-once.v1.md`);
+    const corpus = `${spec}\n${plan}\n${tasks}\n${model}\n${contract}`;
+    assert.match(corpus, /#68/);
+    assert.match(corpus, /423035f402e2f1703f076c3cfe60c14c5803433f/);
+    assert.match(corpus, /BridgeActivationReceipt/);
+    assert.match(corpus, /runtime_locator_ref/);
+    assert.match(corpus, /ExecutionEnvelopeRef/);
+    assert.match(corpus, /SessionBindingRef/);
+    assert.match(corpus, /independent.*Validator|独立.*Validator/i);
+    assert.match(corpus, /readback/);
+    assert.match(corpus, /Receipt/);
+    assert.match(corpus, /一次.*bounded|single bounded|单次.*run-once/i);
+    assert.match(corpus, /不得.*while-loop|不实现.*Scheduler|no scheduler/i);
+    assert.match(tasks, /T019/);
+    assert.match(tasks, /T028/);
   });
 });
