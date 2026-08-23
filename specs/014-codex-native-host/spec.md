@@ -94,6 +94,12 @@ Claude / DeepSeek Harness / Codex 不是等价运行时。Codex App 可声明原
 - **FR-015**: Codex App工具参数 MUST 与当前Host合同一致：`create_thread`使用`prompt + target`，
   `send_message_to_thread`使用`prompt + threadId`；pending解析使用`list_threads`，不得把
   `clientThreadId`传给`read_thread`、`wait_threads`或send。
+- **FR-016**: `prepareStart` MUST 同时核验 `codex_app` capability 为 declared / observed /
+  qualified，且 actor RoleBinding、当前grant/revision、current execution envelope、work-item和
+  connected project与workspace Resolver结果exact绑定；调用方字符串、历史Receipt或prepared事件
+  不得产生或扩大授权。
+- **FR-017**: prepared action一旦已有completion receipt，`recoverPrepared` MUST 拒绝再次生成Host
+  call；active Turn的send拒绝不得由调用方通过`expectedIdle=false`放宽。
 
 ## Key Entities
 

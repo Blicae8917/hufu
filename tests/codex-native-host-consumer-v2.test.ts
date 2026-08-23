@@ -9,9 +9,11 @@ import {
   type CodexAppHostToolCall,
   type CodexAppWorkspaceResolver,
 } from "../src/hufu/codex-native-host.js";
+import { appendEvents } from "../src/hufu/storage.js";
 
 const FIXED_NOW = "2026-08-23T16:00:00.000Z";
 const PRIVATE_PROMPT = "private prompt bytes must stay outside the ledger";
+const CONTENT_DIGEST = `sha256:${"a".repeat(64)}`;
 
 function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), "hufu-codex-app-v2-"));
@@ -34,12 +36,94 @@ function workspaceResolver(): CodexAppWorkspaceResolver {
   };
 }
 
+function seedAuthority(
+  workspaceRoot: string,
+  envelopeId: string,
+  workItemRef: string,
+  options: {
+    readonly bindingId?: string;
+    readonly role?: string;
+  } = {},
+): void {
+  const bindingId = options.bindingId ?? "binding:example-owner";
+  const role = options.role ?? "owner";
+  appendEvents(workspaceRoot, [
+    {
+      actor_binding_ref: "human:example",
+      event_type: "hufu/project.connected",
+      idempotency_key: `project:${envelopeId}`,
+      payload: {
+        project_id: "example-project",
+        repository: "https://example.com/example.git",
+        stale_after_hours: 24,
+        task_authority: "local",
+      },
+    },
+    {
+      actor_binding_ref: "human:example",
+      event_type: "hufu/authorization_grant.issued",
+      idempotency_key: `grant:${envelopeId}`,
+      payload: {
+        grant_id: "grant:example",
+        issuer_id: "human:example",
+        revision: 1,
+        scope: { project_id: "example-project" },
+        scope_text: "example runtime scope",
+      },
+    },
+    {
+      actor_binding_ref: "human:example",
+      event_type: "hufu/decision.packet_recorded",
+      idempotency_key: `decision:${envelopeId}`,
+      payload: {
+        authority_scope_ref: { grant_id: "grant:example", revision: 1 },
+        content_digest: CONTENT_DIGEST,
+        decision_id: `decision:${envelopeId}`,
+        version: 1,
+      },
+    },
+    {
+      actor_binding_ref: "human:example",
+      event_type: "hufu/role_binding.established",
+      idempotency_key: `role:${envelopeId}`,
+      payload: {
+        binding_id: bindingId,
+        principal_id: "agent:example",
+        role,
+        scope_id: role === "project_lead" ? "example-project" : workItemRef,
+        scope_kind: role === "project_lead" ? "project" : "work_item",
+      },
+    },
+    {
+      actor_binding_ref: "human:example",
+      event_type: "hufu/decision.envelope_attached",
+      idempotency_key: `envelope:${envelopeId}`,
+      payload: {
+        content_digest: CONTENT_DIGEST,
+        decision_id: `decision:${envelopeId}`,
+        envelope_id: envelopeId,
+        executor_principal_id: "agent:example",
+        version: 1,
+        work_item_ids: [workItemRef],
+      },
+    },
+  ]);
+}
+
+const QUALIFIED_APP = {
+  declared: true,
+  observed: true,
+  qualified: true,
+} as const;
+
 describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
   it("persists prepare before the Host call and restores the completed binding after restart", async () => {
     await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:example", "work-item:example");
       const calls: CodexAppHostToolCall[] = [];
       const consumer = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
+        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -47,7 +131,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       });
 
       const prepared = consumer.prepareStart(
-        { envelope_id: "envelope:example" },
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:example" },
         "owner",
         {
           authority_ref: "grant:example",
@@ -88,9 +172,15 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       assert.equal(completed.binding.host_id, "host:example");
       assert.equal(completed.binding.cursor, "cursor:1");
       assert.equal(calls.length, 1);
+      assert.throws(
+        () => consumer.recoverPrepared(prepared.ref),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "CONTRACT_INVALID",
+      );
 
       const restarted = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
+        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -106,15 +196,17 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
 
   it("keeps clientThreadId pending until read_thread returns a stable threadId", async () => {
     await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:pending", "work-item:pending");
       const consumer = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
+        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
         workspaceRoot,
       });
       const start = consumer.prepareStart(
-        { envelope_id: "envelope:pending" },
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:pending" },
         "owner",
         {
           authority_ref: "grant:example",
@@ -145,6 +237,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
 
       const restarted = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
+        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
@@ -176,8 +269,10 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
 
   it("resolves message_ref outside the ledger and rejects a second send during an active Turn", async () => {
     await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:send", "work-item:send");
       const build = () => createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
+        hostCapability: QUALIFIED_APP,
         messageResolver: {
           resolve(message) {
             assert.equal(message.message_ref, "message:example");
@@ -190,7 +285,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       });
       const consumer = build();
       const start = consumer.prepareStart(
-        { envelope_id: "envelope:send" },
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:send" },
         "owner",
         {
           authority_ref: "grant:example",
@@ -248,20 +343,32 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         (error: unknown) =>
           error instanceof Error && "code" in error && error.code === "SESSION_TURN_BUSY",
       );
+      assert.throws(
+        () => consumer.prepareSend(
+          started.binding.ref,
+          { message_ref: "message:example" },
+          false,
+          "send-example-bypass",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "SESSION_TURN_BUSY",
+      );
     });
   });
 
   it("prepares one bounded wait and durably advances hostId/cursor only after completion", async () => {
     await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:wait", "work-item:wait");
       const consumer = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
+        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
         workspaceRoot,
       });
       const start = consumer.prepareStart(
-        { envelope_id: "envelope:wait" },
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:wait" },
         "owner",
         {
           authority_ref: "grant:example",
@@ -322,6 +429,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       assert.deepEqual(
         createCodexAppConsumerV2({
           actorBindingRef: "binding:example-owner",
+          hostCapability: QUALIFIED_APP,
           messageResolver: { resolve: () => "unused" },
           now: () => new Date(FIXED_NOW),
           workspaceResolver: workspaceResolver(),
@@ -337,15 +445,20 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
 
   it("uses logical handoff plus generation fencing and releases only after Host readback", async () => {
     await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:handoff", "work-item:handoff", {
+        bindingId: "binding:example-lead",
+        role: "project_lead",
+      });
       const consumer = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-lead",
+        hostCapability: QUALIFIED_APP,
         messageResolver: { resolve: () => "unused" },
         now: () => new Date(FIXED_NOW),
         workspaceResolver: workspaceResolver(),
         workspaceRoot,
       });
       const firstPrepared = consumer.prepareStart(
-        { envelope_id: "envelope:handoff" },
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:handoff" },
         "project_lead",
         {
           authority_ref: "grant:example",
@@ -357,7 +470,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       );
       assert.deepEqual(
         consumer.prepareStart(
-          { envelope_id: "envelope:handoff" },
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:handoff" },
           "project_lead",
           {
             authority_ref: "grant:example",
@@ -371,7 +484,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       );
       assert.throws(
         () => consumer.prepareStart(
-          { envelope_id: "envelope:handoff" },
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:handoff" },
           "project_lead",
           {
             authority_ref: "grant:example",
@@ -395,7 +508,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       }
       assert.deepEqual(
         consumer.prepareStart(
-          { envelope_id: "envelope:handoff" },
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:handoff" },
           "project_lead",
           {
             authority_ref: "grant:example",
@@ -409,7 +522,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       );
       assert.throws(
         () => consumer.prepareStart(
-          { envelope_id: "envelope:different" },
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:different" },
           "project_lead",
           {
             authority_ref: "grant:example",
@@ -420,7 +533,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
           "start-handoff-1",
         ),
         (error: unknown) =>
-          error instanceof Error && "code" in error && error.code === "LEDGER_DIGEST_CONFLICT",
+          error instanceof Error && "code" in error && error.code === "DATA_INSUFFICIENT",
       );
 
       const handedOff = consumer.recordLogicalHandoff(
@@ -431,7 +544,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       assert.equal(consumer.interrupt(first.binding.ref).availability, "unavailable");
 
       const successorPrepared = consumer.prepareStart(
-        { envelope_id: "envelope:handoff" },
+        { content_digest: CONTENT_DIGEST, envelope_id: "envelope:handoff" },
         "project_lead",
         {
           authority_ref: "grant:example",
@@ -475,6 +588,58 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       assert.equal(released.availability, "available");
       assert.equal(released.released, true);
       assert.equal(released.binding?.state, "released");
+    });
+  });
+
+  it("fails start before prepare when Host capability or current authority scope is missing", async () => {
+    await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:scope", "work-item:scope");
+      const base = {
+        actorBindingRef: "binding:example-owner",
+        messageResolver: { resolve: () => "unused" },
+        now: () => new Date(FIXED_NOW),
+        workspaceResolver: workspaceResolver(),
+        workspaceRoot,
+      };
+      const unqualified = createCodexAppConsumerV2({
+        ...base,
+        hostCapability: { declared: true, observed: true, qualified: false },
+      });
+      assert.throws(
+        () => unqualified.prepareStart(
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:scope" },
+          "owner",
+          {
+            authority_ref: "grant:example",
+            channel: "codex-app",
+            work_item_ref: "work-item:scope",
+            workspace_ref: "workspace:example",
+          },
+          "start-unqualified",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "HOST_CAPABILITY_REJECTED",
+      );
+
+      const qualified = createCodexAppConsumerV2({
+        ...base,
+        hostCapability: QUALIFIED_APP,
+      });
+      assert.throws(
+        () => qualified.prepareStart(
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:scope" },
+          "owner",
+          {
+            authority_ref: "grant:other",
+            channel: "codex-app",
+            work_item_ref: "work-item:scope",
+            workspace_ref: "workspace:example",
+          },
+          "start-wrong-scope",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "GRANT_SCOPE_EXCEEDED",
+      );
     });
   });
 });

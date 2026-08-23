@@ -855,6 +855,7 @@ export type CodexAppReleaseCompletion =
 
 export interface CreateCodexAppConsumerV2Options {
   readonly actorBindingRef: string;
+  readonly hostCapability: CapabilityCheck;
   readonly messageResolver: CodexAppMessageResolver;
   readonly now?: () => Date;
   readonly workspaceResolver: CodexAppWorkspaceResolver;
@@ -1027,7 +1028,18 @@ export function createCodexAppConsumerV2(
     workspaceRef: NativeWorkspaceRef,
     idempotencyKey: string,
   ): CodexAppPreparedAction {
+    if (
+      !options.hostCapability.declared ||
+      !options.hostCapability.observed ||
+      !options.hostCapability.qualified
+    ) {
+      throw new CommandError(
+        "HOST_CAPABILITY_REJECTED",
+        "codex_app capability is not declared, observed, and qualified",
+      );
+    }
     const envelopeId = requiredText(envelopeRef.envelope_id, "envelope_id");
+    const envelopeDigest = requiredText(envelopeRef.content_digest, "envelope content_digest");
     const normalizedRole = requiredText(role, "role");
     const actionIdempotencyKey = requiredText(idempotencyKey, "idempotency_key");
     const target = options.workspaceResolver.resolve(workspaceRef);
@@ -1058,6 +1070,7 @@ export function createCodexAppConsumerV2(
       authority_ref: authorityRef,
       call,
       channel,
+      envelope_content_digest: envelopeDigest,
       correlation_title: correlationTitle,
       envelope_ref: envelopeId,
       operation_kind: "start",
@@ -1078,6 +1091,14 @@ export function createCodexAppConsumerV2(
 
     let preparedPayload: Record<string, unknown> | undefined;
     mutateLedger(workspaceRoot, (current, append) => {
+      assertStartAuthority(current, {
+        actor_binding_ref: actorBindingRef,
+        envelope_content_digest: envelopeDigest,
+        envelope_id: envelopeId,
+        project_id: projectId,
+        role: normalizedRole,
+        workspace: workspaceRef,
+      });
       const priorPrepared = findRuntimePrepared(current, operationId);
       if (priorPrepared !== undefined) {
         const priorRequest = requiredRecord(
@@ -1428,7 +1449,7 @@ export function createCodexAppConsumerV2(
     if (current.state !== "ready" || current.host_thread_ref === undefined) {
       throw new CommandError("DATA_INSUFFICIENT", "send requires a ready session binding");
     }
-    if (expectedIdle && !current.idle) {
+    if (!current.idle) {
       throw new CommandError("SESSION_TURN_BUSY", "active Turn rejects an additional message");
     }
     const ref = {
@@ -1866,9 +1887,16 @@ export function createCodexAppConsumerV2(
         operation_id: requiredText(prepared.operation_id, "operation_id"),
         packet_digest: requiredText(prepared.packet_digest, "packet_digest"),
       };
-      const payload = findRuntimePrepared(events(), ref.operation_id);
+      const current = events();
+      const payload = findRuntimePrepared(current, ref.operation_id);
       if (payload === undefined || payload["canonical_payload_digest"] !== ref.packet_digest) {
         throw new CommandError("DATA_INSUFFICIENT", "prepared Host action does not exist");
+      }
+      if (findRuntimeReceipt(current, ref.operation_id) !== undefined) {
+        throw new CommandError(
+          "CONTRACT_INVALID",
+          "completed Host action cannot be recovered for another call",
+        );
       }
       return hydratePrepared(payload);
     },
@@ -1969,6 +1997,130 @@ function bindingSlotDigest(binding: CodexAppSessionBinding): string {
     role: binding.role,
     work_item_ref: binding.work_item_ref,
   });
+}
+
+interface StartAuthorityInput {
+  readonly actor_binding_ref: string;
+  readonly envelope_content_digest: string;
+  readonly envelope_id: string;
+  readonly project_id: string;
+  readonly role: string;
+  readonly workspace: NativeWorkspaceRef;
+}
+
+function assertStartAuthority(
+  events: readonly EventEnvelope[],
+  input: StartAuthorityInput,
+): void {
+  const project = [...events]
+    .reverse()
+    .find((event) => event.event_type === "hufu/project.connected");
+  if (project?.payload["project_id"] !== input.project_id) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "workspace resolver project is outside the connected Hufu project",
+    );
+  }
+
+  const grant = [...events]
+    .reverse()
+    .find((event) => event.event_type === "hufu/authorization_grant.issued");
+  const grantId = optionalText(grant?.payload["grant_id"]);
+  const grantRevision = grant?.payload["revision"];
+  if (
+    grantId === undefined ||
+    typeof grantRevision !== "number" ||
+    !Number.isSafeInteger(grantRevision)
+  ) {
+    throw new CommandError("DATA_INSUFFICIENT", "current Hufu grant is unavailable");
+  }
+  if (input.workspace.authority_ref !== grantId) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "workspace authority_ref does not match the current Hufu grant",
+    );
+  }
+
+  const envelope = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/decision.envelope_attached" &&
+        event.payload["envelope_id"] === input.envelope_id,
+    );
+  if (envelope === undefined) {
+    throw new CommandError("DATA_INSUFFICIENT", "execution envelope does not exist");
+  }
+  if (envelope.payload["content_digest"] !== input.envelope_content_digest) {
+    throw new CommandError("DECISION_CONFLICT", "execution envelope digest is not current");
+  }
+  const decisionId = optionalText(envelope.payload["decision_id"]);
+  const latestEnvelope = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/decision.envelope_attached" &&
+        event.payload["decision_id"] === decisionId,
+    );
+  if (latestEnvelope?.payload["envelope_id"] !== input.envelope_id) {
+    throw new CommandError("DECISION_CONFLICT", "execution envelope has been superseded");
+  }
+  const workItems = envelope.payload["work_item_ids"];
+  if (!Array.isArray(workItems) || !workItems.includes(input.workspace.work_item_ref)) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "work item is outside the current execution envelope",
+    );
+  }
+
+  const packet = events.find(
+    (event) =>
+      event.event_type === "hufu/decision.packet_recorded" &&
+      event.payload["decision_id"] === decisionId,
+  );
+  const authorityScope = asRecord(packet?.payload["authority_scope_ref"]);
+  if (
+    authorityScope?.["grant_id"] !== grantId ||
+    authorityScope["revision"] !== grantRevision
+  ) {
+    throw new CommandError(
+      "GRANT_SCOPE_EXCEEDED",
+      "decision authority scope does not match the current Hufu grant",
+    );
+  }
+
+  const supersededBindings = new Set(
+    events
+      .filter((event) => event.event_type === "hufu/role_binding.established")
+      .map((event) => optionalText(event.payload["supersedes"]))
+      .filter((value): value is string => value !== undefined),
+  );
+  const roleBinding = [...events]
+    .reverse()
+    .find(
+      (event) =>
+        event.event_type === "hufu/role_binding.established" &&
+        event.payload["binding_id"] === input.actor_binding_ref &&
+        !supersededBindings.has(input.actor_binding_ref),
+    );
+  if (
+    roleBinding === undefined ||
+    roleBinding.payload["role"] !== input.role ||
+    roleBinding.payload["principal_id"] !== envelope.payload["executor_principal_id"]
+  ) {
+    throw new CommandError(
+      "ROLE_NOT_ACTIVE",
+      "actor binding is not the current envelope executor role",
+    );
+  }
+  const expectedScope = roleBinding.payload["scope_kind"] === "project"
+    ? input.project_id
+    : roleBinding.payload["scope_kind"] === "mission"
+      ? input.envelope_id
+      : input.workspace.work_item_ref;
+  if (roleBinding.payload["scope_id"] !== expectedScope) {
+    throw new CommandError("GRANT_SCOPE_EXCEEDED", "actor binding scope does not match start");
+  }
 }
 
 function preparedActionFromPayload(payload: Record<string, unknown>): CodexAppPreparedAction {
