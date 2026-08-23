@@ -12,6 +12,13 @@
 
 **Implementation Issue**: [#58](https://github.com/Blicae8917/hufu/issues/58)
 
+**RunOnce Implementation Issue**: [#68](https://github.com/Blicae8917/hufu/issues/68)
+
+> **#68 增量优先级**：本文中“本波仍不交付 Adapter / 不改 `src/`”是 #50 设计波及
+> #58 首批引用桥实现的历史边界。#68 已另获授权，交付固定 LoopX v0.5.2 的注入式
+> RunOnce Consumer；若历史措辞与本增量冲突，以本节和
+> `contracts/run-once.v1.md` 为准。#68 仍不交付真实 Host、Scheduler 或常驻循环。
+
 **Parent Contract**: [ADR 0006](../../docs/adr/0006-upstream-positioning.md)（产品定位与三类后续能力）、[ADR 0003](../../docs/adr/0003-cordis-first-plugin-architecture.md)（已被 0006 修订的 LoopX 定位）、[008-loopx-engine](../008-loopx-engine/spec.md)（已交付机制记录口，不是本桥）、[005-zero-copy-decision](../005-zero-copy-decision/spec.md)（canonical Decision 引用）、[003-local-ledger-commands](../003-local-ledger-commands/spec.md)（AuthorizationGrant 与本机正本）
 
 **ADR class**: 第 (2) 类。ADR 0006「三类后续能力」历史清单仍为：(1) 自建 GitLab AuthorityProvider；(2) Hufu↔LoopX 的 Authority / Decision / Evidence 桥；(3) 企业项目 Renderer。#50 / 本 kit 只属于第 (2) 类，不实现 (1) 或 (3)。ADR 0007 已授权实现本类；合同基线为 LoopX **v0.5.2**（release `423035f402e2f1703f076c3cfe60c14c5803433f`），不 vendoring，不依赖 `loopx`。最新 LoopX `main` 仅供研究。
@@ -73,6 +80,25 @@
 
 ---
 
+### User Story 4 - 固定基线的一次 RunOnce 可以安全计划、执行和恢复 (Priority: P1)
+
+维护者注入一个已 qualified 的 RunOncePort、独立 Validator 和显式
+`BridgeActivationReceipt` 后，可以为真实 `ExecutionEnvelopeRef` + `SessionBindingRef`
+执行一次 bounded run-once；下一 Turn 只在 Effect readback 与 Receipt 完整后放行。
+
+**Independent Test**: public-safe fake port 覆盖默认关闭、能力不合格、成功、失败、超时、
+伪造 TypedResult、readback 缺失、重复 Turn 与重启恢复，且 RunOncePort 最多调用一次。
+
+**Acceptance Scenarios**:
+
+1. 没有 AuthorityResolver 从 Hufu current Ledger/status 返回的 fresh validation receipt、显式 activation receipt、耐久 attempt store，或没有齐备的 Adapter / Validator / readback 时，只能 Plan，不能 Execute。
+2. Plan 必须包含 opaque authority ref、Resolver 回执、真实 Envelope、真实 SessionBinding generation、固定 v0.5.2 commit 与稳定 turn key。
+3. Execute 前先 readback；既有完整结果直接恢复，prepared / unavailable 不盲重试。
+4. 独立 Validator 拒绝伪造结果时，不形成下一 Turn。
+5. 只有 TypedResultRef、EffectRef、Validator Receipt、Effect readback 和 Receipt 全部匹配时，`next_allowed=true`。
+
+---
+
 ### Edge Cases
 
 - 本 kit 的存在不得改变 #6 / #8 / #9 已交付命令合同。未另立实现授权时，不得出现桥 Adapter。
@@ -104,6 +130,20 @@
 - **FR-013**: 每个已连接 Project MUST 仍然恰好报告一个 `task_authority`。LoopX、引擎、桥 Adapter 均 MUST NOT 加入该枚举。
 - **FR-014**: 缺失的墙钟、用量、读回或上游观测 MUST NOT 写成 `0`。只能报告 `unavailable` 或 `data_insufficient`。
 - **FR-015**: 本 kit MUST 附带会通过的设计约束测试。失败的 Adapter / 实现测试 MUST 只写在 `tasks.md` 供 #58 实现 PR，MUST NOT 在本波落地以免破坏 CI。版本保持 `0.1.0`。MUST NOT 引入 `loopx` 依赖或 vendoring 上游源码。后续实现结束 MUST 报告 `IMPLEMENTATION_COMPLETE` 或类型化 `NO_GO`，MUST NOT 把「CI 绿」写成生产已自动化。
+- **FR-016**: #68 MUST 固定 LoopX `v0.5.2` / `423035f402e2f1703f076c3cfe60c14c5803433f`，不得使用 moving `main` 作为运行合同。
+- **FR-017**: 桥 MUST 默认关闭；只有 digest 正确、能力齐备、Adapter 与 Validator 身份分离的 `BridgeActivationReceipt` 可以启用。
+- **FR-018**: `prepareOutboundTurn` MUST 绑定真实 `ExecutionEnvelopeRef` 和真实 `SessionBindingRef`；MUST NOT 从 RoleBinding / project_lead 推导 generation。
+- **FR-019**: RunOncePort MUST 由 Consumer 注入；没有 Port 时 MUST 仍可 Plan，但 MUST NOT Execute 或静默降级。
+- **FR-020**: 每个 Plan MUST 为单次 bounded run-once，`max_invocations=1`；不得实现 Scheduler、while-loop 或持续唤醒。
+- **FR-021**: 物质 TypedResult MUST 经独立 Validator；Validator 身份 MUST 与 Adapter 身份不同。
+- **FR-022**: 只有 Effect readback、Validator Receipt 与最终 Receipt 完整绑定同一 Turn 后，才允许下一 Turn。
+- **FR-023**: 失败 / 超时 / 重启 MUST 先 readback；complete 复用、prepared / unavailable 失败关闭，不得盲目重试。
+- **FR-024**: 显式 wrapper 只能由 Provider 自有配置解析；桥只携带 `runtime_locator_ref`，不得持久化本机路径正文。
+- **FR-025**: #68 MUST 不增加 `loopx` 依赖、不 vendor、不安装 LoopX、不调用真实 Host；测试只使用 public-safe fake port。
+- **FR-026**: Activation Receipt 只表达能力，不授权执行。MUST NOT 接受裸 AuthorityCrossing；`execution_allowed=true` MUST 由独立 AuthorityResolver 按 opaque `authority_ref` 从 Hufu current Ledger/status 读回并签发 fresh receipt，绑定 current grant revision、task、Decision/Envelope、SessionBinding generation，再同时满足实际注入的 RunOncePort、耐久 attempt store、独立 Validator / readback。
+- **FR-027**: 首次 execute 前 MUST 用 `turn_key` CAS 耐久写入 `prepared` attempt；只有本次创建成功才能调用 Port。
+- **FR-028**: 已存在 `prepared` / `attempted` 记录且效果 readback 仍不完整时 MUST 只允许 readback 或 typed stop，MUST NOT 自动第二次 execute。
+- **FR-029**: execute 前 MUST 再次调用同一 AuthorityResolver；stale grant revision、错 Envelope/Session、伪造 fresh Authority 或 Resolver unavailable 均 MUST 在任何 runtime effect 前失败关闭。
 
 ### Key Entities
 

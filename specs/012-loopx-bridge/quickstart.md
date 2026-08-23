@@ -39,3 +39,19 @@ git diff --check
 ## 未来实现 PR（#58）
 
 #58 已获 ADR 0007 授权。实现 PR 必须按 `tasks.md` **第一条**编写会失败的 Adapter 测试。本波到设计约束测试通过即结束。
+
+## #68 RunOnce Consumer 定向验收
+
+```bash
+pnpm exec tsc
+node --test dist/tests/loopx-run-once.test.js dist/tests/loopx-bridge.test.js
+```
+
+预期：默认 bridge disabled；capability receipt 或裸 fresh AuthorityCrossing 单独存在仍不可执行；
+独立 AuthorityResolver 按 opaque authority ref 从 Hufu current Ledger/status 返回 fresh receipt，且 qualified
+`BridgeActivationReceipt`、实际 Port、耐久 attempt store、独立 Validator/readback 齐备后 Plan 才绑定可执行的真实
+`ExecutionEnvelopeRef` / `SessionBindingRef`；public-safe fake port 最多执行一次；独立 Validator、
+readback 与 Receipt 完整前 `next_allowed` 不成立；失败、超时、重复 Turn 和重启均不盲重试。
+
+部署侧可把显式 wrapper 路径绑定到 `runtime_locator_ref`，但本仓测试不调用真实 wrapper、
+不安装 LoopX，也不自行启动常驻循环。
