@@ -3,7 +3,12 @@ import { randomUUID } from "node:crypto";
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
 import { parseThisPublicGithubRepository } from "./github-ref.js";
+import {
+  declareSelfHostedGitLabAuthority,
+  type GitLabAuthorityIdentitySource,
+} from "./gitlab-authority.js";
 import { parseGitLabProject } from "./gitlab-ref.js";
+import { type SecretProvider } from "./secret-provider.js";
 import { type EventDraft, mutateLedger } from "./storage.js";
 
 export interface ConnectInput {
@@ -14,6 +19,14 @@ export interface ConnectInput {
   readonly grantScope: string;
   readonly projectLead?: string;
   readonly grantExpires?: string;
+  readonly instanceKind?: string;
+  readonly instanceOrigin?: string;
+  readonly allowedInstanceOrigins?: readonly string[];
+  readonly identitySource?: GitLabAuthorityIdentitySource;
+  readonly secretProvider?: SecretProvider;
+  readonly writeBackEnabled?: boolean;
+  readonly writeBackCapability?: string;
+  readonly constitutionAmended?: boolean;
 }
 
 export interface ConnectResult {
@@ -25,6 +38,10 @@ export interface ConnectResult {
   readonly project_lead_binding_id: string;
   readonly ledger_seq_end: number;
   readonly repository_canonical?: string;
+  readonly instance_kind?: "self_hosted";
+  readonly instance_origin?: string;
+  readonly write_back_enabled?: false;
+  readonly authority_capability?: "read_projection";
 }
 
 interface NormalizedConnect {
@@ -37,6 +54,8 @@ interface NormalizedConnect {
   readonly grantExpires?: string;
   readonly grantId: string;
   readonly bindingId: string;
+  readonly instanceKind?: "self_hosted";
+  readonly instanceOrigin?: string;
 }
 
 interface BootstrapEvents {
@@ -84,6 +103,8 @@ function normalizeConnectInput(input: ConnectInput): NormalizedConnect {
   const requestedAuthority = requiredName(input.taskAuthority, "task-authority");
   let taskAuthority: "local" | "github" | "gitlab";
   let repository = requiredName(input.repository, "repository");
+  let instanceKind: "self_hosted" | undefined;
+  let instanceOrigin: string | undefined;
   if (requestedAuthority === "local") {
     taskAuthority = "local";
   } else if (requestedAuthority === "github") {
@@ -91,7 +112,27 @@ function normalizeConnectInput(input: ConnectInput): NormalizedConnect {
     repository = parseThisPublicGithubRepository(repository);
   } else if (requestedAuthority === "gitlab") {
     taskAuthority = "gitlab";
-    repository = parseGitLabProject(repository);
+    const wantsSelfHosted =
+      (input.instanceKind !== undefined && input.instanceKind.trim() !== "") ||
+      (input.instanceOrigin !== undefined && input.instanceOrigin.trim() !== "");
+    if (wantsSelfHosted) {
+      const declared = declareSelfHostedGitLabAuthority({
+        instanceKind: input.instanceKind ?? "",
+        instanceOrigin: input.instanceOrigin ?? "",
+        projectPath: repository,
+        allowedInstanceOrigins: input.allowedInstanceOrigins,
+        identitySource: input.identitySource ?? "explicit",
+        secretProvider: input.secretProvider,
+        writeBackEnabled: input.writeBackEnabled,
+        writeBackCapability: input.writeBackCapability,
+        constitutionAmended: input.constitutionAmended,
+      });
+      repository = declared.project_path;
+      instanceKind = declared.instance_kind;
+      instanceOrigin = declared.instance_origin;
+    } else {
+      repository = parseGitLabProject(repository);
+    }
   } else {
     throw new CommandError(
       "TASK_AUTHORITY_UNSUPPORTED",
@@ -130,6 +171,8 @@ function normalizeConnectInput(input: ConnectInput): NormalizedConnect {
     grantExpires,
     grantId: `grant:${projectId}`,
     bindingId: `binding:${projectId}:project_lead`,
+    instanceKind,
+    instanceOrigin,
   };
 }
 
@@ -154,6 +197,14 @@ function buildBootstrapDrafts(input: NormalizedConnect): EventDraft[] {
       command_classes: "*",
       path_glob: "*",
       repository: input.repository,
+      ...(input.instanceKind === undefined
+        ? {}
+        : {
+            instance_kind: input.instanceKind,
+            instance_origin: input.instanceOrigin,
+            capability: "read_projection",
+            write_back_enabled: false,
+          }),
     },
     scope_text: input.grantScope,
   };
@@ -172,6 +223,14 @@ function buildBootstrapDrafts(input: NormalizedConnect): EventDraft[] {
         repository: input.repository,
         stale_after_hours: 24,
         task_authority: input.taskAuthority,
+        ...(input.instanceKind === undefined
+          ? {}
+          : {
+              instance_kind: input.instanceKind,
+              instance_origin: input.instanceOrigin,
+              write_back_enabled: false,
+              authority_capability: "read_projection",
+            }),
       },
     },
     {
@@ -244,6 +303,8 @@ function bootstrapMatches(
     existing.connected.payload["project_id"] === input.projectId &&
     existing.connected.payload["repository"] === input.repository &&
     existing.connected.payload["task_authority"] === input.taskAuthority &&
+    existing.connected.payload["instance_kind"] === input.instanceKind &&
+    existing.connected.payload["instance_origin"] === input.instanceOrigin &&
     existing.commander.payload["commander_id"] === input.commander &&
     existing.grant.payload["scope_text"] === input.grantScope &&
     existing.grant.payload["expires_at"] === input.grantExpires &&
@@ -271,6 +332,17 @@ function toResult(
     ledger_seq_end: last?.ledger_seq ?? 4,
   };
   if (taskAuthority === "github" || taskAuthority === "gitlab") {
+    const instanceKind = bootstrap.connected.payload["instance_kind"];
+    if (instanceKind === "self_hosted") {
+      return {
+        ...result,
+        repository_canonical: repository,
+        instance_kind: "self_hosted",
+        instance_origin: String(bootstrap.connected.payload["instance_origin"]),
+        write_back_enabled: false,
+        authority_capability: "read_projection",
+      };
+    }
     return { ...result, repository_canonical: repository };
   }
   return result;

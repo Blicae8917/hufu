@@ -58,6 +58,40 @@ jobs:
           git diff --check origin/main...HEAD
           git diff --check
 
+  gates-windows:
+    name: gates-windows
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.19.0"
+          cache: pnpm
+
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm test
+        run: pnpm test
+
+      - name: node scripts/check-version.mjs
+        run: node scripts/check-version.mjs
+
+      - name: git diff --check
+        run: |
+          git fetch --no-tags origin main
+          git diff --check origin/main...HEAD
+          git diff --check
+
   upstream-observe:
     name: upstream-observe
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

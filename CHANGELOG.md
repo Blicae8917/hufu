@@ -6,8 +6,13 @@
 
 ### 新增
 
+- 自建 GitLab 认证只读 AuthorityProvider（#53）：独立 `gitlab-instance:` 身份、指挥官 allowlist 与宿主注入凭据；仅受控 GET 投影；失败保留缓存；不写回。007 `gitlab.com` 只读合同不变。
 - 自建 GitLab AuthorityProvider 设计合同（#49 / `specs/011-gitlab-authority`）：仅设计，不授权 Adapter 实现；Constitution 写回禁令不因本 Kit 修订。
 - Hufu↔LoopX Authority / Decision / Evidence 桥设计合同（#50 / `specs/012-loopx-bridge/`）：仅设计，不是 Adapter 实现授权；008 `loopx-mechanisms` 仍只是须显式选用的机制记录口。
+
+### 变更
+
+- Windows 与 GitHub Actions 的 PASS 口径显式化：POSIX executable-bit / bash helpers 与 pack-surface 路径分隔隔离；CI 增加 `windows-latest` 作业。
 
 ## [0.1.0] - 2026-08-23
 

@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { CommandError } from "./errors.js";
 import { parseExternalRef } from "./github-ref.js";
+import { connectedInstanceIdentity } from "./gitlab-authority.js";
 import { readGitLabProjectionCache } from "./gitlab-cache.js";
+import { readGitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
+import { parseGitLabInstanceExternalRef } from "./gitlab-instance-ref.js";
 import { parseGitLabExternalRef } from "./gitlab-ref.js";
 import { readProjectionCache } from "./projection-cache.js";
 import { projectCurrentView } from "./projector.js";
@@ -56,11 +59,20 @@ export function recordHandoff(
       taskAuthority === "github"
         ? readProjectionCache(workspaceRoot)
         : undefined;
+    const identity = connectedInstanceIdentity(connected?.payload ?? {});
     const gitlabCache =
-      taskAuthority === "gitlab"
+      taskAuthority === "gitlab" && identity === undefined
         ? readGitLabProjectionCache(workspaceRoot)
         : undefined;
-    const view = projectCurrentView(events, { cache, gitlabCache });
+    const gitlabInstanceCache =
+      taskAuthority === "gitlab" && identity !== undefined
+        ? readGitLabInstanceProjectionCache(workspaceRoot)
+        : undefined;
+    const view = projectCurrentView(events, {
+      cache,
+      gitlabCache,
+      gitlabInstanceCache,
+    });
     if (view.authorization_grant.availability !== "available") {
       throw new CommandError(
         "DATA_INSUFFICIENT",
@@ -86,15 +98,28 @@ export function recordHandoff(
         );
       }
     } else if (taskAuthority === "gitlab") {
-      const parsed = parseGitLabExternalRef(workItemId);
-      const cached = gitlabCache?.items.find(
-        (item) => item.external_ref === parsed.external_ref,
-      );
-      if (cached === undefined) {
-        throw new CommandError(
-          "DATA_INSUFFICIENT",
-          `work item ${parsed.external_ref} is not in the projection cache`,
+      if (identity !== undefined) {
+        const parsed = parseGitLabInstanceExternalRef(workItemId);
+        const cached = gitlabInstanceCache?.items.find(
+          (item) => item.external_ref === parsed.external_ref,
         );
+        if (cached === undefined) {
+          throw new CommandError(
+            "DATA_INSUFFICIENT",
+            `work item ${parsed.external_ref} is not in the projection cache`,
+          );
+        }
+      } else {
+        const parsed = parseGitLabExternalRef(workItemId);
+        const cached = gitlabCache?.items.find(
+          (item) => item.external_ref === parsed.external_ref,
+        );
+        if (cached === undefined) {
+          throw new CommandError(
+            "DATA_INSUFFICIENT",
+            `work item ${parsed.external_ref} is not in the projection cache`,
+          );
+        }
       }
     } else if (findWorkItem(events, workItemId) === undefined) {
       throw new CommandError(

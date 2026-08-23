@@ -14,7 +14,8 @@ function readRepo(relativePath: string): string {
 }
 
 function packedPaths(): string[] {
-  const result = spawnSync("npm", ["pack", "--dry-run", "--json"], {
+  const command = process.platform === "win32" ? "npm.cmd" : "npm";
+  const result = spawnSync(command, ["pack", "--dry-run", "--json"], {
     cwd: repoRoot,
     encoding: "utf8",
     env: process.env,
@@ -25,7 +26,7 @@ function packedPaths(): string[] {
   }>;
   const files = parsed[0]?.files ?? [];
   return files
-    .map((file) => file.path ?? "")
+    .map((file) => (file.path ?? "").replace(/\\/g, "/"))
     .filter((path) => path.length > 0);
 }
 

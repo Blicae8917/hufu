@@ -132,6 +132,7 @@ export function validateTypedResultInput(
   if (
     turnRef.startsWith("github:") ||
     turnRef.startsWith("gitlab:") ||
+    turnRef.startsWith("gitlab-instance:") ||
     /^goal[-_]/i.test(turnRef) ||
     /\/goal\//i.test(turnRef)
   ) {

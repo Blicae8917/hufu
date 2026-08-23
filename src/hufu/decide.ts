@@ -37,7 +37,10 @@ import {
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError, isJsonObject } from "./errors.js";
 import { parseExternalRef } from "./github-ref.js";
+import { connectedInstanceIdentity } from "./gitlab-authority.js";
 import { readGitLabProjectionCache } from "./gitlab-cache.js";
+import { readGitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
+import { parseGitLabInstanceExternalRef } from "./gitlab-instance-ref.js";
 import { parseGitLabExternalRef } from "./gitlab-ref.js";
 import {
   currentRebaseFingerprint,
@@ -830,6 +833,18 @@ function assertWorkItemExists(
     return;
   }
   if (authority === "gitlab") {
+    const identity = connectedInstanceIdentity(connected?.payload ?? {});
+    if (identity !== undefined) {
+      const parsed = parseGitLabInstanceExternalRef(taskRef);
+      const cache = readGitLabInstanceProjectionCache(workspaceRoot);
+      if (cache?.items.some((item) => item.external_ref === parsed.external_ref) !== true) {
+        throw new CommandError(
+          "DATA_INSUFFICIENT",
+          "gitlab instance task_ref is not in the projection cache",
+        );
+      }
+      return;
+    }
     const parsed = parseGitLabExternalRef(taskRef);
     const cache = readGitLabProjectionCache(workspaceRoot);
     if (cache?.items.some((item) => item.external_ref === parsed.external_ref) !== true) {

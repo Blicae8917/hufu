@@ -11,6 +11,8 @@ const powershellDir = join(repoRoot, ".specify", "scripts", "powershell");
 const agentsSkillsDir = join(repoRoot, ".agents", "skills");
 const claudeSkillsDir = join(repoRoot, ".claude", "skills");
 
+const isWindows = process.platform === "win32";
+
 const SCRIPT_NAMES = [
   "check-prerequisites",
   "common",
@@ -65,6 +67,9 @@ describe("contributor toolchain (#24)", () => {
       const sh = join(bashDir, `${name}.sh`);
       assert.equal(existsSync(ps1), true, `expected ${ps1}`);
       assert.equal(existsSync(sh), true, `expected ${sh}`);
+      if (isWindows) {
+        continue;
+      }
       assert.equal(
         spawnSync("test", ["-x", sh], { encoding: "utf8" }).status,
         0,
@@ -123,7 +128,9 @@ describe("contributor toolchain (#24)", () => {
     assert.match(fixTemplate, /父合同/);
   });
 
-  it("runs speckit bash helpers without pwsh and keeps JSON fields aligned", () => {
+  it("runs speckit bash helpers without pwsh and keeps JSON fields aligned", {
+    skip: isWindows,
+  }, () => {
     const featureDir = join(repoRoot, "specs", "009-pilot-gate");
     const env = {
       SPECIFY_FEATURE_DIRECTORY: featureDir,
