@@ -8,27 +8,27 @@
 
 ## Phase 1: 未来实现的失败测试
 
-- [ ] T001 [P] 在 `tests/gitlab-task-mutation-provider.test.ts` 写失败测试：只读 `GitLabPort` 仍无写方法；独立端口只接受五种 kind
-- [ ] T002 [P] 写失败测试：缺少任一绑定字段则 preview 失败；同一 `effect_id` + 不同 digest 冲突停止
-- [ ] T003 [P] 写失败测试：无 `transport_security_exception_ref` 的 HTTP 写失败关闭；只读 allowlist 不足
-- [ ] T004 [P] 写失败测试：`close_issue` 在 Evidence 不全或 readback `data_insufficient` 时不得关闭；真实项目 execute 被拒绝，只允许 preview
+- [x] T001 [P] 在 `tests/gitlab-task-mutation-provider.test.ts` 写失败测试：只读 `GitLabPort` 仍无写方法；独立端口只接受五种 kind
+- [x] T002 [P] 写失败测试：缺少任一绑定字段则 preview 失败；同一 `effect_id` + 不同 digest 冲突停止
+- [x] T003 [P] 写失败测试：无 `transport_security_exception_ref` 的 HTTP 写失败关闭；只读 allowlist 不足
+- [x] T004 [P] 写失败测试：`close_issue` 在 Evidence 不全或 readback `data_insufficient` 时不得关闭；真实项目 execute 被拒绝，只允许 preview
 
 ## Phase 2: Foundational（被 T001–T004 阻断）
 
-- [ ] T005 新增独立 mutation 端口类型与五种 kind 枚举，不修改只读端口
-- [ ] T006 实现 preview：GET + 身份 / revision / allowlist / kind 校验，持久化 `mutation.prepared`
-- [ ] T007 实现 execute / readback / 幂等 / 隐藏 comment marker；无跨 API 事务
+- [x] T005 新增独立 mutation 端口类型与五种 kind 枚举，不修改只读端口
+- [x] T006 实现 preview：GET + 身份 / revision / allowlist / kind 校验，持久化 `mutation.prepared`
+- [x] T007 实现 execute / readback / 幂等 / 隐藏 comment marker；无跨 API 事务
 
 ## Phase 3: 用户故事
 
-- [ ] T008 [US1] 五种 kind 绿；禁止项保持拒绝
-- [ ] T009 [US2] 绑定字段、合法 no-op、超时先 readback
-- [ ] T010 [US3] HTTP 例外与公开安全夹具（仅示例主机）
+- [x] T008 [US1] 五种 kind 绿；禁止项保持拒绝
+- [x] T009 [US2] 绑定字段、合法 no-op、超时先 readback
+- [x] T010 [US3] HTTP 例外与公开安全夹具（仅示例主机）
 
 ## Phase 4: Polish
 
-- [ ] T011 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check`
-- [ ] T012 报告 `IMPLEMENTATION_COMPLETE` 或类型化 `NO_GO`，不得写「CI 绿 = 生产已自动化」
+- [x] T011 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check`
+- [x] T012 报告 `IMPLEMENTATION_COMPLETE` 或类型化 `NO_GO`，不得写「CI 绿 = 生产已自动化」
 
 ## Notes
 

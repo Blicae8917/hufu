@@ -51,6 +51,7 @@ declare function fetch(
   init?: {
     method?: string;
     headers?: Record<string, string>;
+    body?: string;
     redirect?: "follow" | "error" | "manual";
   },
 ): Promise<Response>;

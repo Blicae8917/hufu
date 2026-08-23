@@ -253,7 +253,10 @@ function createFakeGitLab(options: {
   const notesPath = `${issuePath}/notes`;
   const listPath = `/api/v4/projects/${encoded}/issues`;
 
-  const fetchFn = (async (url: RequestInfo | URL, init?: RequestInit) => {
+  const fetchFn = (async (
+    url: string,
+    init?: { body?: string; headers?: Record<string, string>; method?: string },
+  ) => {
     const href = String(url);
     const method = String(init?.method ?? "GET").toUpperCase();
     const body =
@@ -409,6 +412,9 @@ function writeCalls(fake: ReturnType<typeof createFakeGitLab>): RecordedCall[] {
 function ledgerTypes(dir: string): string[] {
   const snapshot = readLedger(dir);
   assert.equal(snapshot.status, "ready");
+  if (snapshot.status !== "ready") {
+    throw new Error("ledger is not ready");
+  }
   return snapshot.events.map((event) => event.event_type);
 }
 

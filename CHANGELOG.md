@@ -6,6 +6,9 @@
 
 ### 新增
 
+- 独立 `GitLabTaskMutationProvider`（#57）：`preview` / `execute` / `readback`，仅五种
+  受控 kind；只读 `GitLabPort` 不加写方法；HTTP 写须注入本机
+  `transport_security_exception_ref`；生产 `execute` 仍 fail-closed。
 - 指挥官 2026-08-23 授权落地（#57 / #58 / #59 / #60）：Constitution 最小修订允许经独立
   `GitLabTaskMutationProvider` 的五种受控 GitLab Effect；ADR 0007 记录该授权并取代
   ADR 0006 对 (a)(b)(c) 的「尚未授权实现」；`specs/012-loopx-bridge/` 升为

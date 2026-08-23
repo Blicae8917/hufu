@@ -12,6 +12,19 @@ export {
   stableStringify,
   type ErrorCode,
 } from "./errors.js";
+export {
+  commentEffectMarker,
+  createGitLabTaskMutationProvider,
+  MANAGED_MUTATION_KINDS,
+  mutationPayloadDigest,
+  PRODUCTION_EXECUTE_GRANTED,
+  type GitLabTaskMutationProvider,
+  type ManagedMutationKind,
+  type MutationPlan,
+  type MutationReadback,
+  type MutationReceipt,
+  type TaskMutationIntent,
+} from "./gitlab-task-mutation-provider.js";
 export { recordHandoff, type HandoffInput, type HandoffResult } from "./handoff.js";
 export { recordPilot } from "./pilot.js";
 export { projectCurrentView, type CurrentView } from "./projector.js";

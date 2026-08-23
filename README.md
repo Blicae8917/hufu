@@ -39,8 +39,9 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 
 当前版本**尚未**提供关键决策会商、网页界面或出站 Runtime；ADR 0006 之后它们也不是已接受方向。
 GitHub 正本仅接受本公开仓且保持只读；GitLab 正本接受可解析的两段 `group/project`。
-受控 GitLab 写回已由 Constitution / ADR 0007 收束到独立 `GitLabTaskMutationProvider`
-的五种 kind，但真实生产 `execute` 仍未授予。
+受控 GitLab 写回已由独立 `GitLabTaskMutationProvider`（#57）落地为库级
+`preview` / `execute` / `readback` 端口，第一版只允许五种 kind；只读 `GitLabPort`
+不加写方法。真实生产 `execute` 仍 fail-closed，须注入测试夹具 fetch。
 
 Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务控制面。`0.1.0` 的发布门是一个
 本机可用的只读影子纵切：四个有界命令、`local` JSONL 正本与本仓库 GitHub 只读投影。
