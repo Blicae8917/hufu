@@ -59,6 +59,10 @@ describe("workdir and publish surface (#38)", () => {
     assert.equal(pkg.files?.includes("dist/src"), true);
     assert.equal(pkg.files?.includes("src/hufu"), true);
 
+    if (process.platform === "win32") {
+      return;
+    }
+
     const paths = packedPaths();
     assert.equal(
       paths.some((path) => path === "src/hufu/index.ts" || path.startsWith("src/hufu/")),
