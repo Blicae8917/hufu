@@ -288,7 +288,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         "readback-pending-1",
       );
       assert.equal(preparedReadback.call.tool, "list_threads");
-      assert.deepEqual(preparedReadback.call.input, { limit: 100 });
+      assert.deepEqual(preparedReadback.call.input, { limit: 50 });
 
       const restarted = createCodexAppConsumerV2({
         actorBindingRef: "binding:example-owner",
@@ -870,7 +870,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       );
       assert.equal(recovered.call.tool, "list_threads");
       assert.notEqual(recovered.call.tool, "create_thread");
-      assert.deepEqual(recovered.call.input, { limit: 100 });
+      assert.deepEqual(recovered.call.input, { limit: 50 });
       const completed = build().completeStart(recovered.ref, {
         availability: "available",
         host_id: "host:crash",

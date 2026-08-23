@@ -1064,7 +1064,7 @@ export function createCodexAppConsumerV2(
       "correlation_title",
     );
     const recoveryCall: CodexAppHostToolCall = {
-      input: { limit: 100 },
+      input: { limit: 50 },
       tool: "list_threads",
     };
     const recoveryId = `codex-app:recovery:${ref.operation_id}`;
@@ -1393,7 +1393,7 @@ export function createCodexAppConsumerV2(
     const actionIdempotencyKey = requiredText(idempotencyKey, "idempotency_key");
     const pending = current.host_thread_ref === undefined;
     const call: CodexAppHostToolCall = pending
-      ? { input: { limit: 100 }, tool: "list_threads" }
+      ? { input: { limit: 50 }, tool: "list_threads" }
       : {
           input: {
             hostId: requiredText(current.host_id, "host_id"),
