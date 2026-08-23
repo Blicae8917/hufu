@@ -10,7 +10,7 @@
 
 - release / commit 等于上述固定基线；
 - `qualification=qualified`；
-- `turn_plan`、`run_once`、`readback`、`independent_typed_result_validator` 均为 `true`；
+- `turn_plan`、`run_once`、`readback`、`durable_attempt_journal`、`independent_typed_result_validator` 均为 `true`；
 - `adapter_id` 与 `validator_id` 不同；
 - `capability_digest` 与规范化声明完全一致；
 - `runtime_locator_ref` 指向 Provider 自有的显式 wrapper 配置。
@@ -19,24 +19,31 @@
 RunOncePort 配置中解析，不写入公开仓、桥快照或裁决正文。已有 `engine_id=loopx-mechanisms`
 不构成激活回执。
 
+Activation Receipt 只证明能力事实，不产生执行授权。它必须与现行 `AuthorityCrossing`
+（含当前 `authority_scope_ref` / grant revision、原生 task ref 与 freshness）、当前 Envelope、
+真实 SessionBinding，以及实际注入的 RunOncePort、耐久 attempt store、独立 Validator / readback
+共同满足，`execution_allowed` 才能为 `true`；缺少任一项必须为 `false`。
+
 ## Plan
 
-`prepareOutboundTurn` 必须同时绑定真实 `ExecutionEnvelopeRef` 与真实
+`prepareOutboundTurn` 必须同时绑定现行 `AuthorityCrossing`、真实 `ExecutionEnvelopeRef` 与真实
 `SessionBindingRef { binding_id, generation }`。不得把 RoleBinding、project_lead 或固定
 `generation=1` 伪装成 SessionBinding。Turn 只能是一次 bounded `run-once`：
 `max_invocations=1`，稳定 `turn_key` 对固定基线、Envelope 与 SessionBinding 计算。
 
-没有激活回执或缺少注入的 RunOncePort / 独立 Validator 时仍可生成只读 Plan，但
+没有现行 Authority、激活回执、耐久 attempt store，或缺少注入的 RunOncePort / 独立 Validator / readback 时仍可生成只读 Plan，但
 `execution_allowed=false`；不得静默回退到 shell、Codex CLI、真实 Host 或默认执行。
 
 ## Execute 与恢复
 
-执行前必须先按 `turn_key` readback：
+执行前必须先按 `turn_key` 做效果 readback，再读取耐久 attempt journal：
 
-- `not_found`：允许调用 RunOncePort 一次；
+- 效果与 attempt 都是 `not_found`：先用 CAS 耐久写入唯一 `prepared` attempt receipt；只有本次新建成功才允许调用 RunOncePort 一次；
 - `complete`：按重启恢复返回既有 `TypedResultRef` / `EffectRef` / Validator Receipt /
   Effect Receipt，不得重复执行；
 - `prepared` / `unavailable`：失败关闭，禁止盲目重试。
+
+一旦 `prepared` attempt 已耐久存在，即使 execute 超时且效果 readback 仍为 `not_found`，后续调用也只能继续 readback 或产生 typed stop，不能自动第二次调用 RunOncePort。
 
 一次调用返回后，TypedResult 必须由与 Adapter 身份不同的独立 Validator 验真。只有
 Validator Receipt、Effect readback 与最终 Receipt 全部绑定同一 `turn_key` / `result_id` /

@@ -132,3 +132,7 @@
 - [x] T026 删除 CurrentView 将 project_lead RoleBinding 伪造成 `generation=1` SessionBinding 的路径。
 - [x] T027 覆盖重复 Turn、重启恢复和 post-execution readback 仍 prepared 的停止线。
 - [x] T028 更新 `contracts/run-once.v1.md`、本 kit 与定向测试；保持无 LoopX 依赖、无 vendor、无 Scheduler / while-loop。
+- [x] T029 回归复现超时后效果 `not_found` 导致第二次 execute；先得到红灯。
+- [x] T030 增加注入式耐久 attempt store：首次执行前 CAS `prepared`，既有 attempt 禁止二次 execute。
+- [x] T031 将 `execution_allowed` 收紧为现行 Authority/grant + Envelope + SessionBinding + 实际 Port/attempt store/独立 Validator/readback 全部齐备。
+- [x] T032 同步 `docs/COMPATIBILITY.md` 至 exact LoopX v0.5.2 / `423035f…` 基线并补回归。

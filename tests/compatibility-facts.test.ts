@@ -60,15 +60,17 @@ describe("COMPATIBILITY.md upstream facts (#25)", () => {
     assert.match(text, /Adapter 未实现/);
   });
 
-  it("updates LoopX observation without promoting a new accepted baseline", () => {
+  it("records the exact LoopX v0.5.2 RunOnce compatibility baseline", () => {
     const text = readCompatibility();
-    assert.match(text, /58f545aee1ce00c57b7a4f21b13d78ee0367b3da/);
-    assert.match(text, /0\.4\.7/);
+    assert.match(text, /423035f402e2f1703f076c3cfe60c14c5803433f/);
+    assert.match(text, /v?0\.5\.2/);
+    assert.match(text, /RunOnce|run-once/);
     assert.match(text, /当日失效|当天即可能失效/);
     assert.match(text, /146 commits|146 个提交/);
     assert.match(text, /不是已接受实现基线/);
     assert.match(text, /git ls-remote https:\/\/github.com\/huangruiteng\/loopx/);
     assert.doesNotMatch(text, /已接受实现基线.*0\.4\.9/);
+    assert.doesNotMatch(text, /核对本仍为 MIT `0\.4\.7`/);
   });
 
   it("does not live-clone upstreams during pnpm test", () => {

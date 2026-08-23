@@ -1,8 +1,10 @@
 import { CommandError } from "./errors.js";
 import { digestPayload } from "./digest.js";
 import {
+  assertAuthorityCrossing,
   assertBridgeActivationReceipt,
   prepareOutboundTurn,
+  type AuthorityCrossing,
   type BoundedTurnRequest,
   type BridgeActivationReceipt,
   type EffectRef,
@@ -65,6 +67,31 @@ export interface LoopXRunOncePort {
   readback(turnKey: string): Promise<LoopXRunOnceReadback>;
 }
 
+export type LoopXRunOnceAttemptRecord =
+  | {
+      readonly status: "not_found";
+      readonly turn_key: string;
+    }
+  | {
+      readonly attempt_id: string;
+      readonly durable: true;
+      readonly status: "prepared" | "attempted";
+      readonly turn_key: string;
+    };
+
+export interface LoopXRunOnceAttemptReceipt {
+  readonly attempt_id: string;
+  readonly created: boolean;
+  readonly durable: true;
+  readonly status: "prepared";
+  readonly turn_key: string;
+}
+
+export interface LoopXRunOnceAttemptStore {
+  prepare(plan: BoundedTurnRequest): Promise<LoopXRunOnceAttemptReceipt>;
+  read(turnKey: string): Promise<LoopXRunOnceAttemptRecord>;
+}
+
 export type LoopXTypedResultValidationReceipt =
   | {
       readonly accepted: true;
@@ -95,6 +122,8 @@ export interface LoopXRunOnceConsumer {
 
 export interface LoopXRunOnceConsumerOptions {
   readonly activation_receipt?: BridgeActivationReceipt;
+  readonly attempt_store?: LoopXRunOnceAttemptStore;
+  readonly authority?: AuthorityCrossing;
   readonly port?: LoopXRunOncePort;
   readonly validator?: LoopXTypedResultValidatorPort;
 }
@@ -106,8 +135,15 @@ export function createLoopXRunOnceConsumer(
     options.activation_receipt === undefined
       ? undefined
       : assertBridgeActivationReceipt(options.activation_receipt);
+  const authority =
+    options.authority === undefined
+      ? undefined
+      : assertAuthorityCrossing(options.authority);
   const dependenciesQualified =
     activation !== undefined &&
+    authority !== undefined &&
+    authorityIsCurrent(authority) &&
+    options.attempt_store !== undefined &&
     options.port !== undefined &&
     options.validator !== undefined &&
     options.port.adapter_id === activation.adapter_id &&
@@ -119,16 +155,24 @@ export function createLoopXRunOnceConsumer(
         envelopeRef,
         sessionBindingRef,
         activation,
+        authority,
       );
-      return dependenciesQualified
-        ? plan
-        : { ...plan, execution_allowed: false };
+      const session = plan.session_binding_ref;
+      const authoritySession = authority?.session_binding_ref;
+      const executionAllowed =
+        dependenciesQualified &&
+        authoritySession !== undefined &&
+        authoritySession.binding_id === session.binding_id &&
+        authoritySession.generation === session.generation;
+      return { ...plan, execution_allowed: executionAllowed };
     },
 
     async execute(plan) {
       if (
         !plan.execution_allowed ||
         activation === undefined ||
+        authority === undefined ||
+        options.attempt_store === undefined ||
         options.port === undefined ||
         options.validator === undefined
       ) {
@@ -147,8 +191,12 @@ export function createLoopXRunOnceConsumer(
         plan.envelope_ref,
         plan.session_binding_ref,
         activation,
+        authority,
       );
-      if (digestPayload(plan) !== digestPayload(expectedPlan)) {
+      if (
+        digestPayload(plan) !==
+        digestPayload({ ...expectedPlan, execution_allowed: true })
+      ) {
         throw new CommandError(
           "HOST_CAPABILITY_REJECTED",
           "LoopX turn plan does not match the qualified activation, envelope, or SessionBinding",
@@ -164,6 +212,31 @@ export function createLoopXRunOnceConsumer(
         throw new CommandError(
           "DATA_INSUFFICIENT",
           "LoopX turn exists without a complete readback; blind retry is forbidden",
+        );
+      }
+
+      const priorAttempt = await readAttemptSafely(
+        options.attempt_store,
+        plan.turn_key,
+      );
+      assertAttemptTurn(priorAttempt, plan.turn_key);
+      if (priorAttempt.status !== "not_found") {
+        throw new CommandError(
+          "DATA_INSUFFICIENT",
+          "LoopX turn was already attempted; only readback or a typed stop is allowed",
+        );
+      }
+      const prepared = await prepareAttemptSafely(options.attempt_store, plan);
+      if (
+        prepared.turn_key !== plan.turn_key ||
+        prepared.status !== "prepared" ||
+        prepared.durable !== true ||
+        prepared.attempt_id.trim() === "" ||
+        prepared.created !== true
+      ) {
+        throw new CommandError(
+          "DATA_INSUFFICIENT",
+          "LoopX attempt was not durably prepared as a new single execution",
         );
       }
 
@@ -232,6 +305,60 @@ export function createLoopXRunOnceConsumer(
       return outcomeFromReadback(after, false);
     },
   };
+}
+
+function authorityIsCurrent(authority: AuthorityCrossing): boolean {
+  if (authority.session_binding_ref === undefined) {
+    return false;
+  }
+  if (authority.task_authority === "local") {
+    return authority.freshness === "fresh" || authority.freshness === "not_applicable";
+  }
+  return (
+    authority.freshness === "fresh" &&
+    typeof authority.observed_at === "string" &&
+    typeof authority.source_revision === "string"
+  );
+}
+
+async function readAttemptSafely(
+  store: LoopXRunOnceAttemptStore,
+  turnKey: string,
+): Promise<LoopXRunOnceAttemptRecord> {
+  try {
+    return await store.read(turnKey);
+  } catch {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "LoopX durable attempt journal is unavailable",
+    );
+  }
+}
+
+async function prepareAttemptSafely(
+  store: LoopXRunOnceAttemptStore,
+  plan: BoundedTurnRequest,
+): Promise<LoopXRunOnceAttemptReceipt> {
+  try {
+    return await store.prepare(plan);
+  } catch {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "LoopX attempt could not be durably prepared",
+    );
+  }
+}
+
+function assertAttemptTurn(
+  value: LoopXRunOnceAttemptRecord,
+  turnKey: string,
+): void {
+  if (value.turn_key !== turnKey) {
+    throw new CommandError(
+      "RECEIPT_INVALID",
+      "LoopX durable attempt record belongs to another turn",
+    );
+  }
 }
 
 async function validateSafely(

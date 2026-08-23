@@ -42,6 +42,7 @@ export const LOOPX_RUN_ONCE_BASELINE = {
 } as const;
 
 export interface BridgeActivationCapabilities {
+  readonly durable_attempt_journal: true;
   readonly independent_typed_result_validator: true;
   readonly readback: true;
   readonly run_once: true;
@@ -160,6 +161,7 @@ export interface BoundedTurnRequest {
   readonly decision_ref: DecisionRef;
   readonly envelope_ref: ExecutionEnvelopeRef;
   readonly execution_allowed: boolean;
+  readonly authority_ref?: AuthorityCrossing;
   readonly loopx_baseline: typeof LOOPX_RUN_ONCE_BASELINE;
   readonly max_invocations: 1;
   readonly runtime_locator_ref?: string;
@@ -178,6 +180,7 @@ export interface BridgePort {
     envelopeRef: unknown,
     sessionBindingRef: unknown,
     activationReceipt?: unknown,
+    authorityCrossing?: unknown,
   ): BoundedTurnRequest;
   projectBridgeSnapshot(source: unknown): BridgeSnapshot;
 }
@@ -302,6 +305,7 @@ export function prepareOutboundTurn(
   envelopeRef: unknown,
   sessionBindingRef: unknown,
   activationReceipt?: unknown,
+  authorityCrossing?: unknown,
 ): BoundedTurnRequest {
   const envelope = requiredEnvelopeRef(envelopeRef);
   const session = requiredSessionBindingRef(sessionBindingRef);
@@ -309,7 +313,22 @@ export function prepareOutboundTurn(
     activationReceipt === undefined
       ? undefined
       : assertBridgeActivationReceipt(activationReceipt);
+  const authority =
+    authorityCrossing === undefined
+      ? undefined
+      : assertAuthorityCrossing(authorityCrossing);
+  if (
+    authority?.session_binding_ref !== undefined &&
+    (authority.session_binding_ref.binding_id !== session.binding_id ||
+      authority.session_binding_ref.generation !== session.generation)
+  ) {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "current authority and outbound turn must bind the same SessionBinding generation",
+    );
+  }
   const turnKey = digestPayload({
+    ...(authority === undefined ? {} : { authority_ref: authority }),
     envelope_ref: envelope,
     loopx_baseline: LOOPX_RUN_ONCE_BASELINE,
     session_binding_ref: session,
@@ -326,7 +345,8 @@ export function prepareOutboundTurn(
         }),
     decision_ref: envelope.decision_ref,
     envelope_ref: envelope,
-    execution_allowed: activation !== undefined,
+    execution_allowed: false,
+    ...(authority === undefined ? {} : { authority_ref: authority }),
     loopx_baseline: LOOPX_RUN_ONCE_BASELINE,
     max_invocations: 1,
     session_binding_ref: session,
@@ -364,6 +384,7 @@ export function assertBridgeActivationReceipt(
     capabilities,
     [
       "independent_typed_result_validator",
+      "durable_attempt_journal",
       "readback",
       "run_once",
       "turn_plan",
@@ -371,6 +392,7 @@ export function assertBridgeActivationReceipt(
     "bridge activation capabilities",
   );
   for (const field of [
+    "durable_attempt_journal",
     "independent_typed_result_validator",
     "readback",
     "run_once",
@@ -427,6 +449,7 @@ export function assertBridgeActivationReceipt(
     adapter_id: adapterId,
     adapter_version: requiredText(object, "adapter_version"),
     capabilities: {
+      durable_attempt_journal: true,
       independent_typed_result_validator: true,
       readback: true,
       run_once: true,

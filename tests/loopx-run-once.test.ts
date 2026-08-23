@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { digestPayload } from "../src/hufu/digest.js";
 import {
+  assertAuthorityCrossing,
   assertBridgeActivationReceipt,
   isBridgeEnabled,
   LOOPX_RUN_ONCE_BASELINE,
@@ -11,6 +12,8 @@ import {
 import { CommandError } from "../src/hufu/errors.js";
 import {
   createLoopXRunOnceConsumer,
+  type LoopXRunOnceAttemptStore,
+  type LoopXRunOnceConsumer,
   type LoopXRunOncePort,
   type LoopXTypedResultValidatorPort,
 } from "../src/hufu/loopx-run-once.js";
@@ -34,8 +37,75 @@ function sessionBindingRef(): Record<string, unknown> {
   return { binding_id: "bind-example", generation: 3 };
 }
 
+function currentAuthority(): Record<string, unknown> {
+  return {
+    authority_scope_ref: { grant_id: "grant-example", revision: 7 },
+    freshness: "fresh",
+    observed_at: "2026-08-23T12:00:00.000Z",
+    session_binding_ref: sessionBindingRef(),
+    source_revision: "revision-example",
+    task_authority: "gitlab",
+    task_ref: "gitlab:example-group/example-project#68",
+  };
+}
+
+function durableAttemptStore(): LoopXRunOnceAttemptStore {
+  const attempts = new Map<string, string>();
+  return {
+    async read(turnKey) {
+      const attemptId = attempts.get(turnKey);
+      return attemptId === undefined
+        ? { status: "not_found", turn_key: turnKey }
+        : {
+            attempt_id: attemptId,
+            durable: true,
+            status: "prepared",
+            turn_key: turnKey,
+          };
+    },
+    async prepare(plan) {
+      const prior = attempts.get(plan.turn_key);
+      if (prior !== undefined) {
+        return {
+          attempt_id: prior,
+          created: false,
+          durable: true,
+          status: "prepared",
+          turn_key: plan.turn_key,
+        };
+      }
+      const attemptId = `attempt:${plan.turn_key}`;
+      attempts.set(plan.turn_key, attemptId);
+      return {
+        attempt_id: attemptId,
+        created: true,
+        durable: true,
+        status: "prepared",
+        turn_key: plan.turn_key,
+      };
+    },
+  };
+}
+
+function configuredConsumer(
+  port: LoopXRunOncePort,
+  validator: LoopXTypedResultValidatorPort,
+  attemptStore: LoopXRunOnceAttemptStore = durableAttemptStore(),
+): LoopXRunOnceConsumer {
+  return createLoopXRunOnceConsumer({
+    activation_receipt: assertBridgeActivationReceipt(
+      qualifiedActivationReceipt(),
+    ),
+    attempt_store: attemptStore,
+    authority: assertAuthorityCrossing(currentAuthority()),
+    port,
+    validator,
+  });
+}
+
 function qualifiedActivationReceipt(): Record<string, unknown> {
   const capabilities = {
+    durable_attempt_journal: true,
     independent_typed_result_validator: true,
     readback: true,
     run_once: true,
@@ -115,7 +185,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       sessionBindingRef(),
       qualifiedActivationReceipt(),
     );
-    assert.equal(active.execution_allowed, true);
+    assert.equal(active.execution_allowed, false);
     assert.equal(active.activation_receipt_ref?.receipt_id, "cap-loopx-example");
     assert.equal(active.runtime_locator_ref, "runtime:loopx-wrapper-example");
     assert.equal(active.turn_key, inactive.turn_key);
@@ -129,6 +199,37 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
       () => consumer.execute(plan),
       (error: unknown) =>
         error instanceof CommandError && error.code === "BRIDGE_NOT_AUTHORIZED",
+    );
+  });
+
+  it("keeps execution disabled when capability and runtime exist without current authority", () => {
+    const port: LoopXRunOncePort = {
+      adapter_id: "example.loopx-run-once",
+      runtime_locator_ref: "runtime:loopx-wrapper-example",
+      async execute() {
+        throw new Error("must not execute");
+      },
+      async readback(turnKey) {
+        return { status: "not_found", turn_key: turnKey };
+      },
+    };
+    const validator: LoopXTypedResultValidatorPort = {
+      validator_id: "example.independent-validator",
+      async validate() {
+        return { accepted: false, reason: "must not validate" };
+      },
+    };
+    const consumer = createLoopXRunOnceConsumer({
+      activation_receipt: assertBridgeActivationReceipt(
+        qualifiedActivationReceipt(),
+      ),
+      attempt_store: durableAttemptStore(),
+      port,
+      validator,
+    });
+    assert.equal(
+      consumer.plan(executionEnvelopeRef(), sessionBindingRef()).execution_allowed,
+      false,
     );
   });
 
@@ -184,13 +285,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         };
       },
     };
-    const consumer = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const consumer = configuredConsumer(port, validator);
     const plan = consumer.plan(executionEnvelopeRef(), sessionBindingRef());
     assert.equal(plan.execution_allowed, true);
 
@@ -239,13 +334,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         throw new Error("must not validate an already committed recovery");
       },
     };
-    const consumer = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const consumer = configuredConsumer(port, validator);
     const outcome = await consumer.execute(
       consumer.plan(executionEnvelopeRef(), sessionBindingRef()),
     );
@@ -253,6 +342,32 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
     assert.equal(outcome.next_allowed, true);
     assert.equal(executions, 1);
     assert.deepEqual(calls, ["readback", "execute", "readback"]);
+  });
+
+  it("does not execute a second time when a prior attempt has unknown effects", async () => {
+    let executions = 0;
+    const port: LoopXRunOncePort = {
+      adapter_id: "example.loopx-run-once",
+      runtime_locator_ref: "runtime:loopx-wrapper-example",
+      async execute() {
+        executions += 1;
+        throw new Error("simulated lost response");
+      },
+      async readback(turnKey) {
+        return { status: "not_found", turn_key: turnKey };
+      },
+    };
+    const validator: LoopXTypedResultValidatorPort = {
+      validator_id: "example.independent-validator",
+      async validate() {
+        return { accepted: false, reason: "no result" };
+      },
+    };
+    const consumer = configuredConsumer(port, validator);
+    const plan = consumer.plan(executionEnvelopeRef(), sessionBindingRef());
+    await assert.rejects(() => consumer.execute(plan));
+    await assert.rejects(() => consumer.execute(plan));
+    assert.equal(executions, 1);
   });
 
   it("rejects a forged TypedResult when the independent validator does not accept it", async () => {
@@ -287,13 +402,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         return { accepted: false, reason: "turn_key mismatch" };
       },
     };
-    const consumer = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const consumer = configuredConsumer(port, validator);
     await assert.rejects(
       () =>
         consumer.execute(
@@ -333,13 +442,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         return { accepted: false, reason: "must not run" };
       },
     };
-    const consumer = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const consumer = configuredConsumer(port, validator);
     const plan = consumer.plan(executionEnvelopeRef(), sessionBindingRef());
     await assert.rejects(
       () =>
@@ -383,13 +486,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         throw new Error("failure observations are not typed results");
       },
     };
-    const consumer = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const consumer = configuredConsumer(port, validator);
     await assert.rejects(
       () =>
         consumer.execute(
@@ -438,13 +535,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         return { accepted: false, reason: "must not revalidate committed readback" };
       },
     };
-    const restarted = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const restarted = configuredConsumer(port, validator);
     const outcome = await restarted.execute(
       restarted.plan(executionEnvelopeRef(), sessionBindingRef()),
     );
@@ -488,13 +579,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         };
       },
     };
-    const consumer = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const consumer = configuredConsumer(port, validator);
     await assert.rejects(
       () =>
         consumer.execute(
@@ -523,13 +608,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         return { accepted: false, reason: "must not validate" };
       },
     };
-    const consumer = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const consumer = configuredConsumer(port, validator);
     await assert.rejects(
       () =>
         consumer.execute(
@@ -571,13 +650,7 @@ describe("LoopX v0.5.2 run-once consumer (#68)", () => {
         throw new Error("validator leaked token=example-validator-secret");
       },
     };
-    const consumer = createLoopXRunOnceConsumer({
-      activation_receipt: assertBridgeActivationReceipt(
-        qualifiedActivationReceipt(),
-      ),
-      port,
-      validator,
-    });
+    const consumer = configuredConsumer(port, validator);
     await assert.rejects(
       () =>
         consumer.execute(

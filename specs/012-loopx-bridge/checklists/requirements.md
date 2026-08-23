@@ -41,6 +41,8 @@
 - [x] 默认关闭；显式 `BridgeActivationReceipt` 才可激活
 - [x] Plan 绑定真实 `ExecutionEnvelopeRef` 与真实 `SessionBindingRef`
 - [x] RunOncePort、独立 Validator 与 readback 未齐备时不得 Execute
+- [x] Activation Receipt 不产生授权；现行 Authority/grant 与耐久 attempt store 同样是 execute 必需项
+- [x] 首次 execute 前耐久 CAS `prepared`，效果未知时不得自动第二次 execute
 - [x] Effect readback 与 Receipt 完整前不得允许下一 Turn
 - [x] 失败、超时、重复 Turn 与重启恢复不盲重试
 - [x] wrapper 只通过 `runtime_locator_ref` 绑定，不在公开仓写本机路径
