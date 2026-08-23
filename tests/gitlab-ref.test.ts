@@ -72,4 +72,28 @@ describe("gitlab refs", () => {
         error instanceof CommandError && error.code === "EXTERNAL_REF_INVALID",
     );
   });
+
+  it("does not start accepting self-hosted hosts or gitlab-instance refs (#53 / T004)", () => {
+    assert.throws(
+      () =>
+        parseGitLabProject(
+          "https://gitlab.example.com/example-group/example-project",
+        ),
+      (error: unknown) =>
+        error instanceof CommandError && error.code === "REPOSITORY_NOT_ALLOWED",
+    );
+    assert.throws(
+      () => parseGitLabProject("gitlab-instance:gitlab.example.com/example-group/example-project"),
+      (error: unknown) =>
+        error instanceof CommandError && error.code === "REPOSITORY_NOT_ALLOWED",
+    );
+    assert.throws(
+      () =>
+        parseGitLabExternalRef(
+          "gitlab-instance:gitlab.example.com/example-group/example-project#456",
+        ),
+      (error: unknown) =>
+        error instanceof CommandError && error.code === "EXTERNAL_REF_INVALID",
+    );
+  });
 });

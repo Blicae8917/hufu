@@ -1,0 +1,35 @@
+[
+  {
+    "iid": 456,
+    "id": 800456,
+    "title": "Example self-hosted issue",
+    "web_url": "https://gitlab.example.com/example-group/example-project/-/issues/456",
+    "state": "opened",
+    "updated_at": "2026-08-16T10:00:00Z",
+    "labels": ["example-label"],
+    "assignee": { "username": "example-user" },
+    "milestone": { "title": "example-milestone" },
+    "description": "THIS DESCRIPTION MUST NOT REACH AUTHORITY OR DECISION",
+    "type": "Issue"
+  },
+  {
+    "iid": 12,
+    "id": 800012,
+    "title": "A merge request disguised as an issue",
+    "web_url": "https://gitlab.example.com/example-group/example-project/-/merge_requests/12",
+    "state": "opened",
+    "type": "MergeRequest",
+    "description": "mr body"
+  },
+  {
+    "iid": 3,
+    "id": 800003,
+    "title": "A closed example issue",
+    "web_url": "https://gitlab.example.com/example-group/example-project/-/issues/3",
+    "state": "closed",
+    "updated_at": "2026-08-16T09:00:00Z",
+    "labels": [],
+    "assignee": null,
+    "milestone": null
+  }
+]
