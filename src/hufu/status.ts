@@ -10,7 +10,7 @@ import {
 } from "./gitlab-cache.js";
 import { createHttpGitLabPort } from "./gitlab-http.js";
 import {
-  readGitLabInstanceProjectionCache,
+  readGitLabInstanceProjectionCacheFor,
   writeGitLabInstanceProjectionCache,
 } from "./gitlab-instance-cache.js";
 import { createHttpGitLabInstancePort } from "./gitlab-instance-http.js";
@@ -48,11 +48,11 @@ export async function statusWorkspace(
     (event) => event.event_type === "hufu/project.connected",
   );
   const taskAuthority = connected?.payload["task_authority"];
+  const identity = connectedInstanceIdentity(connected?.payload ?? {});
   if (options.refresh === true) {
     if (taskAuthority === "github") {
       await refreshGithub(workspaceRoot, options.githubPort);
     } else if (taskAuthority === "gitlab") {
-      const identity = connectedInstanceIdentity(connected?.payload ?? {});
       if (identity !== undefined) {
         await refreshGitlabInstance(
           workspaceRoot,
@@ -77,14 +77,12 @@ export async function statusWorkspace(
   return projectCurrentView(events, {
     cache: taskAuthority === "github" ? readProjectionCache(workspaceRoot) : undefined,
     gitlabCache:
-      taskAuthority === "gitlab" &&
-      connectedInstanceIdentity(connected?.payload ?? {}) === undefined
+      taskAuthority === "gitlab" && identity === undefined
         ? readGitLabProjectionCache(workspaceRoot)
         : undefined,
     gitlabInstanceCache:
-      taskAuthority === "gitlab" &&
-      connectedInstanceIdentity(connected?.payload ?? {}) !== undefined
-        ? readGitLabInstanceProjectionCache(workspaceRoot)
+      taskAuthority === "gitlab" && identity !== undefined
+        ? readGitLabInstanceProjectionCacheFor(workspaceRoot, identity)
         : undefined,
     now: options.now,
   });

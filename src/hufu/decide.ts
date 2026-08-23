@@ -39,7 +39,7 @@ import { CommandError, isJsonObject } from "./errors.js";
 import { parseExternalRef } from "./github-ref.js";
 import { connectedInstanceIdentity } from "./gitlab-authority.js";
 import { readGitLabProjectionCache } from "./gitlab-cache.js";
-import { readGitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
+import { readGitLabInstanceProjectionCacheFor } from "./gitlab-instance-cache.js";
 import { parseGitLabInstanceExternalRef } from "./gitlab-instance-ref.js";
 import { parseGitLabExternalRef } from "./gitlab-ref.js";
 import {
@@ -836,7 +836,7 @@ function assertWorkItemExists(
     const identity = connectedInstanceIdentity(connected?.payload ?? {});
     if (identity !== undefined) {
       const parsed = parseGitLabInstanceExternalRef(taskRef);
-      const cache = readGitLabInstanceProjectionCache(workspaceRoot);
+      const cache = readGitLabInstanceProjectionCacheFor(workspaceRoot, identity);
       if (cache?.items.some((item) => item.external_ref === parsed.external_ref) !== true) {
         throw new CommandError(
           "DATA_INSUFFICIENT",

@@ -51,6 +51,22 @@ gitlab-instance:<example-host>/<group>/<project>#<iid>
 - 007 的 `gitlab:` 解析器 MUST 继续拒绝 `gitlab-instance:`
 - 未来实现不得通过修改 007 解析器来「顺便」接受自建引用
 
+## 现场投影绑定与缓存重绑（失败关闭）
+
+现场读取（`listIssueProjections`）在把一条经典 Issue 收成 WorkItem 之前，必须同时成立：
+
+- `web_url` 的 origin（scheme + host + port）等于已声明 `identity.instance_origin`，不得只比 hostname；HTTP IPv4:port 必须保留端口
+- `web_url` 中 `/-/issues/<iid>` 之前的项目路径（`decodeURIComponent`，大小写敏感）等于 `identity.project_path`
+- `iid` 为正整数，且与 URL 中的 iid 一致；若 payload 已有 `references.full`，也必须等于 `project_path#iid`
+
+任一检查失败时**抛错**，不得把整页静默标为成功。选择抛错而不是丢弃单条，是为避免同一页混入其他项目的 Issue 后仍被当成完整、已绑定的投影。非 Issue / Merge Request 伪装项仍可丢弃。
+
+实例投影缓存必须按当前连接身份重绑：`instance_kind === "self_hosted"`、精确 `instance_origin`、精确 `repository`（项目路径）。status / decide / handoff / projector / doctor 走同一辅助函数；不匹配则抛出 `gitlab instance cache does not match connected identity`，且不得回显秘密。缓存仍不得持久化 `body` / `description` / `token` / `credential`。
+
+GitLab 若发送了非空 `x-next-page`，但其值不是严格大于当前页的整数，必须抛错，不得把该页当成完整列表。`Link` rel=next 若越源、内嵌凭据或路径不是已授权项目的 `/api/v4/projects/.../issues`，同样抛错。正常末页（无 next）仍为 `incomplete: false`。
+
+冒到 CommandError、CLI stdout/stderr、doctor 与 status 的错误文本必须经过中心 redactor：剥离精确 token、`Bearer <anything>`、`PRIVATE-TOKEN` 头、`HUFU_GITLAB_INSTANCE_TOKEN=...` 与 `glpat-...` 子串。
+
 ## AuthorityCapability
 
 | 值 | 何时合法 |
