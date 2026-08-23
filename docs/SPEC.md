@@ -82,8 +82,9 @@ Decision 引用、Role/SessionBinding、逐槽三轴 CurrentView、Evidence、Re
 和企业项目 Renderer 合同。已交付的 `loopx-mechanisms`（#9）仍须显式选用，只记录类型化结果与回执，
 不得把 LoopX Registry、Goal/Todo 或 Scheduler 映射为任务正本或授权。
 不得自行实现通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine 或完整 Web 控制面。
-Hufu↔LoopX 桥接由 #58 / ADR 0007 授权实现，对照 LoopX v0.5.2 合同且不 vendoring 源码；
-本规范仍不把桥写成已交付 Adapter，也不授权本波交付运行时。
+Hufu↔LoopX 桥 Adapter（#58）已交付为库级投影 / 校验口：只过桥稳定引用与摘要，对照
+LoopX v0.5.2 合同且不 vendoring 源码、不引入 `loopx` 依赖。008 `loopx-mechanisms`
+仍只是须显式选用的机制记录口，不是任务正本。#59 NativeHost 与 #60 e2e 夹具仍未交付。
 
 UI 同样不是任务正本。它只是权威事实、观测事实和派生事实的 Renderer。
 
@@ -100,13 +101,12 @@ UI 同样不是任务正本。它只是权威事实、观测事实和派生事�
   在 `0.1.0` 系列交付（Envelope、ACK、三类 Delta、semantic rebase 护栏）。DeepSeek 与 Standalone
   双 Profile 夹具对等及插件真装真卸已由 #7 交付。GitLab 只读投影已由 #8 交付。LoopX 第一批机制已由 #9
   交付为须显式选用的机制记录口（不是任务正本）。效能试点记录与扩充门禁已由 #10 交付。
-- **ADR 0007 之后的实现授权（本波不交付运行时）**：受控 GitLab Effect（#57）、
-  #50 桥实现后继（#58，LoopX v0.5.2 合同、不 vendoring）、Codex NativeHost RuntimeProvider
-  + SessionBinding（#59），以及公开安全端到端试点验收（#60）。企业项目 Renderer 仍未授权。
-  原自行建设的 M10–M15（通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine、
-  完整 Web 控制面）以及关键决策会商、loopback Web Console 不再作为已接受方向。
-  上述已授权项若开工实现 PR，须引用对应 Issue 与 Spec Kit，并先写失败测试；真实生产
-  `execute` 仍未授予。
+  受控 GitLab Effect 已由 #57 交付为独立 `GitLabTaskMutationProvider`。Hufu↔LoopX
+  Authority / Decision / Evidence 桥已由 #58 交付为只过引用的 Adapter；008 仍不是正本。
+- **ADR 0007 之后仍未交付的实现授权**：Codex NativeHost RuntimeProvider + SessionBinding（#59），
+  以及公开安全端到端试点验收（#60）。企业项目 Renderer 仍未授权。原自行建设的 M10–M15
+  （通用 Goal/Todo/Scheduler/Heartbeat、PM Engine、Wave Engine、完整 Web 控制面）以及
+  关键决策会商、loopback Web Console 不再作为已接受方向。真实生产 `execute` 仍未授予。
 
 发布门若触碰决策记录，至多要求“一份裁决只完整保存一次，`status` 与 `handoff` 只传引用”。
 完整决策状态机已由后续 Module #6 交付，仍不阻塞 `0.1.0` 发布门。

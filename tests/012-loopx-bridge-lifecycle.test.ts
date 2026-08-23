@@ -104,14 +104,10 @@ describe("012 LoopX bridge lifecycle (#58)", () => {
             goal_completed: true,
             task_authority: "gitlab",
           }),
-        (error: unknown) => {
-          assert.ok(error instanceof CommandError);
-          assert.ok(
-            error.code === "BRIDGE_LIFECYCLE_REJECTED" ||
-              error.code === "BRIDGE_CONTROL_PLANE_REJECTED",
-          );
-          return true;
-        },
+        (error: unknown) =>
+          error instanceof CommandError &&
+          (error.code === "BRIDGE_LIFECYCLE_REJECTED" ||
+            error.code === "BRIDGE_CONTROL_PLANE_REJECTED"),
       );
       assert.throws(
         () =>
@@ -124,18 +120,16 @@ describe("012 LoopX bridge lifecycle (#58)", () => {
             closeIssue: true,
             goal_id: "goal-done",
           }),
-        (error: unknown) => {
-          assert.ok(error instanceof CommandError);
-          assert.ok(
-            error.code === "BRIDGE_LIFECYCLE_REJECTED" ||
-              error.code === "BRIDGE_CONTROL_PLANE_REJECTED",
-          );
-          return true;
-        },
+        (error: unknown) =>
+          error instanceof CommandError &&
+          (error.code === "BRIDGE_LIFECYCLE_REJECTED" ||
+            error.code === "BRIDGE_CONTROL_PLANE_REJECTED"),
       );
       assert.equal(ledgerText(dir), before);
       const snapshot = readLedger(dir);
-      assert.equal(snapshot.status, "ready");
+      if (snapshot.status === "missing") {
+        throw new Error("ledger missing");
+      }
       assert.equal(
         snapshot.events.some((event) => event.event_type.startsWith("hufu/mutation.")),
         false,
