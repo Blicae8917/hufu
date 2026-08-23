@@ -19,7 +19,6 @@ import {
   projectBridgeSnapshot,
   type BridgePort,
 } from "../src/hufu/loopx-bridge.js";
-import { statusWorkspace } from "../src/hufu/status.js";
 import { readLedger } from "../src/hufu/storage.js";
 import {
   basePacket,
@@ -27,6 +26,7 @@ import {
   connectOpenGrant,
   recordEnvelope,
   recordPacket,
+  statusView,
   withTempDir,
 } from "./decision-harness.js";
 
@@ -70,8 +70,10 @@ function legalEnvelopeRef(): Record<string, unknown> {
 
 function assertCode(fn: () => unknown, code: string): void {
   assert.throws(fn, (error: unknown) => {
-    assert.ok(error instanceof CommandError, String(error));
-    assert.equal(error.code, code, String(error));
+    if (!(error instanceof CommandError)) {
+      return false;
+    }
+    assert.equal(error.code, code, error.message);
     return true;
   });
 }
@@ -202,10 +204,11 @@ describe("LoopX bridge surface (#58)", () => {
         },
       });
       const ledger = readLedger(dir);
-      assert.equal(ledger.status, "ready");
+      if (ledger.status === "missing") {
+        throw new Error("ledger missing");
+      }
       const fromEvents = projectBridgeSnapshot(ledger.events);
-      const view = statusWorkspace(dir);
-      const fromView = projectBridgeSnapshot(view);
+      const fromView = projectBridgeSnapshot(statusView(dir));
       for (const snapshot of [fromEvents, fromView]) {
         const text = JSON.stringify(snapshot);
         assert.match(snapshot.content_digest, /^sha256:[0-9a-f]{64}$/);
@@ -240,7 +243,9 @@ describe("LoopX bridge surface (#58)", () => {
         "BRIDGE_AUTHORITY_REJECTED",
       );
       const ledger = readLedger(dir);
-      assert.equal(ledger.status, "ready");
+      if (ledger.status === "missing") {
+        throw new Error("ledger missing");
+      }
       const grants = ledger.events.filter(
         (event) => event.event_type === "hufu/authorization_grant.issued",
       );
@@ -272,7 +277,9 @@ describe("LoopX bridge surface (#58)", () => {
       connectOpenGrant(dir);
       bindEngine(dir);
       const ledger = readLedger(dir);
-      assert.equal(ledger.status, "ready");
+      if (ledger.status === "missing") {
+        throw new Error("ledger missing");
+      }
       assert.equal(isBridgeEnabled(ledger.events), false);
       const connected = ledger.events.find((event) => event.event_type === "hufu/project.connected");
       assert.equal(connected?.payload["task_authority"], "local");

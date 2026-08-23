@@ -89,7 +89,9 @@ function assertRejected(
   code: string,
 ): void {
   assert.throws(fn, (error: unknown) => {
-    assert.ok(error instanceof CommandError, String(error));
+    if (!(error instanceof CommandError)) {
+      return false;
+    }
     assert.equal(error.code, code);
     return true;
   });
@@ -155,7 +157,9 @@ describe("012 LoopX bridge adapter (#58)", () => {
       const { grant_id } = connectOpenGrant(dir);
       bindEngine(dir);
       const snapshot = readLedger(dir);
-      assert.equal(snapshot.status, "ready");
+      if (snapshot.status === "missing") {
+        throw new Error("ledger missing");
+      }
       assert.equal(isBridgeEnabled(snapshot.events), false);
       for (const task_authority of ["loopx-mechanisms", "engine_id", "loopx", "engine", "bridge"]) {
         assertRejected(

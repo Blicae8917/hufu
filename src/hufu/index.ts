@@ -29,5 +29,22 @@ export { recordHandoff, type HandoffInput, type HandoffResult } from "./handoff.
 export { recordPilot } from "./pilot.js";
 export { projectCurrentView, type CurrentView } from "./projector.js";
 export { statusWorkspace, type StatusOptions } from "./status.js";
+export {
+  acceptTypedResult,
+  assertAuthorityCrossing,
+  assertDecisionCrossing,
+  assertEvidenceCrossing,
+  bridgePort,
+  isBridgeEnabled,
+  prepareOutboundTurn,
+  projectBridgeSnapshot,
+  type AuthorityCrossing,
+  type BoundedTurnRequest,
+  type BridgePort,
+  type BridgeSnapshot,
+  type DecisionCrossing,
+  type EvidenceCrossing,
+  type TypedResultAcceptance,
+} from "./loopx-bridge.js";
 export { ledgerPaths, readLedger } from "./storage.js";
 export { openWorkItem } from "./work-item.js";

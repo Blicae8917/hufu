@@ -88,7 +88,9 @@ describe("hufu decide --engine", () => {
       const taskAuthority = view["task_authority"] as Record<string, unknown>;
       assert.equal(taskAuthority["value"], "local");
       const snapshot = readLedger(dir);
-      assert.equal(snapshot.status, "ready");
+      if (snapshot.status === "missing") {
+        throw new Error("ledger missing");
+      }
       assert.equal(isBridgeEnabled(snapshot.events), false);
       assert.equal(
         snapshot.events.some((event) => String(event.event_type).includes("bridge")),

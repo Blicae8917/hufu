@@ -161,7 +161,8 @@ DeepSeek Profile 优先使用 DeepSeek Harness 原生 Service/Event；Standalone
 Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务控制面。已交付的
 `loopx-mechanisms` 须显式选用，不是任务正本。Goal、Todo、Registry、Scheduler、Quota
 属于 LoopX；Hufu 不重复实现它们，也不能让 LoopX 取得外部 Issue 生命周期或 `commander`
-授权的所有权。Hufu↔LoopX 桥须另立 Module，本文不授权实现。
+授权的所有权。Hufu↔LoopX Authority / Decision / Evidence 桥（#58）已交付为只过引用的
+Adapter；008 仍不是正本。不得经桥写入 GitLab 议题或复制 LoopX 控制面。
 
 ## Renderer 边界
 
@@ -582,7 +583,8 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 
 ADR 0006 废止原 M10–M15 自行控制面计划，以及关键决策会商、loopback Web Console
 作为已接受方向。ADR 0007 授权实现受控 GitLab Effect、#50 桥与 Codex NativeHost
-RuntimeProvider，仍不授权企业 Renderer，也不授权本波交付运行时。
+RuntimeProvider，仍不授权企业 Renderer。#57 写回端口与 #58 桥 Adapter 已交付；
+#59 NativeHost 与 #60 e2e 夹具仍未交付。
 
 私有试点证据留在其所属环境；公开仓只保存脱敏方法、聚合结果和已采纳结论。
 
@@ -591,5 +593,6 @@ RuntimeProvider，仍不授权企业 Renderer，也不授权本波交付运行�
 版本 `0.0.1` 只实现最初的不可变 `TaskEnvelope` 验证和确定性 CLI。
 本文所述 `0.1.0` Cordis-first 架构描述已接受边界。当前主线已交付 TypeScript 核心、本机账本、
 本仓 GitHub 只读投影、GitLab 只读投影、零拷贝决策流、DeepSeek 原生插件路径、LoopX 第一批机制
-记录口，以及效能试点记录与扩充门禁；这不表示完整 LoopX 控制面已经实现或将被搬入，也不表示已经获得远端进度授权或网页已交付。
+记录口、效能试点记录与扩充门禁、受控 GitLab Effect 端口，以及 Hufu↔LoopX 只过引用桥 Adapter；
+这不表示完整 LoopX 控制面已经实现或将被搬入，也不表示已经获得远端进度授权或网页已交付。
 每个 Module 必须通过独立的已接受 Issue、Spec Kit 产物、失败测试、最小实现和可审阅证据交付。

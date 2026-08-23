@@ -34,6 +34,7 @@ Hufu 通过稳定合同和适配器回答这些问题，同时避免要求用户
 - 零拷贝决策流：一份裁决只完整保存一次，下游只传引用、摘要与增量；`status` / `handoff` 不复制裁决正文；
 - DeepSeek 原生插件包 `hufu-dsh`：隔离 Profile 可装可卸，六工具调用同一领域函数，与独立 CLI 对同一夹具折叠结构相等的 CurrentView；
 - 可选 `loopx-mechanisms` 引擎：须显式 `decide --engine` 选用；可记录类型化结果与核验回执，不是任务正本，不引入 LoopX 发行包或控制面；
+- Hufu↔LoopX Authority / Decision / Evidence 桥（#58）：库级投影 / 校验口，只过稳定引用与摘要，不把 Journal / Receipt / TypedResult 当成授权，不引入 `loopx` 依赖；
 - 效能试点记录与扩充门禁：`hufu pilot --record` 写入封闭结论与派生度量；`hufu serve` 保持拒绝；缺失墙钟或用量不得写成 `0`；
 - 一套当前有效的 pnpm / Node 门禁。
 
@@ -51,7 +52,8 @@ Hufu 是 LoopX 下游的严格项目协调 Provider，不是第二套长任务�
 原自行建设的 Goal/Todo/Scheduler/Heartbeat、PM Engine、
 Wave Engine 与完整 Web 控制面已由 [ADR 0006](docs/adr/0006-upstream-positioning.md) 废止。
 ADR 0007 已授权实现受控 GitLab Effect、#50 桥（LoopX v0.5.2 合同、不 vendoring）与
-Codex NativeHost RuntimeProvider；企业 Renderer 仍未授权。本波不交付这些运行时。
+Codex NativeHost RuntimeProvider；企业 Renderer 仍未授权。#57 写回端口与 #58 桥
+Adapter 已交付；#59 NativeHost 与 #60 e2e 夹具仍未交付。
 合同细节见[产品规范](docs/SPEC.md)与[架构决策](docs/adr/)。
 
 ## 当前基线快速开始

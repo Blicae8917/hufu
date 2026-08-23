@@ -6,6 +6,9 @@
 
 ### 新增
 
+- Hufu↔LoopX Authority / Decision / Evidence 桥 Adapter（#58）：只投影 / 接受稳定引用与摘要，
+  Journal / Receipt / TypedResult 不得扩权；一次调用一次 run-once Turn；不引入 `loopx` 依赖，
+  不 vendoring，008 仍只是须显式选用的机制记录口。
 - 独立 `GitLabTaskMutationProvider`（#57）：`preview` / `execute` / `readback`，仅五种
   受控 kind；只读 `GitLabPort` 不加写方法；HTTP 写须注入本机
   `transport_security_exception_ref`；生产 `execute` 仍 fail-closed。
