@@ -19,6 +19,7 @@
 Codex Host Consumer 在两阶段之间调用宿主工具，随后把结果与 readback 落账。测试只使用公开安全
 fake adapter，不调用真实 Codex thread，不新增网络入口。独立 CLI / daemon 仍失败关闭，禁止静默
 回退到 subagent 或 CLI thread。
+Resolver 的 `project_id` 绑定 Hufu 当前逻辑项目，`target.projectId` 是独立校验的 Host 原生不透明 selector，二者不要求字面相等。
 
 ## User Scenarios & Testing *(mandatory)*
 
