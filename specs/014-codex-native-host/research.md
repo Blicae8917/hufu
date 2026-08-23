@@ -12,8 +12,34 @@
 - **Rationale**: Claude / DSH / Codex 不等价。
 - **Alternatives considered**: 一个「Host Runtime」笼统能力（拒绝）。
 
-## 3. 本波不实现
+## 3. #59 packet-only 基线
 
-- **Decision**: 只落地 kit 与通过的约束测试。
-- **Rationale**: 指挥官禁止本波 Codex thread 调用。
-- **Alternatives considered**: 本波写失败 Runtime 测试（会破坏 CI）。
+- **Decision**: #59 只落地 packet-only Provider与约束测试。
+- **Rationale**: 当时尚未授权Host Consumer施工。
+- **Alternatives considered**: 由独立 CLI直接调用Codex工具（拒绝）。
+
+## 4. #67 两阶段耐久 Consumer
+
+- **Decision**: Hufu在Host调用前追加脱敏prepared packet，Host调用后追加receipt/readback；进程重启
+  只能恢复尚无completion receipt的prepared；已有receipt必须拒绝再次生成Host调用。start prepare
+  还必须从Ledger最新Host observation核验exact `codex_app` capability id、provider contract ref、digest与
+  freshness；observation issuer还必须exact绑定由当前项目负责人签发的active Host ProviderBinding。
+  同时核验当前grant/envelope/RoleBinding/work-item/project；调用方全true布尔或任意actor同形事件不构成
+  能力证据。非幂等prepared的恢复只允许operation-specific readback：start走correlation/list_threads，
+  send无effect marker时DATA_INSUFFICIENT，绝不重放create/send；同idempotency二次prepare同样进入该
+  路径。binding-based action在prepare时冻结Ledger revision、observed_at与cursor，complete只接受同一
+  因果前沿，防止旧idle readback覆盖更新的active Turn。
+- **Rationale**: Codex创建/投递是外部Effect；单纯内存binding会在崩溃后产生双Session或假投递。
+- **Alternatives considered**: Consumer内部直接调用真实Codex工具（拒绝，CI不可复现且混淆Host能力）；
+  保存prompt或raw transcript以便重放（拒绝，复制不可信正文）。
+
+## 5. pending、handoff与interrupt
+
+- **Decision**: `clientThreadId`只形成pending binding，且不能传给要求`threadId`的Host工具。start
+  packet生成唯一correlation title；Consumer通过`list_threads`解析稳定`threadId + hostId`，之后才
+  用`read_thread`观察并转ready。
+  逻辑换届只追加Hufu事实，不调用物理`handoff_thread`。当前没有合格的原生interrupt时返回
+  `unavailable`。release必须先经过Host readback。
+- **Rationale**: 这些能力不等价，不能用名称相近的Host动作冒充事实。
+- **Alternatives considered**: 把逻辑换届映射到物理handoff（拒绝）；用内存`queued=true`表示活跃
+  Turn消息已排队（拒绝，当前选择明确拒绝）。

@@ -30,9 +30,29 @@ export { recordPilot } from "./pilot.js";
 export { projectCurrentView, type CurrentView } from "./projector.js";
 export { statusWorkspace, type StatusOptions } from "./status.js";
 export {
+  CODEX_APP_PROVIDER_CONTRACT_REF,
+  CODEX_APP_V2_CAPABILITY_DIGEST,
   CODEX_CONSUMER_MAPPING,
   HOST_CAPABILITY_IDS,
+  createCodexAppConsumerV2,
   createNativeHostRuntimeProvider,
+  type CodexAppConsumerV2,
+  type CodexAppHostToolCall,
+  type CodexAppHostToolName,
+  type CodexAppHostToolResult,
+  type CodexAppInterruptAvailability,
+  type CodexAppMessageResolver,
+  type CodexAppPreparedAction,
+  type CodexAppPreparedRef,
+  type CodexAppReadbackCompletion,
+  type CodexAppReleaseCompletion,
+  type CodexAppSendCompletion,
+  type CodexAppSessionBinding,
+  type CodexAppSessionBindingRef,
+  type CodexAppStartCompletion,
+  type CodexAppWorkspaceResolver,
+  type CodexAppWorkspaceTarget,
+  type CreateCodexAppConsumerV2Options,
   type HostCapabilityReport,
   type NativeHostRuntimeProvider,
   type SessionBinding,
@@ -54,5 +74,22 @@ export {
   type EvidenceCrossing,
   type TypedResultAcceptance,
 } from "./loopx-bridge.js";
+export {
+  createLoopXRunOnceConsumer,
+  type LoopXRunOnceAttemptReceipt,
+  type LoopXRunOnceAttemptRecord,
+  type LoopXRunOnceAttemptStore,
+  type LoopXRunOnceAuthorityRef,
+  type LoopXRunOnceAuthorityResolverPort,
+  type LoopXRunOnceAuthorityValidationReceipt,
+  type LoopXRunOnceConsumer,
+  type LoopXRunOnceConsumerOptions,
+  type LoopXRunOnceExecutionObservation,
+  type LoopXRunOnceOutcome,
+  type LoopXRunOncePort,
+  type LoopXRunOnceReadback,
+  type LoopXTypedResultValidationReceipt,
+  type LoopXTypedResultValidatorPort,
+} from "./loopx-run-once.js";
 export { ledgerPaths, readLedger } from "./storage.js";
 export { openWorkItem } from "./work-item.js";
