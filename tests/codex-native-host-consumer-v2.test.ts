@@ -22,15 +22,18 @@ function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   return run(dir).finally(() => rmSync(dir, { force: true, recursive: true }));
 }
 
-function workspaceResolver(): CodexAppWorkspaceResolver {
+function workspaceResolver(
+  projectId = "example-project",
+  targetProjectId = "codex-host-project",
+): CodexAppWorkspaceResolver {
   return {
     resolve(workspace) {
       assert.equal(workspace.workspace_ref, "workspace:example");
       return {
-        project_id: "example-project",
+        project_id: projectId,
         target: {
           environment: { type: "local" },
-          projectId: "example-project",
+          projectId: targetProjectId,
           type: "project",
         },
       };
@@ -199,7 +202,7 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
       assert.equal(typeof prepared.call.input["prompt"], "string");
       assert.deepEqual(prepared.call.input["target"], {
         environment: { type: "local" },
-        projectId: "example-project",
+        projectId: "codex-host-project",
         type: "project",
       });
       calls.push(prepared.call);
@@ -712,6 +715,44 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         },
       }]);
       const qualified = createCodexAppConsumerV2(base);
+      const wrongProject = createCodexAppConsumerV2({
+        ...base,
+        workspaceResolver: workspaceResolver("other-project"),
+      });
+      assert.throws(
+        () => wrongProject.prepareStart(
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:scope" },
+          "owner",
+          {
+            authority_ref: "grant:example",
+            channel: "codex-app",
+            work_item_ref: "work-item:scope",
+            workspace_ref: "workspace:example",
+          },
+          "start-wrong-project",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "GRANT_SCOPE_EXCEEDED",
+      );
+      const illegalHostSelector = createCodexAppConsumerV2({
+        ...base,
+        workspaceResolver: workspaceResolver("example-project", "invalid\nproject"),
+      });
+      assert.throws(
+        () => illegalHostSelector.prepareStart(
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:scope" },
+          "owner",
+          {
+            authority_ref: "grant:example",
+            channel: "codex-app",
+            work_item_ref: "work-item:scope",
+            workspace_ref: "workspace:example",
+          },
+          "start-illegal-selector",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "CONTRACT_INVALID",
+      );
       assert.throws(
         () => qualified.prepareStart(
           { content_digest: CONTENT_DIGEST, envelope_id: "envelope:scope" },

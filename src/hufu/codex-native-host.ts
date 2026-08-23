@@ -1117,7 +1117,7 @@ export function createCodexAppConsumerV2(
     const actionIdempotencyKey = requiredText(idempotencyKey, "idempotency_key");
     const target = options.workspaceResolver.resolve(workspaceRef);
     const projectId = requiredHostSelector(target.project_id, "project_id");
-    const hostTarget = validateCreateThreadTarget(target.target, projectId);
+    const hostTarget = validateCreateThreadTarget(target.target);
     const authorityRef = requiredText(workspaceRef.authority_ref, "authority_ref");
     const workItemRef = requiredText(workspaceRef.work_item_ref, "work_item_ref");
     const channel = requiredText(workspaceRef.channel, "channel");
@@ -2628,11 +2628,10 @@ function requiredHostSelector(value: unknown, field: string): string {
 
 function validateCreateThreadTarget(
   value: CodexAppWorkspaceTarget["target"],
-  projectId: string,
 ): CodexAppWorkspaceTarget["target"] {
+  requiredHostSelector(value.projectId, "target.projectId");
   if (
     value.type !== "project" ||
-    requiredHostSelector(value.projectId, "target.projectId") !== projectId ||
     (value.environment.type !== "local" && value.environment.type !== "worktree")
   ) {
     throw new CommandError("CONTRACT_INVALID", "workspace target is not a legal project target");
