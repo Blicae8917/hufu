@@ -584,7 +584,7 @@ GitHub 跟踪进度和依赖状态；`specs/` 包含功能合同和可执行拆�
 ADR 0006 废止原 M10–M15 自行控制面计划，以及关键决策会商、loopback Web Console
 作为已接受方向。ADR 0007 授权实现受控 GitLab Effect、#50 桥与 Codex NativeHost
 RuntimeProvider，仍不授权企业 Renderer。#57 写回端口与 #58 桥 Adapter 已交付；
-#59 NativeHost 与 #60 e2e 夹具仍未交付。
+#59 NativeHost RuntimeProvider 已交付为只下发 packet 的库级口；#60 e2e 夹具仍未交付。
 
 私有试点证据留在其所属环境；公开仓只保存脱敏方法、聚合结果和已采纳结论。
 

@@ -6,6 +6,9 @@
 
 ### 新增
 
+- Codex NativeHost RuntimeProvider + SessionBinding（#59）：Hufu 只下发 action packet 并记录结果，
+  不创建 Session；无宿主适配器失败关闭，禁止静默回退；能力三分检查；CAS + generation fence；
+  换届须 Handoff 后 `supersedes`；不读 transcript。
 - Hufu↔LoopX Authority / Decision / Evidence 桥 Adapter（#58）：只投影 / 接受稳定引用与摘要，
   Journal / Receipt / TypedResult 不得扩权；一次调用一次 run-once Turn；不引入 `loopx` 依赖，
   不 vendoring，008 仍只是须显式选用的机制记录口。

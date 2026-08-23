@@ -116,7 +116,7 @@ describe("0007 commander authorization wave (constitution / ADR / kits)", () => 
     assert.equal(pkg.version, "0.1.0");
     assert.equal(existsSync(repoPath("src/hufu/gitlab-task-mutation-provider.ts")), true);
     assert.equal(existsSync(repoPath("src/hufu/loopx-bridge.ts")), true);
-    assert.equal(existsSync(repoPath("src/hufu/codex-native-host.ts")), false);
+    assert.equal(existsSync(repoPath("src/hufu/codex-native-host.ts")), true);
   });
 
   it("records one Unreleased CHANGELOG bullet for this authorization wave", () => {
