@@ -1,6 +1,6 @@
 import { CommandError } from "./errors.js";
 import { connectedInstanceIdentity } from "./gitlab-authority.js";
-import { readGitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
+import { readGitLabInstanceProjectionCacheFor } from "./gitlab-instance-cache.js";
 import {
   createEnvSecretProvider,
   isCredentialAvailable,
@@ -105,7 +105,7 @@ export function doctorWorkspace(
   let cacheStatus: "present" | "missing" | "unreadable" = "missing";
   try {
     cacheStatus =
-      readGitLabInstanceProjectionCache(workspaceRoot) === undefined
+      readGitLabInstanceProjectionCacheFor(workspaceRoot, identity) === undefined
         ? "missing"
         : "present";
   } catch {

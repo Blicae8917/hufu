@@ -12,6 +12,7 @@ import {
   exitCodeFor,
   stableStringify,
 } from "./errors.js";
+import { redactSecrets, redactUnknown } from "./secret-redact.js";
 import { recordHandoff } from "./handoff.js";
 import { recordPilot } from "./pilot.js";
 import { PROJECT_ROOT_ENV, resolveProjectRoot } from "./project-root.js";
@@ -84,7 +85,7 @@ function runValidate(argv: string[]): number {
     process.stdout.write(`${JSON.stringify(summary, [...SUMMARY_KEYS])}\n`);
     return 0;
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
+    const reason = redactUnknown(error);
     process.stderr.write(`invalid task contract: ${reason}\n`);
     return 2;
   }
@@ -109,15 +110,18 @@ async function runJsonCommand(fn: () => unknown | Promise<unknown>): Promise<num
     if (error instanceof CommandError) {
       const body = commandErrorBody(error);
       process.stdout.write(
-        `${stableStringify(
-          error.project_root === undefined
-            ? body
-            : { ...body, project_root: error.project_root },
+        `${redactSecrets(
+          stableStringify(
+            error.project_root === undefined
+              ? body
+              : { ...body, project_root: error.project_root },
+          ),
         )}\n`,
       );
       return exitCodeFor(error.code);
     }
-    throw error;
+    process.stderr.write(`${redactUnknown(error)}\n`);
+    return 1;
   }
 }
 

@@ -1,5 +1,6 @@
 import { CommandError, isJsonObject } from "./errors.js";
 import { fetchWithTimeout } from "./fetch-timeout.js";
+import { redactUnknown } from "./secret-redact.js";
 import { GITLAB_INSTANCE_CREDENTIAL_NAME } from "./secret-provider.js";
 import {
   canonicalGitLabInstanceExternalRef,
@@ -133,7 +134,7 @@ async function getAuthorized(
     }
     throw new CommandError(
       "OBSERVATION_UNAVAILABLE",
-      `gitlab instance read failed: ${error instanceof Error ? error.message : String(error)}`,
+      `gitlab instance read failed: ${redactUnknown(error, [token])}`,
     );
   }
   if (isRedirect(response.status)) {
@@ -165,11 +166,14 @@ function nextPageUrl(
   identity: GitLabInstanceIdentity,
   currentPage: number,
 ): string | undefined {
-  const nextPage = (response.headers?.get("x-next-page") ?? "").trim();
-  if (nextPage !== "") {
-    const parsed = Number(nextPage);
+  const rawNextPage = response.headers?.get("x-next-page");
+  if (rawNextPage !== null && rawNextPage !== undefined && rawNextPage.trim() !== "") {
+    const parsed = Number(rawNextPage.trim());
     if (!Number.isInteger(parsed) || parsed <= currentPage) {
-      return undefined;
+      throw new CommandError(
+        "OBSERVATION_UNAVAILABLE",
+        "gitlab instance pagination next-page is malformed",
+      );
     }
     return listUrl(identity, parsed);
   }
@@ -214,11 +218,34 @@ function assertAllowedUrl(url: string, identity: GitLabInstanceIdentity): void {
       "gitlab instance request escaped the authorized origin",
     );
   }
+  if (parsed.username !== "" || parsed.password !== "") {
+    throw new CommandError(
+      "REPOSITORY_NOT_ALLOWED",
+      "gitlab instance request URL must not embed credentials",
+    );
+  }
   const host = parsed.hostname.toLowerCase();
   if (host === "gitlab.com" || host === "www.gitlab.com") {
     throw new CommandError(
       "REPOSITORY_NOT_ALLOWED",
       "gitlab.com cannot impersonate a self-hosted instance",
+    );
+  }
+  const encodedPath = `/api/v4/projects/${encodeURIComponent(identity.project_path)}/issues`;
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURIComponent(parsed.pathname);
+  } catch {
+    throw new CommandError(
+      "REPOSITORY_NOT_ALLOWED",
+      "gitlab instance request URL is invalid",
+    );
+  }
+  const decodedAllowed = `/api/v4/projects/${identity.project_path}/issues`;
+  if (parsed.pathname !== encodedPath && decodedPath !== decodedAllowed) {
+    throw new CommandError(
+      "REPOSITORY_NOT_ALLOWED",
+      "gitlab instance request escaped the authorized project path",
     );
   }
 }
@@ -237,6 +264,73 @@ function escapeRedirect(location: string, identity: GitLabInstanceIdentity): boo
 
 function isRedirect(status: number): boolean {
   return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+function issueWebOrigin(parsed: URL): string {
+  const port = parsed.port === "" ? "" : `:${parsed.port}`;
+  return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${port}`;
+}
+
+function assertIssueMatchesIdentity(
+  item: Record<string, unknown>,
+  identity: GitLabInstanceIdentity,
+  iid: number,
+  webUrl: string,
+): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(webUrl);
+  } catch {
+    throw new CommandError(
+      "OBSERVATION_UNAVAILABLE",
+      "gitlab instance issue web_url is invalid",
+    );
+  }
+  if (issueWebOrigin(parsed) !== identity.instance_origin.toLowerCase()) {
+    throw new CommandError(
+      "OBSERVATION_UNAVAILABLE",
+      "gitlab instance issue origin does not match the declared identity",
+    );
+  }
+  const pathMatch = parsed.pathname.match(/^\/(.+)\/-\/issues\/([1-9][0-9]*)$/);
+  if (pathMatch === null || pathMatch[1] === undefined || pathMatch[2] === undefined) {
+    throw new CommandError(
+      "OBSERVATION_UNAVAILABLE",
+      "gitlab instance issue web_url is not an issue URL for the declared project",
+    );
+  }
+  let projectPath: string;
+  try {
+    projectPath = decodeURIComponent(pathMatch[1]);
+  } catch {
+    throw new CommandError(
+      "OBSERVATION_UNAVAILABLE",
+      "gitlab instance issue web_url project path is invalid",
+    );
+  }
+  if (projectPath !== identity.project_path) {
+    throw new CommandError(
+      "OBSERVATION_UNAVAILABLE",
+      "gitlab instance issue does not belong to the declared project",
+    );
+  }
+  const urlIid = Number(pathMatch[2]);
+  if (!Number.isInteger(urlIid) || urlIid !== iid) {
+    throw new CommandError(
+      "OBSERVATION_UNAVAILABLE",
+      "gitlab instance issue iid does not match the declared issue URL",
+    );
+  }
+  const references = item["references"];
+  if (isJsonObject(references) && typeof references["full"] === "string") {
+    const expected = `${identity.project_path}#${String(iid)}`;
+    if (references["full"] !== expected) {
+      throw new CommandError(
+        "OBSERVATION_UNAVAILABLE",
+        "gitlab instance issue references do not match the declared project",
+      );
+    }
+  }
 }
 
 function toProjection(
@@ -271,16 +365,7 @@ function toProjection(
   ) {
     return [];
   }
-  if (typeof webUrl === "string") {
-    try {
-      const parsed = new URL(webUrl);
-      if (parsed.hostname.toLowerCase() !== identity.instance_host) {
-        return [];
-      }
-    } catch {
-      return [];
-    }
-  }
+  assertIssueMatchesIdentity(item, identity, iid, webUrl);
   const projection: GitLabIssueProjection = {
     external_ref: canonicalGitLabInstanceExternalRef(
       identity.instance_host,

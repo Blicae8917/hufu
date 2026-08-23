@@ -1,3 +1,5 @@
+import { redactSecrets } from "./secret-redact.js";
+
 export const ERROR_CODES = [
   "CONTRACT_INVALID",
   "TASK_AUTHORITY_UNSUPPORTED",
@@ -32,7 +34,7 @@ export class CommandError extends Error {
   project_root?: string;
 
   constructor(code: ErrorCode, message: string) {
-    super(message);
+    super(redactSecrets(message));
     this.name = "CommandError";
     this.code = code;
   }
@@ -85,7 +87,7 @@ export function commandErrorBody(error: CommandError): {
     ok: false,
     error: {
       code: error.code,
-      message: error.message,
+      message: redactSecrets(error.message),
       schema_version: "1",
     },
   };

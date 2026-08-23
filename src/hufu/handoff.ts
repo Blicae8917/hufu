@@ -4,7 +4,7 @@ import { CommandError } from "./errors.js";
 import { parseExternalRef } from "./github-ref.js";
 import { connectedInstanceIdentity } from "./gitlab-authority.js";
 import { readGitLabProjectionCache } from "./gitlab-cache.js";
-import { readGitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
+import { readGitLabInstanceProjectionCacheFor } from "./gitlab-instance-cache.js";
 import { parseGitLabInstanceExternalRef } from "./gitlab-instance-ref.js";
 import { parseGitLabExternalRef } from "./gitlab-ref.js";
 import { readProjectionCache } from "./projection-cache.js";
@@ -66,7 +66,7 @@ export function recordHandoff(
         : undefined;
     const gitlabInstanceCache =
       taskAuthority === "gitlab" && identity !== undefined
-        ? readGitLabInstanceProjectionCache(workspaceRoot)
+        ? readGitLabInstanceProjectionCacheFor(workspaceRoot, identity)
         : undefined;
     const view = projectCurrentView(events, {
       cache,

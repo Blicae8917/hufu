@@ -1,7 +1,11 @@
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
+import { connectedInstanceIdentity } from "./gitlab-authority.js";
 import { type GitLabProjectionCache } from "./gitlab-cache.js";
-import { type GitLabInstanceProjectionCache } from "./gitlab-instance-cache.js";
+import {
+  assertCacheMatchesIdentity,
+  type GitLabInstanceProjectionCache,
+} from "./gitlab-instance-cache.js";
 import { type ProjectionCache } from "./projection-cache.js";
 import {
   currentAck,
@@ -189,6 +193,10 @@ export function projectCurrentView(
   const last = events[events.length - 1];
   const staleAfterHours = Number(connected.payload["stale_after_hours"] ?? 24);
   const now = options.now ?? new Date();
+  const instanceIdentity = connectedInstanceIdentity(connected.payload);
+  if (instanceIdentity !== undefined && options.gitlabInstanceCache !== undefined) {
+    assertCacheMatchesIdentity(options.gitlabInstanceCache, instanceIdentity);
+  }
   const projectionCache =
     taskAuthority === "github"
       ? options.cache

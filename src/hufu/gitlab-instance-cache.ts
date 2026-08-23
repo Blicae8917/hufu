@@ -5,6 +5,7 @@ import { CommandError, isJsonObject } from "./errors.js";
 import {
   parseGitLabInstanceExternalRef,
   parseGitLabInstanceIdentity,
+  type GitLabInstanceIdentity,
 } from "./gitlab-instance-ref.js";
 import { type GitLabIssueProjection } from "./gitlab-port.js";
 
@@ -23,6 +24,34 @@ export interface GitLabInstanceProjectionCache {
 
 export function gitlabInstanceCachePath(workspaceRoot: string): string {
   return join(workspaceRoot, ".hufu", "cache", "gitlab-instance-projection.json");
+}
+
+export function assertCacheMatchesIdentity(
+  cache: GitLabInstanceProjectionCache,
+  identity: GitLabInstanceIdentity,
+): void {
+  if (
+    cache.instance_kind !== "self_hosted" ||
+    cache.instance_origin !== identity.instance_origin ||
+    cache.repository !== identity.project_path
+  ) {
+    throw new CommandError(
+      "OBSERVATION_UNAVAILABLE",
+      "gitlab instance cache does not match connected identity",
+    );
+  }
+}
+
+export function readGitLabInstanceProjectionCacheFor(
+  workspaceRoot: string,
+  identity: GitLabInstanceIdentity,
+): GitLabInstanceProjectionCache | undefined {
+  const cache = readGitLabInstanceProjectionCache(workspaceRoot);
+  if (cache === undefined) {
+    return undefined;
+  }
+  assertCacheMatchesIdentity(cache, identity);
+  return cache;
 }
 
 export function readGitLabInstanceProjectionCache(
