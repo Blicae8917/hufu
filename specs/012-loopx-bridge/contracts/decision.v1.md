@@ -1,8 +1,8 @@
 # Decision 过桥合同 v1
 
-本文件锁死 Decision 侧哪些字段可以进入未来 Hufu↔LoopX 桥载荷。Canonical 决策正文只完整保存在 Hufu 一次。本文件不是实现授权。
+本文件锁死 Decision 侧哪些字段可以进入 Hufu↔LoopX 桥载荷。Canonical 决策正文只完整保存在 Hufu 一次。实现授权见 #58 / ADR 0007；本波仍不交付 Adapter。
 
-本票属于 ADR 0006 第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥。引用 [#50](https://github.com/Blicae8917/hufu/issues/50) 与 [ADR 0005](../../../docs/adr/0005-zero-copy-decision-transfer.md)。
+本票属于 ADR 0006 第 (2) 类：Hufu↔LoopX Authority / Decision / Evidence 桥。引用 [#50](https://github.com/Blicae8917/hufu/issues/50)（设计史）与 [ADR 0005](../../../docs/adr/0005-zero-copy-decision-transfer.md)。
 
 ## 可过桥
 
@@ -14,6 +14,7 @@
 | `outcome_digest` | 可选；`business_outcome` 的不透明摘要 | `business_outcome` 原文 |
 | `state_digest` | 可选；权威状态成分的不透明摘要 | `authoritative_state` 叙述或 Issue 正文 |
 | `acceptance_digest` | 可选；验收成分的不透明摘要 | `acceptance_metric` 原文 |
+| `ExecutionEnvelopeRef` | `{ envelope_id, decision_ref, content_digest }` | `EXECUTION_ENVELOPE` 正文、`ROUTE_ACK` 正文 |
 
 以上合称 `DecisionRef`。信封、ACK、Handoff、Session 换届和 Renderer 已经只传引用；桥必须遵守同一规则。
 

@@ -94,19 +94,26 @@ describe("012 LoopX Authority/Decision/Evidence bridge spec (#50)", () => {
     assert.doesNotMatch(corpus, /ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}/i);
   });
 
-  it("states this kit is design only and not implementation authorization", () => {
+  it("records #58 / ADR 0007 implementation authorization while this wave ships no adapter", () => {
     const spec = readRepo(`${KIT_DIR}/spec.md`);
     const plan = readRepo(`${KIT_DIR}/plan.md`);
     const corpus = `${spec}\n${plan}\n${kitCorpus()}`;
-    assert.match(spec, /仅设计/);
-    assert.match(spec, /不是实现授权/);
-    assert.match(corpus, /不是 Adapter 实现授权|MUST NOT 实现桥 Adapter/);
+    assert.match(spec, /implementation-authorized|#58/);
+    assert.match(spec, /ADR 0007/);
+    assert.match(corpus, /MUST NOT 实现桥 Adapter/);
     assert.match(corpus, /MUST NOT 改变 CLI|不改 CLI/);
     assert.match(plan, /不改 `src\/` 运行时|不修改 src\//);
-    assert.match(readRepo(`${KIT_DIR}/data-model.md`), /implementation_authorized` \| 必须为 `false/);
+    assert.match(readRepo(`${KIT_DIR}/data-model.md`), /implementation_authorized` \| 必须为 `true/);
+    assert.match(readRepo(`${KIT_DIR}/data-model.md`), /#58/);
+    assert.match(readRepo(`${KIT_DIR}/data-model.md`), /v0\.5\.2/);
     assert.match(readRepo(`${KIT_DIR}/tasks.md`), /未来实现 PR/);
     assert.match(readRepo(`${KIT_DIR}/tasks.md`), /T001/);
     assert.match(readRepo(`${KIT_DIR}/tasks.md`), /012-loopx-bridge-adapter\.test\.ts/);
+    assert.match(corpus, /SessionBindingRef/);
+    assert.match(corpus, /ExecutionEnvelopeRef/);
+    assert.match(corpus, /EffectRef/);
+    assert.match(corpus, /ReceiptRef/);
+    assert.match(corpus, /TypedResultRef/);
   });
 
   it("does not resurrect M10-M15, Goal/Todo/Scheduler/Heartbeat, or hufu serve", () => {

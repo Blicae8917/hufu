@@ -105,3 +105,7 @@ ADR 0006 落地后，后续能力 Module 只围绕：
 - 更新 `docs/SPEC.md`、`docs/COMPATIBILITY.md`、ADR 0003 及与 (a) 冲突的 README / AGENTS
   表述；#5 仍是 GitHub 上的索引，不在本仓库另建第二份进度正本。
 - `0.1.0` 版本前两位不变；本 ADR 不授权打 `v0.1.0` 标签。
+- 2026-08-23 指挥官授权已由 [ADR 0007](0007-controlled-gitlab-effect-and-host-runtime.md)
+  记录：受控 GitLab Effect、#50 桥实现（LoopX v0.5.2 合同、不 vendoring）、Codex NativeHost
+  RuntimeProvider + SessionBinding，以及公开安全端到端试点。本 ADR 对上述 (a)(b)(c) 的
+  「尚未授权实现」由 0007 取代；Renderer 与 M10–M15 废止仍有效。本节以上历史正文不改写。

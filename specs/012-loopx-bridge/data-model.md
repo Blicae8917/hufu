@@ -7,10 +7,12 @@
 | 字段 | 约束 |
 | --- | --- |
 | `adr` | 必须为 `0006` |
-| `issue` | 必须为 `#50` |
+| `issue` | 必须为 `#50`（设计史） |
+| `implementation_issue` | 必须为 `#58` |
 | `capability_class` | 必须为 `(2)` |
 | `capability_name` | `Hufu↔LoopX Authority / Decision / Evidence 桥` |
-| `implementation_authorized` | 必须为 `false` |
+| `implementation_authorized` | 必须为 `true`（#58 / ADR 0007；本波仍不交付 Adapter） |
+| `loopx_contract_baseline` | `v0.5.2` / `423035f402e2f1703f076c3cfe60c14c5803433f` |
 
 `(1)` 自建 GitLab AuthorityProvider 与 `(3)` 企业 Renderer 不属于本模型。
 
@@ -43,6 +45,8 @@
 
 `AuthoritySnapshotRef` = `{ task_ref, source_revision, observed_at, freshness }`。它是投影指针，不是 Issue 正文，也不是 Hufu 自有外部议题生命周期。
 
+不透明 `SessionBindingRef` 只携带稳定 binding 身份与 generation，不得夹带 RoleBinding / SessionBinding 授权本体或 Host transcript。
+
 ## DecisionCrossing（可过桥）
 
 | 字段 | 约束 |
@@ -55,6 +59,8 @@
 | `acceptance_digest` | 可选；不透明相等性核对 |
 
 以上合称 `DecisionRef`。一个 decision stream 仍只完整保存在 Hufu 一次初始 `DECISION_PACKET`。
+
+不透明 `ExecutionEnvelopeRef` 只携带 `{ envelope_id, decision_ref, content_digest }`，不得夹带 `EXECUTION_ENVELOPE` 正文。
 
 ## EvidenceCrossing（可过桥）
 
@@ -71,6 +77,8 @@
 | `observed_at` | UTC ISO-8601 毫秒；缺失不得写 `0` |
 
 `readback_status` 若作为覆盖观测出现，仅允许 `complete` \| `unavailable` \| `data_insufficient`，且 **不得** 附带可被当成授权或议题完成的 `observed_result`。
+
+`EffectRef` / `ReceiptRef` / `TypedResultRef` 只允许作为稳定身份过桥，不得夹带 Receipt `ok`、TypedResult 正文或 `observed_result`，也不得从这些引用推断授权。
 
 ## StayOnSideSet
 

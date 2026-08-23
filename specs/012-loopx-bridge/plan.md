@@ -10,7 +10,7 @@
 
 ## Summary
 
-按 ADR 0006 第 (2) 类，落地 **仅设计** 的 Hufu↔LoopX Authority / Decision / Evidence 桥合同：三端可过桥字段、本侧留守清单、禁止 LoopX 取代原生 Issue 生命周期、禁止从 Journal / Receipt / 执行结果反推授权，以及 008 / #9 `loopx-mechanisms` 的显式非升格。本 PR **不是** Adapter 实现授权。不改 CLI、不改 `src/` 运行时、不引入 `loopx` 依赖、不复制上游源码、不升版本。通过的设计约束测试锁住上述句子；失败的 Adapter 测试只留在 `tasks.md` 给未来实现 PR。
+按 ADR 0006 第 (2) 类与 ADR 0007，扩展已落地的 Hufu↔LoopX Authority / Decision / Evidence 桥合同：补齐 `SessionBindingRef` / `ExecutionEnvelopeRef` / `EffectRef` / `ReceiptRef` / `TypedResultRef`，并将 Status 标为 implementation-authorized（#58）。本波 **MUST NOT 实现桥 Adapter**，不改 CLI、不改 `src/` 运行时、不引入 `loopx` 依赖、不复制上游源码、不升版本。通过的设计约束测试锁住上述句子；失败的 Adapter 测试只留在 `tasks.md` 给 #58 实现 PR。
 
 ## Technical Context
 
@@ -28,7 +28,7 @@
 
 **Performance Goals**: 设计约束测试在既有 `pnpm test` 时间内完成；维护者 10 分钟内能从 kit 指出三端划分（SC-001）。
 
-**Constraints**: 仅设计；无 Adapter；无 CLI 变更；无网络；无凭据；无议题写回；无 LoopX 默认依赖；版本 `0.1.0`；不复活 M10–M15；不升格 008。
+**Constraints**: implementation-authorized by #58；本波无 Adapter；无 CLI 变更；无网络；无凭据；无议题写回；无 LoopX 默认依赖；版本 `0.1.0`；不复活 M10–M15；不升格 008。
 
 **Scale/Scope**: 一份三端字段合同。不交付传输通道、不交付完整 LoopX 控制面、不交付 GitLab AuthorityProvider、不交付企业 Renderer。
 
@@ -51,7 +51,8 @@
 | ADR 0001 | 通过。桥只谈任务正本指针、决策引用与证据指针，不合并三轴 |
 | ADR 0003（经 0006 修订） | 通过。不把 LoopX 写成可分阶段搬入的完整控制面；不引入发行包 |
 | ADR 0005 | 通过。决策过桥只传 `DecisionRef`，不重写 Packet |
-| ADR 0006 | 通过。本票证明为第 (2) 类桥；不是实现授权 |
+| ADR 0006 | 通过。本票证明为第 (2) 类桥 |
+| ADR 0007 | 通过。#58 授权实现；本波不改 `src/` 运行时 |
 
 Phase 1 设计后复检：仍通过。合同文件不构成 Adapter、CLI 标志或第五套任务系统。`view_schema_version` 保持 `1`。兼容性核对本不因本 kit 改钉。
 

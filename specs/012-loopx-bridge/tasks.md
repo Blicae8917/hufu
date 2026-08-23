@@ -4,7 +4,7 @@
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/
 
-**本 PR 已交付**: 完整设计 kit 与通过的 `tests/012-loopx-bridge-spec.test.ts`。下列任务属于**未来实现 PR**，不是本票授权。在独立开工令下达前不得执行。
+**本波已交付**: 扩展后的设计 kit 与通过的 `tests/012-loopx-bridge-spec.test.ts`。下列任务属于 **#58 未来实现 PR**。本波不得执行。
 
 **Tests**: 未来实现 PR 必须先写会失败的 Adapter / 生命周期 / 依赖测试，再写生产代码。那些失败测试 **不得** 在本设计 PR 落地。门禁不得打真实网络，不得要求 LoopX 发行包。
 
