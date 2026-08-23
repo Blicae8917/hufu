@@ -4,29 +4,40 @@
 
 **Created**: 2026-08-23
 
-**Status**: Design + implementation-authorized（#59 / ADR 0007）。本波不交付 Runtime。
+**Status**: Implemented（#59 packet-only Provider；#67 Codex App Consumer v2）
 
 **Input**: User description: "Hufu 核心不创建 Session。Codex Consumer 调用宿主原生工具；Hufu 只发 action packet 并记录结果。最小接口 capabilities/start/resume/send/observe/wait/interrupt/release/readback。"
 
-**Parent Issue**: [#59](https://github.com/Blicae8917/hufu/issues/59)
+**Parent Issues**: [#59](https://github.com/Blicae8917/hufu/issues/59)、[#67](https://github.com/Blicae8917/hufu/issues/67)
 
 **Parent Contract**: [ADR 0007](../../docs/adr/0007-controlled-gitlab-effect-and-host-runtime.md)、ADR 0002 / 0003、Constitution V
 
 ## 设计声明
 
-本规格是 #59 的实现合同。本波只落地 kit 与约束测试，不调用 Codex thread，不新增网络入口。后续实现 PR 必须先失败测试。独立 CLI / daemon 在宿主原生工具缺失时失败关闭，禁止静默回退到 subagent 或 CLI thread。
+本规格先由 #59 落地 packet-only Provider，再由 #67 增加 Codex App Consumer v2。Consumer 使用
+`prepare*` / `complete*` 两阶段：Hufu 先把脱敏 action packet 落入 append-only Ledger，运行中的
+Codex Host Consumer 在两阶段之间调用宿主工具，随后把结果与 readback 落账。测试只使用公开安全
+fake adapter，不调用真实 Codex thread，不新增网络入口。独立 CLI / daemon 仍失败关闭，禁止静默
+回退到 subagent 或 CLI thread。
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 最小宿主接口 (Priority: P1)
 
-维护者能核对照表：Hufu 只下发 packet；Codex Consumer 把 `start` 映射到 `create_thread`，`send`/`resume` 到 `send_message_to_thread`，`wait` 到有界 `wait_threads`，handoff 到 `handoff_thread`，`interrupt` 到宿主原生 interrupt，`observe` 到 thread status / readback。
+维护者能核对照表：Hufu 只下发 packet；Codex Consumer 把 `start` 映射到 `create_thread`，`send`
+映射到 `send_message_to_thread`，`wait` 映射到有界 `wait_threads`，`observe` / `readback` / release
+预检映射到 `read_thread`。当前 Host 没有可验证的原生 interrupt 时明确返回 `unavailable`；逻辑
+换届只追加 Hufu handoff 事实，不误用物理 `handoff_thread`。
 
 **Acceptance Scenarios**:
 
 1. **Given** 独立 CLI 且宿主原生工具缺失，**When** 调用 start / send，**Then** 失败关闭，不静默改走 subagent。
 2. **Given** 活跃 Turn，**When** 再发额外消息，**Then** 只能排队或拒绝，不得强行 interrupt。
 3. **Given** 无投递 / readback，**When** 声称已唤醒或已投递，**Then** 不合格。
+4. **Given** `create_thread` 只返回 `clientThreadId`，**When** Hufu 完成 start，**Then** binding 保持
+   `pending`；`clientThreadId` 不得传给需要 `threadId` 的工具。Consumer 只能用准备时生成的唯一
+   correlation title 经 `list_threads` 解析稳定 `threadId + hostId`，之后才能用 `read_thread` observe
+   并进入 `ready`。
 
 ---
 
@@ -68,10 +79,21 @@ Claude / DeepSeek Harness / Codex 不是等价运行时。Codex App 可声明原
 - **FR-005**: 独立 CLI / daemon 在宿主原生工具缺失时 MUST 失败关闭，MUST NOT 静默回退。
 - **FR-006**: Claude Chat 默认 MUST 只读，MUST NOT 冒充可写构建运行时。
 - **FR-007**: MUST NOT 读取原始 transcript。无投递 / readback MUST NOT 声称已唤醒或已投递。
-- **FR-008**: 本波 MUST NOT 实现 Runtime。版本 MUST 保持 `0.1.0`。MUST NOT npm-publish。MUST NOT vendoring LoopX。
+- **FR-008**: Codex App Consumer MUST 以 `prepareStart/completeStart`、`prepareSend/completeSend`、
+  `prepareWait/completeWait`、`prepareReadback/completeReadback` 执行；Host 调用 MUST 位于两阶段之间。
+  prepared packet、binding、generation/fence、idempotency、hostId/cursor 与 receipt/readback MUST
+  写入 Hufu Ledger并可在进程重启后恢复。
 - **FR-009**: MUST NOT 实现 Goal/Todo/Scheduler/Heartbeat、PM/Wave Engine、`hufu serve` 或企业 Renderer。
 - **FR-010**: 后续实现结束 MUST 报告 `IMPLEMENTATION_COMPLETE` 或类型化 `NO_GO`，MUST NOT 把「CI 绿」写成生产已自动化。
 - **FR-011**: 真实生产写回 MUST 仍视为未授予；HTTP 写 MUST 另有 exception ref。
+- **FR-012**: `message_ref` MUST 经受控 Resolver 生成 prompt；Ledger MUST 只保存 ref 与 digest，
+  MUST NOT 保存 prompt正文、Issue正文或 raw transcript。
+- **FR-013**: active Turn 的额外消息 MUST 真实耐久排队或明确拒绝；当前实现采用明确拒绝。
+- **FR-014**: release MUST 先执行 Host `read_thread` 并由 readback 确认；逻辑 handoff MUST NOT
+  调用物理 `handoff_thread`。
+- **FR-015**: Codex App工具参数 MUST 与当前Host合同一致：`create_thread`使用`prompt + target`，
+  `send_message_to_thread`使用`prompt + threadId`；pending解析使用`list_threads`，不得把
+  `clientThreadId`传给`read_thread`、`wait_threads`或send。
 
 ## Key Entities
 
@@ -85,15 +107,17 @@ Claude / DeepSeek Harness / Codex 不是等价运行时。Codex App 可声明原
 - **SC-001**: 维护者能在 10 分钟内从本 kit 指出最小接口、映射表与失败关闭。
 - **SC-002**: 100% 缺失宿主工具或未 qualified 的 start 样例失败关闭。
 - **SC-003**: 100% 双 Session / 旧 generation 样例被拒绝。
-- **SC-004**: 本波门禁通过且无 Runtime 实现测试变红；版本 `0.1.0`。
+- **SC-004**: 重启恢复、pending thread、双 start / ABA、旧 generation、active-turn send、Host失败、
+  未投递不宣称 awake 与 release readback 的测试全部通过；版本保持 `0.1.0`。
 
 ## Assumptions
 
 - Codex 宿主原生工具由 Consumer 所在进程提供，不由 Hufu 安装。
-- 本波不连真实 Codex 账户。
+- CI 与本地测试不连真实 Codex 账户；真实 pilot 由运行中的 Codex Host另行执行。
 
 ## Out of Scope
 
-- 本波实现 thread 调用
+- Hufu CLI / daemon 直接调用 Codex App 专属工具
+- 测试创建真实 Codex thread
 - 把 Claude Chat 写成可写构建运行时
 - 复活 M10–M15 或完整 Web 控制面

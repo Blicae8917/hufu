@@ -1,22 +1,24 @@
 # Implementation Plan: Codex NativeHost RuntimeProvider + SessionBinding
 
-**Branch**: `014-codex-native-host` | **Date**: 2026-08-23 | **Spec**: [spec.md](./spec.md)
+**Branch**: `codex/issue-67-codex-app-consumer-v2` | **Date**: 2026-08-23 | **Spec**: [spec.md](./spec.md)
 
-**Parent Issue**: [#59](https://github.com/Blicae8917/hufu/issues/59)
+**Parent Issues**: [#59](https://github.com/Blicae8917/hufu/issues/59)、[#67](https://github.com/Blicae8917/hufu/issues/67)
 
-**本 Plan 的实现范围（本波）**: 无 Runtime。只固定接口、Binding 字段与失败关闭。
+**本 Plan 的实现范围**: 在 #59 packet-only Provider 旁增加 #67 Codex App Consumer v2；不调用真实 Host。
 
 ## Summary
 
-按 ADR 0007 (c)，锁定 Codex NativeHost 的最小接口、Consumer 映射、SessionBinding 唯一性与 Provider 不等价。本波不调用宿主 thread。
+按 ADR 0007 (c)，保留 Codex NativeHost 最小接口与 Provider 不等价，在同一模块增加两阶段耐久
+Consumer。Host工具调用由外部 Consumer 在 prepare与complete之间完成；Hufu只拥有 packet、binding、
+receipt和readback事实。
 
 ## Technical Context
 
-**Language/Version**: 与仓库 TypeScript 基线相同。本波不新增编译单元。
+**Language/Version**: 与仓库 TypeScript 基线相同。
 
 **Primary Dependencies**: 零新增。不引入 Codex SDK，不引入 `loopx`。
 
-**Testing**: 本波 `tests/014-codex-native-host-spec.test.ts` 必须通过。失败 Runtime 测试见 `tasks.md`。
+**Testing**: `tests/codex-native-host-consumer-v2.test.ts` 严格 RED→GREEN；同时回归 #59 与 #60。
 
 **Constraints**: 版本 `0.1.0`；无静默回退；无原始 transcript。
 
@@ -29,8 +31,8 @@
 | III 公开安全 | 通过。无真实 Session ID / 本机路径 |
 | IV 证据 | 通过。无 readback 不得声称投递 |
 | V 换届 | 通过。`supersedes` + Handoff |
-| VI 可逆 | 通过。本波无后台服务 |
-| VII Spec | 通过。实现失败测试留给 #59 |
+| VI 可逆 | 通过。无后台服务；prepared action 可从 Ledger恢复 |
+| VII Spec | 通过。#67 每个行为切片先写失败测试 |
 | VIII 有界 | 通过。一次调用一次有界 wait，无无限循环 |
 | ADR 0007 | 通过。本票是 (c) |
 
@@ -45,4 +47,4 @@ specs/014-codex-native-host/
 └── checklists/requirements.md
 ```
 
-未来实现才可增加 `src/hufu/codex-native-host.ts`。独立 CLI 缺失宿主工具时必须失败关闭。
+实现继续位于 `src/hufu/codex-native-host.ts`；不新增 CLI入口。独立 CLI缺失宿主工具时仍失败关闭。
