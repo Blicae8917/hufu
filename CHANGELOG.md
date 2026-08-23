@@ -12,6 +12,7 @@
 
 ### 变更
 
+- 允许清单内的自建 GitLab 来源可使用 HTTP、IPv4 与非默认端口（#53 后续）：规范来源保留 scheme + host + port；允许清单按三者精确匹配；`gitlab.com` 仍不得冒充自建；007 不变。公开示例增加 `http://192.0.2.10:41101`（RFC 5737 TEST-NET-1，示例）与 `http://gitlab.example.com:41101`（示例）。
 - Windows 与 GitHub Actions 的 PASS 口径显式化：POSIX executable-bit / bash helpers 与 pack-surface 路径分隔隔离；CI 增加 `windows-latest` 作业。
 
 ## [0.1.0] - 2026-08-23

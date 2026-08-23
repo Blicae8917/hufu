@@ -192,14 +192,23 @@ function assertAllowedUrl(url: string, identity: GitLabInstanceIdentity): void {
       "gitlab instance request URL is invalid",
     );
   }
-  if (parsed.protocol !== "https:") {
+  const declared = new URL(identity.instance_origin);
+  if (declared.protocol === "https:" && parsed.protocol !== "https:") {
     throw new CommandError(
       "REPOSITORY_NOT_ALLOWED",
       "gitlab instance requests must use HTTPS",
     );
   }
-  const origin = `${parsed.protocol}//${parsed.host}`;
-  if (origin.toLowerCase() !== identity.instance_origin.toLowerCase()) {
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new CommandError(
+      "REPOSITORY_NOT_ALLOWED",
+      "gitlab instance requests must use HTTP or HTTPS",
+    );
+  }
+  const origin = `${parsed.protocol}//${parsed.hostname.toLowerCase()}${
+    parsed.port === "" ? "" : `:${parsed.port}`
+  }`;
+  if (origin !== identity.instance_origin.toLowerCase()) {
     throw new CommandError(
       "REPOSITORY_NOT_ALLOWED",
       "gitlab instance request escaped the authorized origin",

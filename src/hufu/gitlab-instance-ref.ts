@@ -2,6 +2,9 @@ import { CommandError } from "./errors.js";
 
 export const EXAMPLE_GITLAB_INSTANCE_ORIGIN = "https://gitlab.example.com";
 export const EXAMPLE_GITLAB_INSTANCE_HOST = "gitlab.example.com";
+export const EXAMPLE_GITLAB_HTTP_IPV4_ORIGIN = "http://192.0.2.10:41101";
+export const EXAMPLE_GITLAB_HTTP_HOST_PORT_ORIGIN =
+  "http://gitlab.example.com:41101";
 
 export interface GitLabInstanceIdentity {
   readonly instance_kind: "self_hosted";
@@ -21,6 +24,30 @@ export interface GitLabInstanceExternalRef {
 
 const SAAS_HOSTS = new Set(["gitlab.com", "www.gitlab.com"]);
 
+function assertHttpOrHttps(parsed: URL, invalidUrlMessage: string): void {
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new CommandError("REPOSITORY_NOT_ALLOWED", invalidUrlMessage);
+  }
+}
+
+function canonicalGitLabInstanceOrigin(parsed: URL): string {
+  const host = parsed.hostname.toLowerCase();
+  if (host === "" || host.includes(":")) {
+    throw new CommandError(
+      "REPOSITORY_NOT_ALLOWED",
+      "self-hosted instance_origin must be a hostname or IPv4 address",
+    );
+  }
+  if (SAAS_HOSTS.has(host)) {
+    throw new CommandError(
+      "REPOSITORY_NOT_ALLOWED",
+      "gitlab.com cannot impersonate a self-hosted instance",
+    );
+  }
+  const port = parsed.port === "" ? "" : `:${parsed.port}`;
+  return `${parsed.protocol}//${host}${port}`;
+}
+
 export function parseGitLabInstanceOrigin(input: string): string {
   const trimmed = input.trim();
   if (trimmed === "") {
@@ -32,35 +59,30 @@ export function parseGitLabInstanceOrigin(input: string): string {
   } catch {
     throw new CommandError(
       "REPOSITORY_NOT_ALLOWED",
-      "self-hosted instance_origin must be an HTTPS URL",
+      "self-hosted instance_origin must be an HTTP or HTTPS URL",
     );
   }
-  if (parsed.protocol !== "https:") {
-    throw new CommandError(
-      "REPOSITORY_NOT_ALLOWED",
-      "self-hosted instance_origin must use HTTPS",
-    );
-  }
+  assertHttpOrHttps(
+    parsed,
+    "self-hosted instance_origin must use HTTP or HTTPS",
+  );
   if (parsed.username !== "" || parsed.password !== "") {
     throw new CommandError(
       "CONTRACT_INVALID",
       "instance_origin must not embed credentials",
     );
   }
-  if (parsed.pathname !== "/" && parsed.pathname !== "") {
+  if (
+    (parsed.pathname !== "/" && parsed.pathname !== "") ||
+    parsed.search !== "" ||
+    parsed.hash !== ""
+  ) {
     throw new CommandError(
       "REPOSITORY_NOT_ALLOWED",
       "instance_origin must be an origin without a project path",
     );
   }
-  const host = parsed.hostname.toLowerCase();
-  if (SAAS_HOSTS.has(host)) {
-    throw new CommandError(
-      "REPOSITORY_NOT_ALLOWED",
-      "gitlab.com cannot impersonate a self-hosted instance",
-    );
-  }
-  return `https://${host}${parsed.port === "" ? "" : `:${parsed.port}`}`;
+  return canonicalGitLabInstanceOrigin(parsed);
 }
 
 export function parseGitLabInstanceProjectPath(input: string): string {
@@ -92,26 +114,14 @@ export function parseGitLabInstanceSourceUrl(input: string): {
   } catch {
     throw new CommandError(
       "REPOSITORY_NOT_ALLOWED",
-      "self-hosted source must be an HTTPS instance URL",
+      "self-hosted source must be an HTTP or HTTPS instance URL",
     );
   }
-  if (parsed.protocol !== "https:") {
-    throw new CommandError(
-      "REPOSITORY_NOT_ALLOWED",
-      "self-hosted source must use HTTPS",
-    );
-  }
+  assertHttpOrHttps(parsed, "self-hosted source must use HTTP or HTTPS");
   if (parsed.username !== "" || parsed.password !== "") {
     throw new CommandError(
       "CONTRACT_INVALID",
       "self-hosted source must not embed credentials",
-    );
-  }
-  const host = parsed.hostname.toLowerCase();
-  if (SAAS_HOSTS.has(host)) {
-    throw new CommandError(
-      "REPOSITORY_NOT_ALLOWED",
-      "gitlab.com cannot impersonate a self-hosted instance",
     );
   }
   const segments = parsed.pathname
@@ -125,7 +135,7 @@ export function parseGitLabInstanceSourceUrl(input: string): {
     );
   }
   return {
-    instance_origin: `https://${host}${parsed.port === "" ? "" : `:${parsed.port}`}`,
+    instance_origin: canonicalGitLabInstanceOrigin(parsed),
     project_path: `${segments[0]}/${segments[1]}`,
   };
 }
