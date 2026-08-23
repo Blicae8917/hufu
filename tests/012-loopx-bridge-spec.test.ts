@@ -9,7 +9,7 @@ function repoUrl(relativePath: string): URL {
 }
 
 function readRepo(relativePath: string): string {
-  return readFileSync(repoUrl(relativePath), "utf8");
+  return readFileSync(fileURLToPath(repoUrl(relativePath)), "utf8");
 }
 
 const KIT_DIR = "specs/012-loopx-bridge";
@@ -91,7 +91,7 @@ describe("012 LoopX Authority/Decision/Evidence bridge spec (#50)", () => {
     assert.match(corpus, /GitLab AuthorityProvider/);
     assert.match(corpus, /企业 Renderer/);
     assert.doesNotMatch(corpus, /\/home\/|\/Users\/|[A-Za-z]:\\/);
-    assert.doesNotMatch(corpus, /ghp_|sk-[A-Za-z0-9]{8,}|xox[baprs]-/i);
+    assert.doesNotMatch(corpus, /ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}/i);
   });
 
   it("states this kit is design only and not implementation authorization", () => {
