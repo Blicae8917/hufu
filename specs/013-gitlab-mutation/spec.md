@@ -4,17 +4,19 @@
 
 **Created**: 2026-08-23
 
-**Status**: Design + implementation-authorized（#57 / ADR 0007）。本波不交付 Adapter。
+**Status**: Implemented（#57）+ production binding hardening candidate（#66，待评审）。真实项目首次写仍停在 preview。
 
-**Input**: User description: "实现独立 GitLabTaskMutationProvider：preview / execute / readback；第一版只允许五种 mutation_kind；只读 GitLabPort 不加写方法；真实生产 execute 未授予。"
+**Input**: User description: "闭合 production execute grant、Ledger exact refs、精确写 allowlist、六状态互斥标签、EvidenceRef 关闭闸门与 revision-safe 恢复；不得因注入 fetch 获得写权。"
 
 **Parent Issue**: [#57](https://github.com/Blicae8917/hufu/issues/57)
+
+**Hardening Issue**: [#66](https://github.com/Blicae8917/hufu/issues/66)
 
 **Parent Contract**: [007-gitlab-readonly](../007-gitlab-readonly/spec.md)、[011-gitlab-authority](../011-gitlab-authority/spec.md)、[ADR 0007](../../docs/adr/0007-controlled-gitlab-effect-and-host-runtime.md)、Constitution 系统边界修订
 
 ## 设计声明
 
-本规格是 #57 的实现合同。本波只落地 kit 与约束测试，**不**修改 `src/` 写回运行时、**不**发 HTTP POST/PUT。后续实现 PR 必须先写会失败的适配器测试。真实生产 `execute` 仍未授予；真实项目第一次写停在 preview / 只读预检。
+本规格是 #57 的实现合同，也是 #66 的收口合同。#66 只把库级端口从公开夹具提升为“具备显式 production grant 后才可执行”的失败关闭实现；测试仍只使用注入式 fake transport，不连接真实 GitLab。真实项目第一次写仍停在 preview / 只读预检。
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -41,7 +43,7 @@
 **Acceptance Scenarios**:
 
 1. **Given** 缺少 `effect_id` 或 `expected_source_revision` 的意图，**When** preview / execute，**Then** 失败关闭。
-2. **Given** `close_issue` 且验收 Evidence 不完整或 readback 为 `unavailable` / `data_insufficient`，**When** 试图关闭，**Then** 不得关闭。
+2. **Given** `close_issue`，**When** 调用方只给 boolean、EvidenceRef 不存在于当前 decision 或验收矩阵引用不在 EvidenceRef 集合，**Then** 不得关闭；readback 为 `unavailable` / `data_insufficient` 时同样不得关闭。
 3. **Given** 标签 / 指派 / 关闭已在目标态，**When** execute，**Then** 合法 no-op。
 4. **Given** 超时后重试，**When** 未先 readback，**Then** 不合格。
 
@@ -61,6 +63,10 @@
 - 多动作必须拆成有序单个 Effect，禁止伪造跨 API 事务或自动回滚。
 - 评论重试前必须检查隐藏 effect marker。
 - GET 当前议题必须核对恰好 `instance_origin` + `project_path` + `iid` + `updated_at`/revision。
+- 任意注入 `fetch` 只提供 transport，不产生授权；`execute` 还必须持有 owner-local `ProductionExecuteGrantRef`，且它命中当前 Ledger grant id + revision。
+- `readAllowlist` 与写 allowlist 都参与 preview / execute；写 allowlist 的单元是 exact origin + project + iid + kind，并在标签/指派时继续精确到 label 或 assignee + id。
+- 标签转换的 owner-local 集合必须恰好六个唯一标签；写入同时 add 目标标签并 remove 当前其他受管标签。
+- prepared 恢复必须重新读取 current source revision；若目标尚未实现且 revision 已变，停车，不继续旧计划。
 - 版本保持 `0.1.0`。不 npm-publish。
 
 ## Requirements *(mandatory)*
@@ -73,10 +79,16 @@
 - **FR-006**: 只读 allowlist MUST NOT 授权 HTTP 写。HTTP 写 MUST 另有本机 `transport_security_exception_ref`。
 - **FR-007**: 真实生产 `execute` MUST 视为未授予。真实项目第一次写 MUST 停在 preview / 只读预检。
 - **FR-008**: `close_issue` MUST 具备完整验收 Evidence；readback 为 `unavailable` / `data_insufficient` 时 MUST NOT 关闭。
-- **FR-009**: 本波 MUST NOT 实现 Adapter。后续实现 PR MUST 先失败测试。版本 MUST 保持 `0.1.0`。MUST NOT npm-publish。
+- **FR-009**: #57 / #66 MUST 只实现库级 Provider 与 fake transport 测试，不得连接真实项目。实现 PR MUST 先失败测试。版本 MUST 保持 `0.1.0`。MUST NOT npm-publish。
 - **FR-010**: MUST NOT 实现 Goal/Todo/Scheduler/Heartbeat、PM/Wave Engine、`hufu serve`、会商或企业 Renderer。
 - **FR-011**: 公开产物 MUST 只用示例 `https://gitlab.example.com`、`http://192.0.2.10:41101`、`http://gitlab.example.com:41101`。MUST NOT 写入真实 GitLab IP、token、项目名或例外正文。
 - **FR-012**: 后续实现结束 MUST 报告 `IMPLEMENTATION_COMPLETE` 或类型化 `NO_GO`，MUST NOT 把「CI 绿」写成生产已自动化。
+- **FR-013**: `execute` MUST 要求显式 `ProductionExecuteGrantRef`，并核对当前 Ledger `AuthorizationGrant` 的 exact `grant_id + revision`。注入 `fetch` MUST NOT 构成授权。
+- **FR-014**: `authority_scope_ref`、`decision_ref`、`execution_envelope_ref`、`actor_binding`、`task_ref` MUST 共同命中当前 Ledger 的 grant / decision / 当前 envelope / executor / work item；`task_ref` MUST 与 exact mutation target 相同。
+- **FR-015**: `readAllowlist` MUST 实际参与判断。production write allowlist MUST 使用 exact origin + project + iid + kind；标签和指派还 MUST 精确到受管 label、assignee 与 assignee id。origin-only 条目 MUST NOT 授权 execute。
+- **FR-016**: `transition_managed_status_label` MUST 使用 owner-local 注入的恰好六标签集合，并通过 `add_labels + remove_labels` 保证互斥；readback / projection MUST 同时证明目标存在且其他受管标签不存在。
+- **FR-017**: `close_issue` MUST 绑定当前 decision 中真实存在的 `acceptance_evidence_refs` 和 `acceptance_matrix_ref`；调用方 boolean MUST NOT 充当证据。
+- **FR-018**: `mutation.prepared` MUST 审计 `production_execute_grant_ref`。恢复时 MUST 先重新读取 exact source revision；目标尚未实现且 revision 改变时 MUST 以冲突停车，禁止继续旧写计划；若唯一 effect marker / 目标态已证明存在，只允许 readback 收尾，不得重复写。
 
 ## Key Entities
 
@@ -84,22 +96,26 @@
 - **TaskMutationIntent / MutationPlan / MutationReceipt / MutationReadback**: preview / execute / readback 对象。
 - **ManagedMutationKind**: 五种允许 kind。
 - **TransportSecurityExceptionRef**: 仅本机持有的 HTTP 写例外引用。
+- **ProductionExecuteGrantRef**: owner-local 显式执行授权引用；只含既有 Ledger grant id + revision，不由 fetch、Receipt 或 readback 推导。
+- **MutationWriteAllowance**: 单个 exact target / kind / label 或 assignee 的本机允许项；旧式字符串 origin 只能被识别并失败关闭，不能形成合法 plan 或授权 execute。
 
 ## Success Criteria *(mandatory)*
 
 - **SC-001**: 未读 `src/` 的维护者能在 10 分钟内指出五种 kind、独立端口与禁止项。
 - **SC-002**: 100% 缺少绑定字段或禁止 kind 的样例被拒绝。
 - **SC-003**: 100% 无 exception ref 的 HTTP 写样例被拒绝。
-- **SC-004**: 本波门禁测试通过且不含会失败的 Adapter 测试；版本仍为 `0.1.0`。
+- **SC-004**: 所有 RED→GREEN 与既有回归门禁通过；版本仍为 `0.1.0`。
+- **SC-005**: arbitrary fetch、错误 grant/ref/scope/label/assignee/evidence/revision 的夹具 100% 在零写入前失败关闭。
+- **SC-006**: prepared 恢复对已实现目标只读收尾，对 revision 已变且目标未实现的计划 100% 停车。
 
 ## Assumptions
 
 - #53 只读认证路径继续有效，不因本票获得写权。
 - 公开示例主机一律标明示例。
-- 本波不连真实 GitLab。
+- 本波不连真实 GitLab；当前项目 `write_back_enabled=false`、`production_execute_grant_ref=null` 时只允许 preview。
 
 ## Out of Scope
 
-- 本波实现 HTTP POST/PUT 或关闭真实议题
+- 对真实网络执行 HTTP POST/PUT 或关闭真实议题
 - 把写方法加到只读端口
 - 提升版本、npm-publish、企业 Renderer、M10–M15

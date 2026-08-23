@@ -2,11 +2,11 @@
 
 **Input**: Design documents from `/specs/013-gitlab-mutation/`
 
-**本波已交付**: kit 与通过的 `tests/013-gitlab-mutation-spec.test.ts`。下列任务属于 **#57 后续实现 PR**，本波不得执行。
+**交付历史**: 初始波交付 kit；#57 完成 T001–T012；#66 完成 T013–T019 的 production binding hardening。
 
-**Tests**: 实现 PR 必须先写会失败的测试，再写生产代码。那些失败测试不得在本波落地。
+**Tests**: 每个实现切片必须先写会失败的测试，再写最小生产代码；最终分支不得保留红灯。
 
-## Phase 1: 未来实现的失败测试
+## Phase 1: #57 实现的失败测试
 
 - [x] T001 [P] 在 `tests/gitlab-task-mutation-provider.test.ts` 写失败测试：只读 `GitLabPort` 仍无写方法；独立端口只接受五种 kind
 - [x] T002 [P] 写失败测试：缺少任一绑定字段则 preview 失败；同一 `effect_id` + 不同 digest 冲突停止
@@ -29,6 +29,16 @@
 
 - [x] T011 运行 `pnpm test`、`node scripts/check-version.mjs`、`git diff --check`
 - [x] T012 报告 `IMPLEMENTATION_COMPLETE` 或类型化 `NO_GO`，不得写「CI 绿 = 生产已自动化」
+
+## Phase 5: #66 production binding hardening
+
+- [x] T013 RED→GREEN：任意 injected fetch 无显式 production grant 时零写入失败关闭
+- [x] T014 RED→GREEN：production grant 与 authority / decision / envelope / actor / task refs exact Ledger 绑定
+- [x] T015 RED→GREEN：read allowlist、exact target/kind/label/assignee write allowance
+- [x] T016 RED→GREEN：owner-local 六状态互斥转换及 projection/readback
+- [x] T017 RED→GREEN：真实 EvidenceRef + acceptance matrix 关闭闸门，拒绝 boolean
+- [x] T018 RED→GREEN：prepared grant 审计与 current source revision-safe 恢复
+- [x] T019 更新公开安全 e2e 夹具；仍无真实 endpoint、secret 或 GitLab 写入
 
 ## Notes
 
