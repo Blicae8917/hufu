@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { connectWorkspace } from "../src/hufu/connect.js";
 import { decideWorkspace } from "../src/hufu/decide.js";
 import { CommandError } from "../src/hufu/errors.js";
 import {
@@ -182,13 +181,7 @@ describe("LoopX bridge surface (#58)", () => {
 
   it("projects a snapshot of refs and digests only", () => {
     withTempDir((dir) => {
-      const connected = connectWorkspace(dir, {
-        commander: "human:alice",
-        grantScope: GRANT_SCOPE,
-        projectId: "demo",
-        repository: "https://example.com/demo.git",
-        taskAuthority: "local",
-      });
+      const connected = connectOpenGrant(dir);
       const packet = recordPacket(dir, connected.grant_id);
       const envelope = recordEnvelope(dir, packet);
       bindEngine(dir);
