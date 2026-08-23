@@ -7,6 +7,7 @@
 ### 新增
 
 - 自建 GitLab AuthorityProvider 设计合同（#49 / `specs/011-gitlab-authority`）：仅设计，不授权 Adapter 实现；Constitution 写回禁令不因本 Kit 修订。
+- Hufu↔LoopX Authority / Decision / Evidence 桥设计合同（#50 / `specs/012-loopx-bridge/`）：仅设计，不是 Adapter 实现授权；008 `loopx-mechanisms` 仍只是须显式选用的机制记录口。
 
 ## [0.1.0] - 2026-08-23
 
