@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
+import { isBridgeEnabled } from "../src/hufu/loopx-bridge.js";
+import { readLedger } from "../src/hufu/storage.js";
 import {
   CONNECT_ARGS,
   bindEngine,
@@ -75,6 +77,23 @@ describe("hufu decide --engine", () => {
       assert.equal(result.status, 2);
       const error = parseStdout(result.stdout)["error"] as Record<string, unknown>;
       assert.equal(error["code"], "TASK_AUTHORITY_UNSUPPORTED");
+    });
+  });
+
+  it("does not treat loopx-mechanisms bind as LoopX bridge activation", () => {
+    withTempDir((dir) => {
+      connectOpenGrant(dir);
+      bindEngine(dir);
+      const view = statusView(dir);
+      const taskAuthority = view["task_authority"] as Record<string, unknown>;
+      assert.equal(taskAuthority["value"], "local");
+      const snapshot = readLedger(dir);
+      assert.equal(snapshot.status, "ready");
+      assert.equal(isBridgeEnabled(snapshot.events), false);
+      assert.equal(
+        snapshot.events.some((event) => String(event.event_type).includes("bridge")),
+        false,
+      );
     });
   });
 
