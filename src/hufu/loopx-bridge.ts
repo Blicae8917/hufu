@@ -36,6 +36,33 @@ import {
 } from "./loopx-bridge-schema.js";
 import { type CurrentView } from "./projector.js";
 
+export const LOOPX_RUN_ONCE_BASELINE = {
+  commit: "423035f402e2f1703f076c3cfe60c14c5803433f",
+  release: "v0.5.2",
+} as const;
+
+export interface BridgeActivationCapabilities {
+  readonly durable_attempt_journal: true;
+  readonly independent_typed_result_validator: true;
+  readonly readback: true;
+  readonly run_once: true;
+  readonly turn_plan: true;
+}
+
+export interface BridgeActivationReceipt {
+  readonly adapter_id: string;
+  readonly adapter_version: string;
+  readonly capabilities: BridgeActivationCapabilities;
+  readonly capability_digest: string;
+  readonly loopx_commit: typeof LOOPX_RUN_ONCE_BASELINE.commit;
+  readonly loopx_release: typeof LOOPX_RUN_ONCE_BASELINE.release;
+  readonly observed_at: string;
+  readonly qualification: "qualified";
+  readonly receipt_id: string;
+  readonly runtime_locator_ref: string;
+  readonly validator_id: string;
+}
+
 export interface AuthorityScopeRef {
   readonly grant_id: string;
   readonly revision: number;
@@ -44,6 +71,11 @@ export interface AuthorityScopeRef {
 export interface SessionBindingRef {
   readonly binding_id: string;
   readonly generation: number;
+}
+
+export interface RunOnceAuthorityRef {
+  readonly authority_id: string;
+  readonly task_ref: string;
 }
 
 export interface AuthoritySnapshotRef {
@@ -127,9 +159,23 @@ export interface TypedResultAcceptance {
 }
 
 export interface BoundedTurnRequest {
+  readonly activation_receipt_ref?: {
+    readonly capability_digest: string;
+    readonly receipt_id: string;
+  };
   readonly decision_ref: DecisionRef;
   readonly envelope_ref: ExecutionEnvelopeRef;
+  readonly execution_allowed: boolean;
+  readonly authority_ref?: RunOnceAuthorityRef;
+  readonly authority_validation_ref?: {
+    readonly receipt_id: string;
+    readonly validation_digest: string;
+  };
+  readonly loopx_baseline: typeof LOOPX_RUN_ONCE_BASELINE;
   readonly max_invocations: 1;
+  readonly runtime_locator_ref?: string;
+  readonly session_binding_ref: SessionBindingRef;
+  readonly turn_key: string;
   readonly turn_kind: "run_once";
 }
 
@@ -138,8 +184,13 @@ export interface BridgePort {
   assertAuthorityCrossing(payload: unknown): AuthorityCrossing;
   assertDecisionCrossing(payload: unknown): DecisionCrossing;
   assertEvidenceCrossing(payload: unknown): EvidenceCrossing;
-  isBridgeEnabled(events: readonly EventEnvelope[]): boolean;
-  prepareOutboundTurn(envelopeRef: unknown): BoundedTurnRequest;
+  isBridgeEnabled(source: unknown): boolean;
+  prepareOutboundTurn(
+    envelopeRef: unknown,
+    sessionBindingRef: unknown,
+    activationReceipt?: unknown,
+    authorityCrossing?: unknown,
+  ): BoundedTurnRequest;
   projectBridgeSnapshot(source: unknown): BridgeSnapshot;
 }
 
@@ -259,18 +310,188 @@ export function acceptTypedResult(ref: unknown): TypedResultAcceptance {
   };
 }
 
-export function prepareOutboundTurn(envelopeRef: unknown): BoundedTurnRequest {
+export function prepareOutboundTurn(
+  envelopeRef: unknown,
+  sessionBindingRef: unknown,
+  activationReceipt?: unknown,
+  authorityCrossing?: unknown,
+): BoundedTurnRequest {
   const envelope = requiredEnvelopeRef(envelopeRef);
+  const session = requiredSessionBindingRef(sessionBindingRef);
+  const activation =
+    activationReceipt === undefined
+      ? undefined
+      : assertBridgeActivationReceipt(activationReceipt);
+  const authority =
+    authorityCrossing === undefined
+      ? undefined
+      : requiredRunOnceAuthorityRef(authorityCrossing);
+  const turnKey = digestPayload({
+    ...(authority === undefined ? {} : { authority_ref: authority }),
+    envelope_ref: envelope,
+    loopx_baseline: LOOPX_RUN_ONCE_BASELINE,
+    session_binding_ref: session,
+  });
   return {
+    ...(activation === undefined
+      ? {}
+      : {
+          activation_receipt_ref: {
+            capability_digest: activation.capability_digest,
+            receipt_id: activation.receipt_id,
+          },
+          runtime_locator_ref: activation.runtime_locator_ref,
+        }),
     decision_ref: envelope.decision_ref,
     envelope_ref: envelope,
+    execution_allowed: false,
+    ...(authority === undefined ? {} : { authority_ref: authority }),
+    loopx_baseline: LOOPX_RUN_ONCE_BASELINE,
     max_invocations: 1,
+    session_binding_ref: session,
+    turn_key: turnKey,
     turn_kind: "run_once",
   };
 }
 
-export function isBridgeEnabled(_events: readonly EventEnvelope[]): boolean {
-  return false;
+function requiredRunOnceAuthorityRef(value: unknown): RunOnceAuthorityRef {
+  const object = requireObject(value, "run-once authority_ref");
+  rejectUnknownKeys(
+    object,
+    ["authority_id", "task_ref"],
+    "run-once authority_ref",
+  );
+  return {
+    authority_id: requiredText(object, "authority_id"),
+    task_ref: requiredText(object, "task_ref"),
+  };
+}
+
+export function assertBridgeActivationReceipt(
+  value: unknown,
+): BridgeActivationReceipt {
+  const object = requireObject(value, "bridge activation receipt");
+  rejectUnknownKeys(
+    object,
+    [
+      "adapter_id",
+      "adapter_version",
+      "capabilities",
+      "capability_digest",
+      "loopx_commit",
+      "loopx_release",
+      "observed_at",
+      "qualification",
+      "receipt_id",
+      "runtime_locator_ref",
+      "validator_id",
+    ],
+    "bridge activation receipt",
+  );
+  const capabilities = requireObject(
+    object["capabilities"],
+    "bridge activation capabilities",
+  );
+  rejectUnknownKeys(
+    capabilities,
+    [
+      "independent_typed_result_validator",
+      "durable_attempt_journal",
+      "readback",
+      "run_once",
+      "turn_plan",
+    ],
+    "bridge activation capabilities",
+  );
+  for (const field of [
+    "durable_attempt_journal",
+    "independent_typed_result_validator",
+    "readback",
+    "run_once",
+    "turn_plan",
+  ] as const) {
+    if (capabilities[field] !== true) {
+      throw new CommandError(
+        "HOST_CAPABILITY_REJECTED",
+        `LoopX adapter capability ${field} is not qualified`,
+      );
+    }
+  }
+  const adapterId = requiredText(object, "adapter_id");
+  const validatorId = requiredText(object, "validator_id");
+  if (adapterId === validatorId) {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "LoopX typed-result validator must be independent from the run-once adapter",
+    );
+  }
+  if (object["qualification"] !== "qualified") {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "LoopX run-once adapter is not qualified",
+    );
+  }
+  if (object["loopx_release"] !== LOOPX_RUN_ONCE_BASELINE.release) {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "LoopX release does not match the accepted baseline",
+    );
+  }
+  if (object["loopx_commit"] !== LOOPX_RUN_ONCE_BASELINE.commit) {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "LoopX commit does not match the accepted baseline",
+    );
+  }
+  const observedAt = optionalIso(object, "observed_at");
+  if (observedAt === undefined) {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "LoopX capability receipt requires an observed_at timestamp",
+    );
+  }
+  const runtimeLocatorRef = requiredText(object, "runtime_locator_ref");
+  if (!/^runtime:[A-Za-z0-9._~-]+$/.test(runtimeLocatorRef)) {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "LoopX runtime_locator_ref must be an opaque runtime reference, not a path",
+    );
+  }
+  const semantic = {
+    adapter_id: adapterId,
+    adapter_version: requiredText(object, "adapter_version"),
+    capabilities: {
+      durable_attempt_journal: true,
+      independent_typed_result_validator: true,
+      readback: true,
+      run_once: true,
+      turn_plan: true,
+    } as const,
+    loopx_commit: LOOPX_RUN_ONCE_BASELINE.commit,
+    loopx_release: LOOPX_RUN_ONCE_BASELINE.release,
+    observed_at: observedAt,
+    qualification: "qualified" as const,
+    receipt_id: requiredText(object, "receipt_id"),
+    runtime_locator_ref: runtimeLocatorRef,
+    validator_id: validatorId,
+  };
+  const capabilityDigest = requiredDigest(object, "capability_digest");
+  if (capabilityDigest !== digestPayload(semantic)) {
+    throw new CommandError(
+      "HOST_CAPABILITY_REJECTED",
+      "LoopX capability receipt digest does not match its qualified claims",
+    );
+  }
+  return { ...semantic, capability_digest: capabilityDigest };
+}
+
+export function isBridgeEnabled(source: unknown): boolean {
+  try {
+    assertBridgeActivationReceipt(source);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function projectBridgeSnapshot(source: unknown): BridgeSnapshot {
@@ -303,7 +524,6 @@ function snapshotFromView(view: CurrentView): BridgeSnapshot {
   const receipt = view.receipt.value;
   const typed = view.typed_result.value;
   const effect = view.first_durable_effect.value;
-  const lead = view.project_lead.value;
   const item = view.work_items[0];
   const draft: Omit<BridgeSnapshot, "content_digest"> = {
     ...(grant === null
@@ -326,9 +546,6 @@ function snapshotFromView(view: CurrentView): BridgeSnapshot {
     ...(effect === null || typeof effect.effect_id !== "string"
       ? {}
       : { effect_ref: { effect_id: effect.effect_id } }),
-    ...(lead === null
-      ? {}
-      : { session_binding_ref: { binding_id: lead.binding_id, generation: 1 } }),
     ...(item === undefined
       ? {}
       : {

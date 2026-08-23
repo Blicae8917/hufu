@@ -3,7 +3,7 @@
 状态：DeepSeek 原生插件路径已实现；契约测试声明运行于 `@deepseek-ai/cordis` `4.0.1`。
 LoopX 第一批机制已由 Module #9 按自有合同重写为须显式选用的机制记录口；完整控制面不采用。
 产品定位已由 [ADR 0006](adr/0006-upstream-positioning.md) 接受：Hufu 是 LoopX 下游的严格项目协调 Provider。
-核对本仍为 MIT `0.4.7`。
+LoopX RunOnce 当前 exact 兼容基线为 Apache-2.0 `v0.5.2` / `423035f402e2f1703f076c3cfe60c14c5803433f`；`0.4.7` 仅保留为 #9 第一批机制的历史研究基线。
 最后核对：2026-08-23
 
 本文件记录 Hufu 每个发布系列实际核对过的公开上游版本。它是动态兼容性记录，不是 Constitution；
@@ -15,7 +15,7 @@ LoopX 第一批机制已由 Module #9 按自有合同重写为须显式选用的
 | --- | --- | --- | --- | --- |
 | DeepSeek Harness | `deepseek-ai/deepseek-harness` | `47f943859bef60e4160492346772ded9b24f765a` | `@deepseek-ai/dsh` `0.1.0-rc.5` | 已核对基线保持 `47f9438` / rc.5。2026-08-16「提交未变」不成立：当日 `master` 实际停在 `5bb600f`。2026-08-19 观测 HEAD 为 `99f6f02` / `dsh-v0.1.0-rc.7`（超前基线 111 commits / 24 first-parent）。2026-08-22 再核 HEAD 为 `b150a551` / `dsh-v0.1.1-rc.2`（超前基线 854 commits / 101 first-parent）。rc.7、rc.8 与 `0.1.1-rc.2` 都不是已接受实现基线。插件契约测试使用隔离 mount/dispose，不声明浮动 `master` 支持。 |
 | DeepSeek 使用的 Cordis | DeepSeek Harness `vendor/cordis` | 同上 | `@deepseek-ai/cordis` `4.0.1` | 目标插件与生命周期基础；它是 DeepSeek 命名的实现，不等同于对其他 Cordis 项目的兼容承诺。 |
-| LoopX | `huangruiteng/loopx` | `58f545aee1ce00c57b7a4f21b13d78ee0367b3da` | `loopx` `0.4.7` | 已完成机制级核对（MIT）。不是 Hufu 任务正本。产品定位见 ADR 0006：Hufu 是 LoopX 下游的严格项目协调 Provider，不重复 Goal/Todo/Scheduler/Heartbeat 或完整 Web 控制面。本文件不改钉核对提交，也不授权实现 Hufu↔LoopX 桥或 Renderer。2026-08-16 公开 `main` HEAD 为 `8c103df` / `v0.4.8`（Apache-2.0），相对核对本超前 47 个提交。2026-08-19 观测 HEAD 为 `88f96da2` / `v0.4.9`，相对核对本超前 146 个提交，相对 `v0.4.8` 超前 99 个提交。2026-08-22 再核 HEAD 为 `02cb68bb`（`pyproject` `0.5.1`），相对核对本超前 294 个提交。手工记录的 LoopX HEAD 具有当日失效性，上述观测都不是已接受实现基线。#9 第一批机制已按 Hufu 自有合同重写交付，未复制上游源码、未引入 `loopx` 发行包。 |
+| LoopX | `huangruiteng/loopx` | `423035f402e2f1703f076c3cfe60c14c5803433f` | `loopx` `v0.5.2` | #68 RunOnce exact 兼容基线（Apache-2.0）。不是 Hufu 任务正本；Hufu 仍是 LoopX 下游的严格项目协调 Provider，不复制 Goal/Todo/Scheduler/Heartbeat。仅支持显式 activation、一次 bounded run-once、独立 Validator、耐久 attempt journal、Effect readback 与 Receipt；不引入 `loopx` 依赖或上游源码。#9 的 `58f545a…` / `0.4.7` 只作为历史机制研究基线保留。手工记录的 moving HEAD 具有当日失效性，旧 `v0.4.8` / `v0.4.9` / `0.5.1` 观测都不是本 RunOnce 已接受实现基线。 |
 
 DeepSeek Harness 当前目标工具链基线为 Node.js `^22.19.0 || >=24.0.0`、pnpm `11.7.0`、
 严格 TypeScript、ESM、Vitest、Oxlint 和 tsdown。Hufu 第一张实现 Module 的 Plan 必须重新核对这些值，
@@ -40,7 +40,7 @@ git rev-parse --is-shallow-repository    # 必须为 false 才能计数
 git rev-list --count 47f943859bef60e4160492346772ded9b24f765a..origin/master
 git rev-list --count --first-parent 47f943859bef60e4160492346772ded9b24f765a..origin/master
 git ls-remote https://github.com/huangruiteng/loopx
-git rev-list --count 58f545aee1ce00c57b7a4f21b13d78ee0367b3da..origin/main
+git rev-list --count 423035f402e2f1703f076c3cfe60c14c5803433f..origin/main
 ```
 
 ## 门禁核对表
@@ -187,7 +187,8 @@ DeepSeek Harness 当前不接受外部 Pull Request，官方建议通过 GitHub 
 - [Kimi Code 命令](https://moonshotai.github.io/kimi-code/en/reference/kimi-command)
 - [Kimi Code ACP](https://moonshotai.github.io/kimi-code/en/reference/kimi-acp.html)
 - [Grok Build Headless 与 ACP](https://docs.x.ai/build/cli/headless-scripting)
-- [LoopX 已接受机制核对基线](https://github.com/huangruiteng/loopx/tree/58f545aee1ce00c57b7a4f21b13d78ee0367b3da)
+- [LoopX v0.5.2 RunOnce exact 兼容基线](https://github.com/huangruiteng/loopx/tree/423035f402e2f1703f076c3cfe60c14c5803433f)
+- [LoopX #9 历史机制核对基线](https://github.com/huangruiteng/loopx/tree/58f545aee1ce00c57b7a4f21b13d78ee0367b3da)
 - [LoopX 2026-08-16 HEAD 观测（`v0.4.8`，非已接受基线）](https://github.com/huangruiteng/loopx/commit/8c103dfecae0f4424ecb0b07bad7cbc5f0797d6d)
 - [LoopX 2026-08-19 HEAD 观测（当时 `v0.4.9`，非已接受基线）](https://github.com/huangruiteng/loopx/commit/88f96da2674c2dc3d65d1b55597f17c196c00af7)
 - [LoopX 2026-08-22 HEAD 观测（`pyproject` `0.5.1`，非已接受基线；HEAD 具有当日失效性）](https://github.com/huangruiteng/loopx/commit/02cb68bb06fc811d41f207b62c5378249164f8c1)
