@@ -16,6 +16,7 @@ import { appendEvents, type EventDraft } from "../src/hufu/storage.js";
 const FIXED_NOW = "2026-08-23T16:00:00.000Z";
 const PRIVATE_PROMPT = "private prompt bytes must stay outside the ledger";
 const CONTENT_DIGEST = `sha256:${"a".repeat(64)}`;
+const REVISED_CONTENT_DIGEST = `sha256:${"b".repeat(64)}`;
 
 function withTempDir(run: (dir: string) => Promise<void>): Promise<void> {
   const dir = mkdtempSync(join(tmpdir(), "hufu-codex-app-v2-"));
@@ -139,9 +140,23 @@ function seedAuthority(
       event_type: "hufu/decision.packet_recorded",
       idempotency_key: `decision:${envelopeId}`,
       payload: {
+        acceptance_metric: "the Host action is prepared against the current decision",
+        authoritative_state: {
+          freshness: "fresh",
+          observed_at: "2026-08-23T15:59:00.000Z",
+          task_ref: workItemRef,
+        },
         authority_scope_ref: { grant_id: "grant:example", revision: 1 },
+        business_outcome: "exercise the Codex App Consumer contract",
         content_digest: CONTENT_DIGEST,
         decision_id: `decision:${envelopeId}`,
+        evidence_as_of: "2026-08-23T15:59:00.000Z",
+        non_goals: [],
+        recheck_when: { type: "implementation_activity" },
+        simplest_safe_route: "prepare then call Host then complete",
+        true_stoplines: [],
+        unknowns: [],
+        verified_facts: [],
         version: 1,
       },
     },
@@ -768,6 +783,92 @@ describe("Codex App Consumer v2 durable two-phase contract (#67)", () => {
         (error: unknown) =>
           error instanceof Error && "code" in error && error.code === "GRANT_SCOPE_EXCEEDED",
       );
+    });
+  });
+
+  it("uses the materialized current decision authority after a legal grant rebase", async () => {
+    await withTempDir(async (workspaceRoot) => {
+      seedAuthority(workspaceRoot, "envelope:rebase:v1", "work-item:rebase");
+      appendEvents(workspaceRoot, [
+        {
+          actor_binding_ref: "human:example",
+          event_type: "hufu/authorization_grant.issued",
+          idempotency_key: "grant:rebase:2",
+          payload: {
+            grant_id: "grant:example",
+            issuer_id: "human:example",
+            revision: 2,
+            scope: { project_id: "example-project" },
+            scope_text: "revised runtime scope",
+          },
+        },
+      ]);
+      const consumer = createCodexAppConsumerV2({
+        actorBindingRef: "binding:example-owner",
+        messageResolver: { resolve: () => "unused" },
+        now: () => new Date(FIXED_NOW),
+        workspaceResolver: workspaceResolver(),
+        workspaceRoot,
+      });
+      assert.throws(
+        () => consumer.prepareStart(
+          { content_digest: CONTENT_DIGEST, envelope_id: "envelope:rebase:v1" },
+          "owner",
+          {
+            authority_ref: "grant:example",
+            channel: "codex-app",
+            work_item_ref: "work-item:rebase",
+            workspace_ref: "workspace:example",
+          },
+          "start-before-decision-rebase",
+        ),
+        (error: unknown) =>
+          error instanceof Error && "code" in error && error.code === "GRANT_SCOPE_EXCEEDED",
+      );
+
+      appendEvents(workspaceRoot, [
+        {
+          actor_binding_ref: "human:example",
+          event_type: "hufu/decision.decision_delta",
+          idempotency_key: "decision:envelope:rebase:v1:2",
+          payload: {
+            changed_fields: {
+              authority_scope_ref: { grant_id: "grant:example", revision: 2 },
+            },
+            content_digest: REVISED_CONTENT_DIGEST,
+            decision_id: "decision:envelope:rebase:v1",
+            expected_version: 1,
+            new_version: 2,
+          },
+        },
+        {
+          actor_binding_ref: "human:example",
+          event_type: "hufu/decision.envelope_attached",
+          idempotency_key: "envelope:rebase:v2",
+          payload: {
+            content_digest: REVISED_CONTENT_DIGEST,
+            decision_id: "decision:envelope:rebase:v1",
+            envelope_id: "envelope:rebase:v2",
+            executor_principal_id: "agent:example",
+            version: 2,
+            work_item_ids: ["work-item:rebase"],
+          },
+        },
+      ]);
+
+      const prepared = consumer.prepareStart(
+        { content_digest: REVISED_CONTENT_DIGEST, envelope_id: "envelope:rebase:v2" },
+        "owner",
+        {
+          authority_ref: "grant:example",
+          channel: "codex-app",
+          work_item_ref: "work-item:rebase",
+          workspace_ref: "workspace:example",
+        },
+        "start-after-rebase",
+      );
+
+      assert.equal(prepared.call.tool, "create_thread");
     });
   });
 

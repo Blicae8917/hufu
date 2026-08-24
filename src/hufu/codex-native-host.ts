@@ -1,4 +1,5 @@
 import { digestPayload } from "./digest.js";
+import { materializeDecision } from "./decision-state.js";
 import { type EventEnvelope } from "./envelope.js";
 import { CommandError } from "./errors.js";
 import { mutateLedger, readLedger } from "./storage.js";
@@ -2316,12 +2317,15 @@ function assertStartAuthority(
     );
   }
 
-  const packet = events.find(
-    (event) =>
-      event.event_type === "hufu/decision.packet_recorded" &&
-      event.payload["decision_id"] === decisionId,
-  );
-  const authorityScope = asRecord(packet?.payload["authority_scope_ref"]);
+  const materialized =
+    decisionId === undefined ? undefined : materializeDecision(events, decisionId);
+  if (materialized === undefined || materialized.conflict) {
+    throw new CommandError(
+      "DATA_INSUFFICIENT",
+      "current materialized decision authority is unavailable",
+    );
+  }
+  const authorityScope = asRecord(materialized.semantic["authority_scope_ref"]);
   if (
     authorityScope?.["grant_id"] !== grantId ||
     authorityScope["revision"] !== grantRevision
